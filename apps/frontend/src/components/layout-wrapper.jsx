@@ -7,14 +7,16 @@ import Footer from '@/components/footer';
 export default function LayoutWrapper({ children }) {
   const pathname = usePathname();
   const isUniversityPage = pathname?.startsWith('/university');
+  const isStudentPage = pathname?.startsWith('/student');
+  const isProtectedPage = isUniversityPage || isStudentPage;
   
   return (
     <div className="min-h-screen flex flex-col">
-      {!isUniversityPage && <Navbar />}
+      {!isProtectedPage && <Navbar />}
       <main className="flex-1">
         {children}
       </main>
-      {!isUniversityPage && <Footer />}
+      {!isProtectedPage && <Footer />}
     </div>
   );
 } 
