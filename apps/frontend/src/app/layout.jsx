@@ -1,8 +1,9 @@
 import { Inter } from "next/font/google"
 import "./globals.css"
+import "@solana/wallet-adapter-react-ui/styles.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import Navbar from "@/components/navbar"
-import Footer from "@/components/footer"
+import SolanaWalletProvider from "@/components/wallet/wallet-provider"
+import LayoutWrapper from "@/components/layout-wrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -52,17 +53,15 @@ export default function RootLayout({ children }) {
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
-          <div className="min-h-screen flex flex-col">
-            <Navbar />
-            <main className="flex-1">
+          <SolanaWalletProvider>
+            <LayoutWrapper>
               {children}
-            </main>
-            <Footer />
-          </div>
+            </LayoutWrapper>
+          </SolanaWalletProvider>
         </ThemeProvider>
       </body>
     </html>
