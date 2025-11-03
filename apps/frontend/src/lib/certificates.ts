@@ -7,6 +7,7 @@ export interface Achievement {
 export interface Certificate {
   id: string;
   studentName: string;
+  studentNIC: string;
   universityName: string;
   degreeTitle: string;
   gpa: number;
@@ -27,6 +28,7 @@ export const mockCertificates: Record<string, Certificate> = {
   "abc123": {
     id: "abc123",
     studentName: "Sarah Johnson",
+    studentNIC: "1234567890",
     universityName: "MIT",
     degreeTitle: "Bachelor of Science in Computer Science",
     gpa: 3.9,
@@ -48,6 +50,7 @@ export const mockCertificates: Record<string, Certificate> = {
   "def456": {
     id: "def456",
     studentName: "Michael Chen",
+    studentNIC: "1234567890",
     universityName: "Stanford University",
     degreeTitle: "Master of Science in Artificial Intelligence",
     gpa: 3.8,
@@ -68,6 +71,7 @@ export const mockCertificates: Record<string, Certificate> = {
   "ghi789": {
     id: "ghi789",
     studentName: "Emily Rodriguez",
+    studentNIC: "1234567890",
     universityName: "Harvard University",
     degreeTitle: "Bachelor of Arts in Economics",
     gpa: 3.7,
