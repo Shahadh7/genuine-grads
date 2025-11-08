@@ -1,0 +1,209 @@
+// Shared Central Database Schema
+// Contains: Universities, Admins, GlobalStudentIndex, MintActivityLog, RevokedCertIndex
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/shared"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("SHARED_DATABASE_URL")
+}
+
+enum UniversityStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum MintStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+// Universities registered on the platform
+model University {
+  id                  String            @id @default(cuid())
+  name                String
+  domain              String            @unique // e.g., "mit.edu"
+  country             String
+  logoUrl             String?
+  websiteUrl          String?
+  
+  // Blockchain
+  walletAddress       String            @unique // Solana public key (derived from private key)
+  privateKeyEncrypted String?           // Encrypted with MASTER_ENCRYPTION_KEY
+  merkleTreeAddress   String?           @unique // Bubblegum Merkle tree PDA
+  
+  // Approval status
+  status              UniversityStatus  @default(PENDING_APPROVAL)
+  approvedAt          DateTime?
+  approvedBy          String?           // Admin ID
+  rejectedReason      String?
+  
+  // Private database connection for this university
+  databaseUrl         String?           // Connection string to university's private DB
+  databaseName        String?           // Database name (e.g., "genuinegrads_mit")
+  
+  // Relationships
+  admins              Admin[]
+  globalStudents      GlobalStudentIndex[]
+  mintLogs            MintActivityLog[]
+  revokedCerts        RevokedCertIndex[]
+  
+  // Metadata
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  
+  @@index([domain])
+  @@index([status])
+  @@index([walletAddress])
+  @@map("universities")
+}
+
+// Platform and University admins
+model Admin {
+  id                String      @id @default(cuid())
+  
+  // University relationship (null for super admin)
+  universityId      String?
+  university        University? @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  
+  // Credentials
+  username          String      @unique
+  email             String      @unique
+  passwordHash      String
+  
+  // Role
+  isSuperAdmin      Boolean     @default(false)
+  
+  // Profile
+  fullName          String?
+  phoneNumber       String?
+  
+  // Security
+  isActive          Boolean     @default(true)
+  lastLoginAt       DateTime?
+  failedLoginAttempts Int       @default(0)
+  lockedUntil       DateTime?
+  
+  // Metadata
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  @@index([email])
+  @@index([universityId])
+  @@map("admins")
+}
+
+// Global student registry (prevents duplicate registrations across universities)
+model GlobalStudentIndex {
+  id                    String      @id @default(cuid())
+  
+  // Unique identifiers
+  nicHash               String      @unique // SHA-256 hash of National ID Card
+  walletAddress         String?     @unique // Solana wallet address
+  
+  // Creator university
+  createdByUniversityId String
+  createdByUniversity   University  @relation(fields: [createdByUniversityId], references: [id])
+  
+  // Encrypted metadata (for privacy)
+  encryptedEmail        String?     // AES encrypted email
+  
+  // Metadata
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+  
+  @@index([nicHash])
+  @@index([walletAddress])
+  @@map("global_student_index")
+}
+
+// Logs all cNFT minting activities across all universities
+model MintActivityLog {
+  id                    String      @id @default(cuid())
+  
+  // Student and university info
+  studentWallet         String
+  universityId          String
+  university            University  @relation(fields: [universityId], references: [id])
+  
+  // Certificate info
+  badgeTitle            String
+  certificateNumber     String?
+  
+  // Blockchain data
+  mintAddress           String      @unique // Compressed NFT asset ID
+  merkleTreeAddress     String?
+  transactionSignature  String?     @unique
+  
+  // Status
+  status                MintStatus  @default(PENDING)
+  errorMessage          String?     @db.Text
+  
+  // Metadata
+  ipfsUri               String?
+  metadataJson          String?     @db.Text
+  
+  // Timestamps
+  timestamp             DateTime    @default(now())
+  confirmedAt           DateTime?
+  
+  @@index([studentWallet])
+  @@index([universityId])
+  @@index([mintAddress])
+  @@index([status])
+  @@index([timestamp])
+  @@map("mint_activity_logs")
+}
+
+// Centralized revocation registry (checked during public verification)
+model RevokedCertIndex {
+  id                    String      @id @default(cuid())
+  
+  // Certificate identifier
+  mintAddress           String      @unique // The cNFT asset ID
+  certificateNumber     String?
+  
+  // Revocation info
+  revokedByUniversityId String
+  revokedByUniversity   University  @relation(fields: [revokedByUniversityId], references: [id])
+  revokedByAdminId      String?     // Which admin performed the revocation
+  
+  // Reason and metadata
+  reason                String
+  studentWallet         String?
+  
+  // Timestamps
+  revokedAt             DateTime    @default(now())
+  
+  @@index([mintAddress])
+  @@index([revokedByUniversityId])
+  @@index([revokedAt])
+  @@map("revoked_cert_index")
+}
+
+// Webhook logs from Helius
+model WebhookLog {
+  id                    String      @id @default(cuid())
+  
+  webhookType           String      // "mint", "burn", "transfer"
+  signature             String      @unique
+  mintAddress           String?
+  
+  payload               String      @db.Text // JSON payload from Helius
+  processed             Boolean     @default(false)
+  
+  createdAt             DateTime    @default(now())
+  processedAt           DateTime?
+  
+  @@index([webhookType])
+  @@index([processed])
+  @@index([createdAt])
+  @@map("webhook_logs")
+}
+

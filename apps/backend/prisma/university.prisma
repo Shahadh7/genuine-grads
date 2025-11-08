@@ -1,0 +1,328 @@
+// Private University Database Schema
+// Each university has its own isolated database with this schema
+// Contains: Students, Courses, Enrollments, Achievements, Certificates, ZKPProofRequests
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/university"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("UNIVERSITY_DATABASE_URL")
+}
+
+// Students enrolled in this university
+model Student {
+  id              String        @id @default(cuid())
+  
+  // Identifiers
+  walletAddress   String?       @unique // Solana wallet address
+  email           String        @unique
+  nicHash         String        @unique // SHA-256 hash (links to GlobalStudentIndex)
+  
+  // Personal info
+  fullName        String
+  studentNumber   String        @unique // University-specific ID
+  program         String?       // e.g., "Computer Science"
+  department      String?       // e.g., "Engineering"
+  enrollmentYear  Int?
+  graduationYear  Int?
+  
+  // Profile
+  profilePicUrl   String?
+  phoneNumber     String?
+  address         String?
+  
+  // Status
+  isActive        Boolean       @default(true)
+  
+  // Relationships
+  enrollments     Enrollment[]
+  certificates    Certificate[]
+  zkpRequests     ZKPProofRequest[]
+  
+  // Metadata
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([walletAddress])
+  @@index([email])
+  @@index([nicHash])
+  @@index([studentNumber])
+  @@map("students")
+}
+
+// Courses offered by the university
+model Course {
+  id              String        @id @default(cuid())
+  
+  // Course info
+  name            String
+  code            String        @unique
+  description     String?       @db.Text
+  credits         Int?
+  semester        String?       // "Fall 2024", "Spring 2025"
+  
+  // Department
+  department      String?
+  level           String?       // "Undergraduate", "Graduate"
+  
+  // Relationships
+  enrollments     Enrollment[]
+  
+  // Metadata
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@index([code])
+  @@index([department])
+  @@map("courses")
+}
+
+// Student course enrollments
+model Enrollment {
+  id              String        @id @default(cuid())
+  
+  // Relations
+  studentId       String
+  student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  courseId        String
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  // Academic details
+  gpa             Float?
+  grade           String?       // "A", "B+", etc.
+  batchYear       Int
+  semester        String?
+  
+  // Status
+  status          String        @default("ACTIVE") // ACTIVE, COMPLETED, DROPPED
+  completedAt     DateTime?
+  
+  // Relationships
+  achievements    Achievement[]
+  certificates    Certificate[]
+  
+  // Metadata
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  @@unique([studentId, courseId, batchYear])
+  @@index([studentId])
+  @@index([courseId])
+  @@index([batchYear])
+  @@map("enrollments")
+}
+
+// Student achievements (badges, honors, awards)
+model Achievement {
+  id                  String        @id @default(cuid())
+  
+  // Relations
+  enrollmentId        String?
+  enrollment          Enrollment?   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  
+  // Achievement details
+  badgeTitle          String
+  description         String?       @db.Text
+  badgeType           String?       // "ACADEMIC", "EXTRACURRICULAR", "RESEARCH", "LEADERSHIP"
+  semester            String?
+  achievementDate     DateTime?
+  
+  // ZKP support for privacy-preserving proofs
+  zkpCommitmentHash   String?       // Hash commitment for ZK proofs
+  zkpPublicInputs     String?       @db.Text // JSON of public inputs
+  proofGenerated      Boolean       @default(false)
+  
+  // Icon/image
+  iconUrl             String?
+  
+  // Relationships
+  zkpRequests         ZKPProofRequest[]
+  
+  // Metadata
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  @@index([enrollmentId])
+  @@index([badgeType])
+  @@map("achievements")
+}
+
+// Issued certificates (references to cNFTs on Solana)
+model Certificate {
+  id                  String        @id @default(cuid())
+  
+  // Relations
+  studentId           String
+  student             Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  enrollmentId        String?
+  enrollment          Enrollment?   @relation(fields: [enrollmentId], references: [id])
+  
+  // Certificate details
+  certificateNumber   String        @unique
+  badgeTitle          String
+  description         String?       @db.Text
+  degreeType          String?       // "Bachelor", "Master", "PhD", "Diploma", "Certificate"
+  
+  // Blockchain references
+  mintAddress         String        @unique // Compressed NFT asset ID on Solana
+  merkleTreeAddress   String?       // Bubblegum Merkle tree address
+  leafIndex           BigInt?       // Position in Merkle tree
+  ipfsMetadataUri     String        // IPFS URI for metadata
+  transactionSignature String?      @unique
+  
+  // Certificate metadata (flexible JSON)
+  metadataJson        String        @db.Text // Full certificate metadata
+  
+  // Achievements included in this certificate
+  achievementIds      String[]      // Array of achievement IDs
+  
+  // Status
+  status              String        @default("PENDING") // PENDING, MINTED, FAILED
+  issuedAt            DateTime      @default(now())
+  expiryDate          DateTime?
+  
+  // Revocation (also tracked in shared DB)
+  revoked             Boolean       @default(false)
+  revokedAt           DateTime?
+  revocationReason    String?
+  
+  // Issued by
+  issuedByAdminId     String?
+  
+  // Metadata
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  
+  @@index([studentId])
+  @@index([mintAddress])
+  @@index([certificateNumber])
+  @@index([status])
+  @@index([revoked])
+  @@map("certificates")
+}
+
+// ZKP proof requests for selective disclosure
+model ZKPProofRequest {
+  id                String        @id @default(cuid())
+  
+  // Relations
+  studentId         String
+  student           Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  achievementId     String?
+  achievement       Achievement?  @relation(fields: [achievementId], references: [id])
+  
+  // Proof details
+  claimType         String        // e.g., "GPA_ABOVE_3_5", "DEGREE_OBTAINED", "HAS_BADGE"
+  claimData         String?       @db.Text // JSON of claim parameters
+  
+  // ZK proof data (generated by student)
+  proofJson         String?       @db.Text // Full ZK proof
+  publicInputs      String?       @db.Text // Public inputs for verification
+  
+  // Verification
+  verified          Boolean       @default(false)
+  verifiedAt        DateTime?
+  verificationResult String?      @db.Text
+  
+  // Requester info (employer, etc.)
+  requesterEmail    String?
+  requesterCompany  String?
+  purpose           String?       // Why this proof is needed
+  
+  // Expiry
+  expiresAt         DateTime
+  
+  // Share link (optional)
+  shareToken        String?       @unique
+  shareUrl          String?
+  
+  // Metadata
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  @@index([studentId])
+  @@index([achievementId])
+  @@index([verified])
+  @@index([expiresAt])
+  @@index([shareToken])
+  @@map("zkp_proof_requests")
+}
+
+// Certificate templates for standardized issuance
+model CertificateTemplate {
+  id                String        @id @default(cuid())
+  
+  // Template info
+  name              String        // e.g., "Bachelor of Science"
+  degreeType        String        // "Bachelor", "Master", "PhD", "Diploma"
+  description       String?       @db.Text
+  
+  // Template fields (JSON schema)
+  templateFields    String        @db.Text // JSON: { "gpa": "number", "honors": "string", etc }
+  
+  // Design
+  designTemplate    String?       @db.Text // SVG or design specification
+  backgroundImage   String?       // URL to background image
+  
+  // Status
+  isActive          Boolean       @default(true)
+  
+  // Usage stats
+  timesUsed         Int           @default(0)
+  
+  // Metadata
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  
+  @@index([degreeType])
+  @@index([isActive])
+  @@map("certificate_templates")
+}
+
+// Batch certificate issuance jobs
+model BatchIssuanceJob {
+  id                String        @id @default(cuid())
+  
+  // Job details
+  jobId             String        @unique // For queue tracking
+  batchName         String?
+  totalStudents     Int
+  
+  // Progress
+  status            String        @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, PAUSED
+  processedCount    Int           @default(0)
+  successCount      Int           @default(0)
+  failedCount       Int           @default(0)
+  
+  // Student IDs in this batch
+  studentIds        String[]
+  
+  // Configuration
+  templateId        String?
+  certificateData   String?       @db.Text // JSON of common certificate data
+  
+  // Results
+  resultsJson       String?       @db.Text // JSON array of results
+  errorLog          String?       @db.Text
+  
+  // Timestamps
+  createdAt         DateTime      @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+  
+  // Created by
+  createdByAdminId  String?
+  
+  @@index([jobId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("batch_issuance_jobs")
+}
+
