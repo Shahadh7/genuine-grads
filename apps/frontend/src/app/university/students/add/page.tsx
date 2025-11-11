@@ -54,6 +54,16 @@ export default function AddStudentPage(): React.JSX.Element {
     department: '',
     enrollmentYear: new Date().getFullYear().toString(),
     walletAddress: '',
+    courseCode: '',
+    courseName: '',
+    courseDescription: '',
+    courseCredits: '',
+    courseSemester: '',
+    degreeType: '',
+    enrollmentSemester: '',
+    enrollmentStatus: 'ACTIVE',
+    enrollmentGpa: '',
+    enrollmentGrade: '',
   });
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -257,9 +267,25 @@ export default function AddStudentPage(): React.JSX.Element {
         studentNumber: formData.studentNumber.trim(),
         nationalId: formData.nationalId.trim(),
         walletAddress: formData.walletAddress.trim(),
-        program: formData.program || undefined,
-        department: formData.department || undefined,
-        enrollmentYear: formData.enrollmentYear ? Number(formData.enrollmentYear) : undefined,
+        program: formData.program.trim(),
+        department: formData.department.trim(),
+        enrollmentYear: Number(formData.enrollmentYear),
+        primaryEnrollment: {
+          course: {
+            code: formData.courseCode.trim(),
+            name: formData.courseName.trim(),
+            description: formData.courseDescription.trim() || undefined,
+            credits: formData.courseCredits ? Number(formData.courseCredits) : undefined,
+            semester: formData.courseSemester.trim() || undefined,
+            department: formData.department.trim(),
+            degreeType: formData.degreeType.trim(),
+          },
+          batchYear: Number(formData.enrollmentYear),
+          semester: formData.enrollmentSemester.trim() || undefined,
+          status: formData.enrollmentStatus.trim() || undefined,
+          gpa: formData.enrollmentGpa ? Number(formData.enrollmentGpa) : undefined,
+          grade: formData.enrollmentGrade.trim() || undefined,
+        },
         achievements: selectedAchievements.map((achievement) =>
           achievement.id
             ? {
@@ -307,6 +333,9 @@ export default function AddStudentPage(): React.JSX.Element {
     formData.department.trim().length > 0 &&
     formData.enrollmentYear.trim().length > 0 &&
     !Number.isNaN(Number(formData.enrollmentYear)) &&
+    formData.courseCode.trim().length > 0 &&
+    formData.courseName.trim().length > 0 &&
+    formData.degreeType.trim().length > 0 &&
     formData.walletAddress.trim().length > 0;
 
   if (guardLoading) {
@@ -473,6 +502,93 @@ export default function AddStudentPage(): React.JSX.Element {
                   )}
                 </div>
 
+            {/* Primary Course Details */}
+            <div className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="space-y-3">
+                  <Label htmlFor="courseCode" className="text-sm font-medium">
+                    Primary Course Code <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="courseCode"
+                    placeholder="e.g. CSC-401"
+                    value={formData.courseCode}
+                    onChange={(e: any) => handleInputChange('courseCode', e.target.value)}
+                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                    required
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="courseName" className="text-sm font-medium">
+                    Primary Course Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="courseName"
+                    placeholder="e.g. Bachelor of Science in Computer Science"
+                    value={formData.courseName}
+                    onChange={(e: any) => handleInputChange('courseName', e.target.value)}
+                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                    required
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="degreeType" className="text-sm font-medium">
+                    Degree Type <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="degreeType"
+                    placeholder="e.g. Bachelor"
+                    value={formData.degreeType}
+                    onChange={(e: any) => handleInputChange('degreeType', e.target.value)}
+                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="grid gap-6 md:grid-cols-3">
+                <div className="space-y-3">
+                  <Label htmlFor="courseCredits" className="text-sm font-medium">
+                    Course Credits
+                  </Label>
+                  <Input
+                    id="courseCredits"
+                    type="number"
+                    min="0"
+                    max="60"
+                    step="0.5"
+                    placeholder="e.g. 120"
+                    value={formData.courseCredits}
+                    onChange={(e: any) => handleInputChange('courseCredits', e.target.value)}
+                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="courseSemester" className="text-sm font-medium">
+                    Course Semester
+                  </Label>
+                  <Input
+                    id="courseSemester"
+                    placeholder="e.g. Fall 2025"
+                    value={formData.courseSemester}
+                    onChange={(e: any) => handleInputChange('courseSemester', e.target.value)}
+                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-3">
+                  <Label htmlFor="courseDescription" className="text-sm font-medium">
+                    Course Description
+                  </Label>
+                  <Input
+                    id="courseDescription"
+                    placeholder="Brief description (optional)"
+                    value={formData.courseDescription}
+                    onChange={(e: any) => handleInputChange('courseDescription', e.target.value)}
+                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                  />
+                </div>
+              </div>
+            </div>
+
                 {/* Department and Enrollment Year */}
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-3">
@@ -506,6 +622,70 @@ export default function AddStudentPage(): React.JSX.Element {
                     />
                   </div>
                 </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-3">
+                <Label htmlFor="enrollmentStatus" className="text-sm font-medium">
+                  Enrollment Status
+                </Label>
+                <Select
+                  value={formData.enrollmentStatus}
+                  onValueChange={(value) => handleInputChange('enrollmentStatus', value)}
+                >
+                  <SelectTrigger className="h-11 bg-background/50 border-muted focus:border-primary">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="DROPPED">Dropped</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="enrollmentSemester" className="text-sm font-medium">
+                  Current Semester
+                </Label>
+                <Input
+                  id="enrollmentSemester"
+                  placeholder="e.g. Semester 7"
+                  value={formData.enrollmentSemester}
+                  onChange={(e: any) => handleInputChange('enrollmentSemester', e.target.value)}
+                  className="h-11 bg-background/50 border-muted focus:border-primary"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-3">
+                <Label htmlFor="enrollmentGpa" className="text-sm font-medium">
+                  Cumulative GPA
+                </Label>
+                <Input
+                  id="enrollmentGpa"
+                  type="number"
+                  min="0"
+                  max="4"
+                  step="0.01"
+                  placeholder="e.g. 3.75"
+                  value={formData.enrollmentGpa}
+                  onChange={(e: any) => handleInputChange('enrollmentGpa', e.target.value)}
+                  className="h-11 bg-background/50 border-muted focus:border-primary"
+                />
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="enrollmentGrade" className="text-sm font-medium">
+                  Final Grade
+                </Label>
+                <Input
+                  id="enrollmentGrade"
+                  placeholder="e.g. First Class"
+                  value={formData.enrollmentGrade}
+                  onChange={(e: any) => handleInputChange('enrollmentGrade', e.target.value)}
+                  className="h-11 bg-background/50 border-muted focus:border-primary"
+                />
+              </div>
+            </div>
 
                 {/* Wallet Address */}
                 <div className="space-y-3">

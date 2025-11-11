@@ -1,6 +1,7 @@
 import { GraphQLError } from 'graphql';
 import { GraphQLContext, requireUniversityAdmin, requireUniversityDb } from '../../context.js';
 import { sharedDb } from '../../../db/shared.client.js';
+import { logger } from '../../../utils/logger.js';
 
 interface CertificatesFilter {
   status?: string;
@@ -128,11 +129,13 @@ export const certificateQueries = {
     requireUniversityAdmin(context);
     const universityDb = requireUniversityDb(context);
 
-    return await universityDb.certificateTemplate.findMany({
+    const templates = await universityDb.certificateTemplate.findMany({
       orderBy: {
         createdAt: 'desc',
       },
     });
+
+    return templates.map((template) => parseTemplate(template));
   },
 
   /**
@@ -152,7 +155,7 @@ export const certificateQueries = {
       });
     }
 
-    return template;
+    return parseTemplate(template);
   },
 
   /**
@@ -299,4 +302,40 @@ export const certificateQueries = {
     return job;
   },
 };
+
+function parseTemplate(template: any) {
+  if (!template) {
+    return template;
+  }
+
+  let parsedFields: Record<string, unknown> = {};
+  if (typeof template.templateFields === 'string') {
+    try {
+      parsedFields = JSON.parse(template.templateFields);
+    } catch (error) {
+      logger.warn({ templateId: template.id, error }, 'Failed to parse templateFields JSON');
+      parsedFields = {};
+    }
+  } else if (template.templateFields) {
+    parsedFields = template.templateFields;
+  }
+
+  let parsedDesign: Record<string, unknown> | null = null;
+  if (typeof template.designTemplate === 'string') {
+    try {
+      parsedDesign = JSON.parse(template.designTemplate);
+    } catch (error) {
+      logger.warn({ templateId: template.id, error }, 'Failed to parse designTemplate JSON');
+      parsedDesign = null;
+    }
+  } else if (template.designTemplate) {
+    parsedDesign = template.designTemplate;
+  }
+
+  return {
+    ...template,
+    templateFields: parsedFields,
+    designTemplate: parsedDesign,
+  };
+}
 

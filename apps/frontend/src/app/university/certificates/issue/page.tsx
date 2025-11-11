@@ -1,303 +1,402 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { graphqlClient } from '@/lib/graphql-client';
+import { useToast } from '@/hooks/useToast';
 import {
-  Upload,
   ArrowLeft,
-  AlertTriangle,
   CheckCircle,
-  FileText,
-  FileSpreadsheet,
+  Loader2,
   RefreshCw,
   ShieldCheck,
+  SkipForward,
 } from 'lucide-react';
-import { graphqlClient } from '@/lib/graphql-client';
 
-type RowStatus = 'PENDING' | 'READY' | 'ISSUED' | 'ERROR';
+type TemplateFieldMap = Record<string, string>;
 
-interface BulkCertificateRow {
-  rowNumber: number;
-  studentNumber: string;
-  nationalId: string;
-  badgeTitle: string;
+const STUDENT_PAGE_SIZE = 25;
+
+type HydrationOptions = {
+  template?: any;
   degreeType?: string;
-  description?: string;
-  metadata: Record<string, string>;
-  walletAddress?: string;
-  studentId?: string;
-  status: RowStatus;
-  errors: string[];
-  issueError?: string;
-  certificateId?: string;
+  badgeTitle?: string;
+};
+
+function parseTemplateFields(templateFields: unknown): TemplateFieldMap {
+  if (!templateFields) {
+    return {};
+  }
+
+  if (typeof templateFields === 'string') {
+    try {
+      return JSON.parse(templateFields);
+    } catch (error) {
+      console.error('Failed to parse template fields JSON:', error);
+      return {};
+    }
+  }
+
+  return templateFields as TemplateFieldMap;
 }
 
-const REQUIRED_HEADERS = ['studentNumber', 'nationalId', 'badgeTitle'];
-const RESERVED_HEADERS = new Set([
-  ...REQUIRED_HEADERS,
-  'degreeType',
-  'description',
-  'walletAddress',
-]);
+function stringifyValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  return String(value);
+}
+
+function castMetadataValue(value: string, expectedType: string | undefined) {
+  if (!expectedType || expectedType === 'string' || expectedType === 'any') {
+    return value;
+  }
+  if (expectedType === 'number') {
+    const numeric = Number(value);
+    return Number.isNaN(numeric) ? null : numeric;
+  }
+  if (expectedType === 'boolean') {
+    return value === 'true';
+  }
+  return value;
+}
+
+function hydrateTemplateMetadata(
+  student: any,
+  templateFieldMap: TemplateFieldMap,
+  options: HydrationOptions = {}
+): Record<string, string> {
+  const enrollment = student?.enrollments?.[0] ?? null;
+  const course = enrollment?.course ?? null;
+
+  const resolvedDegreeType = options.degreeType ?? options.template?.degreeType ?? '';
+  const resolvedBadgeTitle = options.badgeTitle ?? course?.name ?? options.template?.name ?? '';
+
+  const derived: Record<string, string> = {};
+
+  Object.keys(templateFieldMap).forEach((field) => {
+    const key = field.toLowerCase();
+    let value: unknown = '';
+
+    switch (key) {
+      case 'studentname':
+        value = student?.fullName ?? '';
+        break;
+      case 'email':
+        value = student?.email ?? '';
+        break;
+      case 'program':
+        value = student?.program ?? '';
+        break;
+      case 'department':
+        value = student?.department ?? '';
+        break;
+      case 'enrollmentyear':
+      case 'batchyear':
+        value = enrollment?.batchYear ?? student?.enrollmentYear ?? '';
+        break;
+      case 'semester':
+      case 'enrollmentsemester':
+        value = enrollment?.semester ?? '';
+        break;
+      case 'gpa':
+        value = enrollment?.gpa ?? '';
+        break;
+      case 'grade':
+        value = enrollment?.grade ?? '';
+        break;
+      case 'coursename':
+        value = course?.name ?? '';
+        break;
+      case 'coursecode':
+        value = course?.code ?? '';
+        break;
+      case 'coursedescription':
+        value = course?.description ?? '';
+        break;
+      case 'coursedepartment':
+        value = course?.department ?? '';
+        break;
+      case 'degree':
+      case 'degreetype':
+        value = resolvedDegreeType;
+        break;
+      case 'walletaddress':
+        value = student?.walletAddress ?? '';
+        break;
+      case 'certificatebadge':
+        value = resolvedBadgeTitle;
+        break;
+      default:
+        value = '';
+    }
+
+    derived[field] = stringifyValue(value);
+  });
+
+  return derived;
+}
 
 export default function IssueCertificatePage(): React.JSX.Element {
-  const [rows, setRows] = useState<BulkCertificateRow[]>([]);
-  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
-  const [globalMessage, setGlobalMessage] = useState<string | null>(null);
-  const [loadingLookup, setLoadingLookup] = useState<boolean>(false);
-  const [processingRow, setProcessingRow] = useState<number | null>(null);
+  const toast = useToast();
+  const [students, setStudents] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [metadataForm, setMetadataForm] = useState<Record<string, string>>({});
+  const [badgeTitle, setBadgeTitle] = useState<string>('');
+  const [degreeType, setDegreeType] = useState<string>('');
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [fetching, setFetching] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const activeStudent = students[currentIndex] ?? null;
+  const activeTemplate = useMemo(
+    () => templates.find((template) => template.id === selectedTemplateId) ?? null,
+    [templates, selectedTemplateId]
+  );
+  const templateFields = useMemo(
+    () => parseTemplateFields(activeTemplate?.templateFields),
+    [activeTemplate]
+  );
 
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const csvContent = (e.target?.result as string) || '';
-      const lines = csvContent.split(/\r?\n/).filter((line) => line.trim().length > 0);
-
-      if (lines.length < 2) {
-        setUploadErrors(['The uploaded CSV must include a header row and at least one data row.']);
+  const initializeForm = useCallback(
+    (student: any, template: any) => {
+      if (!student || !template) {
+        setMetadataForm({});
         return;
       }
 
-      const headers = lines[0].split(',').map((header) => header.trim());
+      const fields = parseTemplateFields(template.templateFields);
+      const enrollment = student?.enrollments?.[0] ?? null;
+      const defaultBadgeTitle = enrollment?.course?.name ?? template.name ?? '';
+      const defaultDegreeType = template.degreeType ?? '';
 
-      const missingHeaders = REQUIRED_HEADERS.filter((header) => !headers.includes(header));
-      if (missingHeaders.length > 0) {
-        setUploadErrors([
-          `Missing required column${missingHeaders.length > 1 ? 's' : ''}: ${missingHeaders.join(', ')}`,
-        ]);
-        return;
-      }
+      setBadgeTitle(defaultBadgeTitle);
+      setDegreeType(defaultDegreeType);
+      setMetadataForm(
+        hydrateTemplateMetadata(student, fields, {
+          template,
+          degreeType: defaultDegreeType,
+          badgeTitle: defaultBadgeTitle,
+        })
+      );
+    },
+    []
+  );
 
-      const parsedRows: BulkCertificateRow[] = [];
-      const validationErrors: string[] = [];
+  const loadData = useCallback(async () => {
+    setFetching(true);
+    setError(null);
+    setStatusMessage(null);
 
-      lines.slice(1).forEach((line, index) => {
-        const values = line.split(',').map((value) => value.trim());
-        const data: Record<string, string> = {};
-        headers.forEach((header, i) => {
-          data[header] = values[i] ?? '';
-        });
+    try {
+      const [studentsRes, templatesRes] = await Promise.all([
+        graphqlClient.getStudentsWithoutCertificates({ limit: STUDENT_PAGE_SIZE }),
+        graphqlClient.getCertificateTemplates(),
+      ]);
 
-        const studentNumber = data.studentNumber || '';
-        const nationalId = data.nationalId || '';
-        const badgeTitle = data.badgeTitle || '';
-        const degreeType = data.degreeType || '';
-        const description = data.description || '';
-        const explicitWallet = data.walletAddress || '';
+      const fetchedStudents = studentsRes.data?.studentsWithoutCertificates ?? [];
+      const fetchedTemplates =
+        (templatesRes.data?.certificateTemplates ?? []).filter((template: any) => template.isActive) ?? [];
 
-        const metadata: Record<string, string> = {};
-        headers.forEach((header) => {
-          if (!RESERVED_HEADERS.has(header)) {
-            metadata[header] = data[header];
-          }
-        });
+      setStudents(fetchedStudents);
+      setTemplates(fetchedTemplates);
 
-        const rowNumber = index + 2; // account for header row
-        const rowErrors: string[] = [];
+      if (fetchedTemplates.length > 0) {
+        const defaultTemplateId = fetchedTemplates[0].id;
+        setSelectedTemplateId(defaultTemplateId);
 
-        if (!studentNumber) {
-          rowErrors.push('Student number is required.');
-        }
-        if (!nationalId) {
-          rowErrors.push('National ID is required.');
-        }
-        if (!badgeTitle) {
-          rowErrors.push('Badge title is required.');
-        }
-
-        if (rowErrors.length > 0) {
-          validationErrors.push(`Row ${rowNumber}: ${rowErrors.join(' ')}`);
-        }
-
-        parsedRows.push({
-          rowNumber,
-          studentNumber,
-          nationalId,
-          badgeTitle,
-          degreeType,
-          description,
-          metadata,
-          walletAddress: explicitWallet || undefined,
-          status: rowErrors.length > 0 ? 'ERROR' : 'PENDING',
-          errors: rowErrors,
-        });
-      });
-
-      setUploadErrors(validationErrors);
-      setRows(parsedRows);
-      setGlobalMessage(null);
-
-      const rowsNeedingLookup = parsedRows.filter((row) => row.status !== 'ERROR');
-      if (rowsNeedingLookup.length > 0) {
-        await enrichRowsWithLookups(parsedRows);
-      }
-    };
-
-    reader.readAsText(file);
-  };
-
-  const enrichRowsWithLookups = async (currentRows: BulkCertificateRow[]) => {
-    setLoadingLookup(true);
-    const updatedRows = [...currentRows];
-
-    for (let i = 0; i < updatedRows.length; i++) {
-      const row = updatedRows[i];
-      if (row.status === 'ERROR') continue;
-
-      try {
-        const response = await graphqlClient.lookupStudentByNationalId(row.nationalId);
-        const lookup = response.data?.lookupStudentByNationalId;
-
-        if (!lookup) {
-          row.status = 'ERROR';
-          row.errors = [...row.errors, 'Lookup failed – unexpected response from server.'];
-          continue;
-        }
-
-        if (!lookup.globalExists) {
-          row.status = 'ERROR';
-          row.errors = [...row.errors, 'No entry found in Global Student Index for this national ID.'];
-          continue;
-        }
-
-        row.studentId = lookup.studentId ?? undefined;
-        row.walletAddress = (lookup.walletAddress || lookup.globalWalletAddress) ?? row.walletAddress;
-
-        if (!row.studentId) {
-          row.status = 'ERROR';
-          row.errors = [
-            ...row.errors,
-            'Student is not registered in this university. Register the student before issuing certificates.',
-          ];
+        if (fetchedStudents.length > 0) {
+          initializeForm(fetchedStudents[0], fetchedTemplates[0]);
         } else {
-          row.status = 'READY';
+          setMetadataForm({});
         }
-      } catch (error) {
-        console.error('Lookup failed for row', row.rowNumber, error);
-        row.status = 'ERROR';
-        row.errors = [...row.errors, 'Lookup failed. Please retry later.'];
+      } else {
+        setSelectedTemplateId(null);
+        setMetadataForm({});
       }
-    }
 
-    setRows(updatedRows);
-    setLoadingLookup(false);
+      setCurrentIndex(0);
+    } catch (loadError: any) {
+      console.error('Failed to load certificate issuance data', loadError);
+      setError(
+        loadError?.message ||
+        'Unable to load eligible students or templates. Please verify your network connection and try again.'
+      );
+    } finally {
+      setFetching(false);
+    }
+  }, [initializeForm]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (activeStudent && activeTemplate) {
+      initializeForm(activeStudent, activeTemplate);
+    }
+  }, [activeStudent, activeTemplate, initializeForm]);
+
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    const template = templates.find((item) => item.id === templateId);
+    if (template && activeStudent) {
+      initializeForm(activeStudent, template);
+    }
   };
 
-  const handleIssueCertificate = async (rowIndex: number) => {
-    const targetRow = rows[rowIndex];
-    if (!targetRow || targetRow.status === 'ISSUED') return;
+  const handleMetadataChange = (field: string, value: string) => {
+    setMetadataForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
-    const rowErrors: string[] = [];
-    if (!targetRow.studentId) {
-      rowErrors.push('Student is missing. Please verify the student registration.');
-    }
-    if (!targetRow.walletAddress) {
-      rowErrors.push('Wallet address is missing. Ensure the student has a registered wallet.');
+  const handleSkipStudent = () => {
+    if (students.length === 0) {
+      return;
     }
 
-    if (rowErrors.length > 0) {
-      updateRow(rowIndex, {
-        status: 'ERROR',
-        errors: [...targetRow.errors, ...rowErrors],
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= students.length) {
+      setStatusMessage('No additional students awaiting certificates.');
+      setCurrentIndex(0);
+      setMetadataForm({});
+      return;
+    }
+
+    setCurrentIndex(nextIndex);
+    const nextStudent = students[nextIndex];
+    if (nextStudent && activeTemplate) {
+      initializeForm(nextStudent, activeTemplate);
+    }
+  };
+
+  const handleIssueCertificate = async () => {
+    if (!activeStudent) {
+      toast.warning({
+        title: 'No student selected',
+        description: 'There are no eligible students to issue a certificate to.',
       });
       return;
     }
 
-    setProcessingRow(targetRow.rowNumber);
-    setGlobalMessage(null);
+    if (!activeTemplate) {
+      toast.error({
+        title: 'Template required',
+        description: 'Select an active template before issuing a certificate.',
+      });
+      return;
+    }
+
+    const enrollment = activeStudent.enrollments?.[0];
+    if (!enrollment) {
+      toast.error({
+        title: 'Missing enrollment',
+        description: 'The selected student does not have an enrollment record. Please update their academic data.',
+      });
+      return;
+    }
+
+    const requiredFields = Object.keys(templateFields);
+    const missingRequiredField = requiredFields.find((field) => (metadataForm[field] ?? '').trim().length === 0);
+    if (missingRequiredField) {
+      toast.error({
+        title: 'Missing metadata',
+        description: `Please provide a value for "${missingRequiredField}" before issuing the certificate.`,
+      });
+      return;
+    }
+
+    setLoading(true);
+    setStatusMessage(null);
 
     try {
-      const metadata = {
-        studentNumber: targetRow.studentNumber,
-        nationalId: targetRow.nationalId,
-        badgeTitle: targetRow.badgeTitle,
-        degreeType: targetRow.degreeType,
-        description: targetRow.description,
-        walletAddress: targetRow.walletAddress,
-        ...targetRow.metadata,
-      };
+      const preparedMetadata = Object.fromEntries(
+        Object.entries(metadataForm).map(([field, value]) => [
+          field,
+          castMetadataValue(value, templateFields[field]),
+        ])
+      );
+
+      const achievementIds =
+        enrollment.achievements?.map((achievement: any) => achievement.id).filter(Boolean) ?? [];
+
+      const courseDescription = activeStudent?.enrollments?.[0]?.course?.description ?? '';
 
       const response = await graphqlClient.issueCertificate({
-        studentId: targetRow.studentId!,
-        badgeTitle: targetRow.badgeTitle,
-        description: targetRow.description,
-        degreeType: targetRow.degreeType,
-        metadata,
+        studentId: activeStudent.id,
+        templateId: activeTemplate.id,
+        enrollmentId: enrollment.id,
+        badgeTitle: badgeTitle.trim() || activeTemplate.name,
+        description: courseDescription?.trim() || undefined,
+        degreeType: degreeType.trim() || activeTemplate.degreeType,
+        metadata: preparedMetadata,
+        achievementIds: achievementIds.length > 0 ? achievementIds : undefined,
       });
 
-      if (response.errors && response.errors.length > 0) {
-        const message = response.errors[0]?.message || 'Failed to issue certificate.';
-        updateRow(rowIndex, {
-          status: 'ERROR',
-          issueError: message,
-          errors: [...targetRow.errors, message],
-        });
-        return;
+      if (response.errors?.length) {
+        throw new Error(response.errors[0]?.message ?? 'Failed to issue certificate');
       }
 
-      const issued = response.data?.issueCertificate;
-      updateRow(rowIndex, {
-        status: 'ISSUED',
-        certificateId: issued?.id,
-        issueError: undefined,
+      const issuedCertificate = response.data?.issueCertificate;
+      const remainingCount = students.length - 1;
+
+      setStudents((prev) => {
+        const next = [...prev];
+        next.splice(currentIndex, 1);
+        return next;
       });
 
-      setGlobalMessage(
-        'Certificates have been queued for minting. Visit the Certificates tab to mint each pending certificate on-chain.'
-      );
-    } catch (error: any) {
-      console.error('Issue certificate error:', error);
-      updateRow(rowIndex, {
-        status: 'ERROR',
-        issueError: error?.message || 'Failed to issue certificate.',
-        errors: [...targetRow.errors, error?.message || 'Failed to issue certificate.'],
+      toast.success({
+        title: 'Certificate prepared',
+        description: `Draft certificate ${issuedCertificate?.certificateNumber ?? ''} created successfully.`,
+      });
+
+      if (remainingCount <= 0) {
+        setStatusMessage('All eligible students now have certificate drafts. Great job!');
+        setMetadataForm({});
+      } else {
+        setCurrentIndex((prevIndex) => (prevIndex >= remainingCount ? 0 : prevIndex));
+      }
+    } catch (err: any) {
+      console.error('Issue certificate failed', err);
+      toast.error({
+        title: 'Issuance failed',
+        description: err?.message ?? 'Unable to issue the certificate. Please try again.',
       });
     } finally {
-      setProcessingRow(null);
+      setLoading(false);
     }
   };
 
-  const updateRow = (index: number, updates: Partial<BulkCertificateRow>) => {
-    setRows((prevRows) => {
-      const copy = [...prevRows];
-      copy[index] = {
-        ...copy[index],
-        ...updates,
-      };
-      return copy;
-    });
-  };
+  const courseDescription = activeStudent?.enrollments?.[0]?.course?.description ?? '';
 
-  const downloadTemplate = () => {
-    const template = `studentNumber,nationalId,badgeTitle,degreeType,description,gpa,honors
-STU-2024-001,NIC123456789V,Bachelor of Science in Computer Science,Bachelor,Completed with honors,3.90,"Dean's List; Hackathon Winner"
-STU-2024-002,NIC987654321V,Master of Business Administration,Master,Thesis distinction,3.85,"Graduate Research Award"`;
-
-    const blob = new Blob([template], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = 'bulk-certificates-template.csv';
-    anchor.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  const readyRows = rows.filter((row) => row.status === 'READY').length;
-  const issuedRows = rows.filter((row) => row.status === 'ISSUED').length;
-  const errorRows = rows.filter((row) => row.status === 'ERROR').length;
+  if (fetching) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Loading eligible students and templates…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      <div className="space-y-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Link href="/university/certificates">
             <Button variant="ghost" size="sm" className="flex items-center gap-2 hover:bg-muted/50">
@@ -305,305 +404,253 @@ STU-2024-002,NIC987654321V,Master of Business Administration,Master,Thesis disti
               Back to Certificates
             </Button>
           </Link>
+          <h1 className="text-3xl font-bold tracking-tight">Single Student Issuance</h1>
         </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Upload className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">Bulk Certificate Drafts</h1>
-              <p className="text-muted-foreground text-lg">
-                Upload a CSV to create pending certificates. Each certificate is issued off-chain and can then be minted individually.
-              </p>
-            </div>
-          </div>
-        </div>
+        <Button variant="outline" onClick={loadData} className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          {!rows.length && (
-            <Card className="border-0 shadow-lg bg-card/50 backdrop-blur">
-              <CardHeader className="pb-6">
-                <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <FileSpreadsheet className="h-5 w-5 text-primary" />
-                  </div>
-                  Upload CSV File
-                </CardTitle>
-                <p className="text-muted-foreground">
-                  Required columns: <strong>studentNumber</strong>, <strong>nationalId</strong>,{' '}
-                  <strong>badgeTitle</strong>. Optional columns are added to certificate metadata.
-                </p>
+      {error && (
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
+      {!error && templates.length === 0 && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            No active certificate templates were found. Create a template in the Certificate Designer before issuing
+            certificates.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {!error && templates.length > 0 && students.length === 0 && (
+        <Alert>
+          <ShieldCheck className="h-4 w-4" />
+          <AlertDescription>Every registered student already has a certificate draft. Nothing left to issue!</AlertDescription>
+        </Alert>
+      )}
+
+      {statusMessage && (
+        <Alert>
+          <AlertDescription>{statusMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {!error && templates.length > 0 && activeStudent && (
+        <div className="grid gap-8 lg:grid-cols-2">
+          <div className="space-y-6">
+            <Card className="border-0 shadow-lg bg-card/60 backdrop-blur">
+              <CardHeader className="pb-5">
+                <CardTitle className="text-xl">Student Overview</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-xl p-12 text-center bg-muted/20 hover:bg-muted/30 transition-colors">
-                  <div className="p-4 bg-primary/10 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-                    <Upload className="h-8 w-8 text-primary" />
+              <CardContent className="space-y-4 text-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-base font-semibold">{activeStudent.fullName}</p>
+                    <p className="text-muted-foreground">{activeStudent.email}</p>
                   </div>
-                  <h3 className="text-xl font-semibold mb-3">Choose a CSV file</h3>
-                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    Each row will be validated against the Global Student Index. Wallet addresses are automatically populated when available.
-                  </p>
-                  <Input type="file" accept=".csv" onChange={handleFileUpload} className="max-w-sm mx-auto" />
+                  <Badge variant="secondary">{activeStudent.studentNumber}</Badge>
                 </div>
 
-                <div className="flex items-center justify-center">
-                  <Button variant="outline" onClick={downloadTemplate} className="flex items-center gap-2 h-11">
-                    <FileText className="h-4 w-4" />
-                    Download Template
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Program</p>
+                    <p className="font-medium">{activeStudent.program ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Department</p>
+                    <p className="font-medium">{activeStudent.department ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Enrollment Year</p>
+                    <p className="font-medium">{activeStudent.enrollmentYear ?? '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase text-muted-foreground">Wallet</p>
+                    <p className="font-mono text-xs break-all">
+                      {activeStudent.walletAddress ?? 'Not provided'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs uppercase text-muted-foreground">Enrollment Summary</p>
+                  {activeStudent.enrollments?.length ? (
+                    <div className="space-y-2 rounded-lg border border-muted p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{activeStudent.enrollments[0].course?.name ?? 'Course'}</span>
+                        <Badge variant="outline">{activeStudent.enrollments[0].status}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {courseDescription || 'No course description provided.'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground block">Course Code</span>
+                          <span className="font-medium">{activeStudent.enrollments[0].course?.code ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">GPA</span>
+                          <span className="font-medium">{activeStudent.enrollments[0].gpa ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Semester</span>
+                          <span className="font-medium">{activeStudent.enrollments[0].semester ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Grade</span>
+                          <span className="font-medium">{activeStudent.enrollments[0].grade ?? '—'}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No enrollment history found for this student.</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs uppercase text-muted-foreground">Student Achievements</p>
+                  {activeStudent.achievements?.length ? (
+                    <div className="flex flex-wrap gap-2">
+                      {activeStudent.achievements.map((achievement: any) => (
+                        <Badge key={achievement.id} variant="outline">
+                          {achievement.achievement?.title ?? achievement.id}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No linked achievements yet.</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="space-y-6">
+            <Card className="border-0 shadow-lg bg-card/60 backdrop-blur">
+              <CardHeader className="pb-5 space-y-2">
+                <CardTitle className="text-xl">Certificate Template & Metadata</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Review the data pulled from student records. Update any field if necessary before issuing the draft certificate.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Template</Label>
+                  <Select value={selectedTemplateId ?? ''} onValueChange={handleTemplateChange}>
+                    <SelectTrigger className="h-11 bg-background/50 border-muted focus:border-primary">
+                      <SelectValue placeholder="Select a template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Badge Title</Label>
+                    <Input
+                      value={badgeTitle}
+                      onChange={(event) => setBadgeTitle(event.target.value)}
+                      placeholder="e.g. Bachelor of Science in Computer Science"
+                      className="h-11 bg-background/50 border-muted focus:border-primary"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-sm font-medium">Degree Type</Label>
+                    <Input
+                      value={degreeType}
+                      onChange={(event) => setDegreeType(event.target.value)}
+                      placeholder="e.g. Bachelor"
+                      className="h-11 bg-background/50 border-muted focus:border-primary"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  {Object.keys(templateFields).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      This template does not define any additional metadata fields.
+                    </p>
+                  ) : (
+                    Object.entries(templateFields).map(([field, expectedType]) => (
+                      <div key={field} className="space-y-2">
+                        <Label className="text-sm font-medium capitalize">
+                          {field}{' '}
+                          <span className="text-xs font-normal text-muted-foreground">
+                            ({expectedType === 'any' ? 'text' : expectedType})
+                          </span>
+                        </Label>
+                        {expectedType === 'string' || expectedType === 'any' ? (
+                          <Input
+                            value={metadataForm[field] ?? ''}
+                            onChange={(event) => handleMetadataChange(field, event.target.value)}
+                            className="h-11 bg-background/50 border-muted focus:border-primary"
+                            placeholder={`Enter ${field}`}
+                          />
+                        ) : expectedType === 'number' ? (
+                          <Input
+                            type="number"
+                            value={metadataForm[field] ?? ''}
+                            onChange={(event) => handleMetadataChange(field, event.target.value)}
+                            className="h-11 bg-background/50 border-muted focus:border-primary"
+                            placeholder={`Enter numeric value for ${field}`}
+                          />
+                        ) : (
+                          <Textarea
+                            value={metadataForm[field] ?? ''}
+                            onChange={(event) => handleMetadataChange(field, event.target.value)}
+                            className="min-h-[80px] bg-background/50 border-muted focus:border-primary"
+                            placeholder={`Enter ${field}`}
+                          />
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleSkipStudent}
+                    className="flex items-center gap-2"
+                    disabled={loading || students.length === 0}
+                  >
+                    <SkipForward className="h-4 w-4" />
+                    Skip Student
+                  </Button>
+                  <Button
+                    onClick={handleIssueCertificate}
+                    disabled={loading || !activeTemplate}
+                    className="flex items-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Issuing…
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        Issue Certificate
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          )}
-
-          {uploadErrors.length > 0 && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription className="space-y-1">
-                {uploadErrors.map((error, index) => (
-                  <div key={index}>{error}</div>
-                ))}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {globalMessage && (
-            <Alert>
-              <ShieldCheck className="h-4 w-4" />
-              <AlertDescription>{globalMessage}</AlertDescription>
-            </Alert>
-          )}
-
-          {rows.length > 0 && (
-            <Card className="border-0 shadow-lg bg-card/50 backdrop-blur">
-              <CardHeader className="pb-6">
-                <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <FileText className="h-5 w-5 text-primary" />
-                  </div>
-                  Review & Issue Certificates
-                </CardTitle>
-                <p className="text-muted-foreground">
-                  Verify each row, then click <strong>Issue Certificate</strong> to create an off-chain record. Minting happens afterwards from the Certificates tab.
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="overflow-x-auto rounded-lg border border-muted">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/50">
-                        <TableHead className="font-medium">Row</TableHead>
-                        <TableHead className="font-medium">Student #</TableHead>
-                        <TableHead className="font-medium">National ID</TableHead>
-                        <TableHead className="font-medium">Badge Title</TableHead>
-                        <TableHead className="font-medium">Wallet</TableHead>
-                        <TableHead className="font-medium">Status</TableHead>
-                        <TableHead className="font-medium">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((row, index) => (
-                        <TableRow key={row.rowNumber} className="align-top">
-                          <TableCell className="font-mono text-sm font-medium">{row.rowNumber}</TableCell>
-                          <TableCell>
-                            <div className="font-medium">{row.studentNumber}</div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium">{row.nationalId}</div>
-                            {row.errors.find((message) => message.toLowerCase().includes('global')) && (
-                              <div className="text-xs text-red-500 mt-1">Not found in global index</div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium">{row.badgeTitle}</div>
-                            {row.degreeType && (
-                              <div className="text-xs text-muted-foreground">{row.degreeType}</div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            {row.walletAddress ? (
-                              <span className="font-mono text-xs break-all">{row.walletAddress}</span>
-                            ) : (
-                              <span className="text-sm text-muted-foreground">Pending lookup</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                row.status === 'READY'
-                                  ? 'default'
-                                  : row.status === 'ISSUED'
-                                  ? 'secondary'
-                                  : 'destructive'
-                              }
-                              className="flex items-center gap-1"
-                            >
-                              {row.status === 'ISSUED' ? (
-                                <>
-                                  <CheckCircle className="h-3 w-3" />
-                                  Issued
-                                </>
-                              ) : row.status === 'READY' ? (
-                                <>
-                                  <CheckCircle className="h-3 w-3" />
-                                  Ready
-                                </>
-                              ) : (
-                                <>
-                                  <AlertTriangle className="h-3 w-3" />
-                                  {row.status === 'ERROR' ? 'Needs attention' : 'Pending'}
-                                </>
-                              )}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="flex items-center gap-2"
-                                onClick={() => enrichRowsWithLookups(rows)}
-                                disabled={loadingLookup}
-                              >
-                                <RefreshCw className={`h-4 w-4 ${loadingLookup ? 'animate-spin' : ''}`} />
-                                Refresh Lookup
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="flex items-center gap-2"
-                                onClick={() => handleIssueCertificate(index)}
-                                disabled={row.status !== 'READY' || processingRow === row.rowNumber}
-                              >
-                                {processingRow === row.rowNumber ? (
-                                  <>
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                    Issuing...
-                                  </>
-                                ) : (
-                                  <>
-                                    <CheckCircle className="h-4 w-4" />
-                                    Issue Certificate
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                            {row.issueError && (
-                              <div className="text-xs text-red-600 mt-2">{row.issueError}</div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-orange-600" />
-                    Notes
-                  </h3>
-                  <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                    <li>
-                      Each issued certificate appears in the Certificates list with status <strong>PENDING</strong>.
-                    </li>
-                    <li>
-                      Use the standard minting flow to sign and finalize each certificate on-chain.
-                    </li>
-                    <li>
-                      Wallet addresses are sourced from the Global Student Index. Update the global record before running a bulk issuance.
-                    </li>
-                  </ul>
-                </div>
-
-                {rows.some((row) => row.errors.length > 0) && (
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-semibold flex items-center gap-2 text-red-600">
-                      <AlertTriangle className="h-4 w-4" />
-                      Rows requiring attention
-                    </h3>
-                    <div className="bg-red-500/5 border border-red-200 rounded-lg p-4 space-y-2">
-                      {rows
-                        .filter((row) => row.errors.length > 0)
-                        .map((row) => (
-                          <div key={row.rowNumber} className="text-sm text-red-600">
-                            <span className="font-mono mr-2">Row {row.rowNumber}:</span>
-                            {row.errors.join(' ')}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          </div>
         </div>
-
-        <div className="space-y-6">
-          <Card className="border-0 shadow-lg bg-card/50 backdrop-blur">
-            <CardHeader>
-              <CardTitle>Workflow Overview</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4 text-sm text-muted-foreground">
-              <div>
-                <h4 className="font-semibold text-foreground">1. Upload CSV</h4>
-                <p>Include studentNumber, nationalId, badgeTitle, and any additional metadata columns.</p>
-              </div>
-              <div>
-                <h4 className="font-semibold text-foreground">2. System Validation</h4>
-                <p>
-                  We hash each national ID, check the Global Student Index, and reuse the wallet registered for the student. Rows with missing data are flagged for review.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-semibold text-foreground">3. Issue Certificates</h4>
-                <p>
-                  Issue each certificate to create an off-chain record. The GraphQL API stores metadata and marks the certificate as pending mint.
-                </p>
-              </div>
-              <div>
-                <h4 className="font-semibold text-foreground">4. Mint Individually</h4>
-                <p>
-                  Open the Certificates tab to mint each pending certificate via the wallet-based transaction flow. This ensures every mint is explicitly signed.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {rows.length > 0 && (
-            <Card className="border-0 shadow-lg bg-gradient-to-br from-primary/10 via-primary/5 to-primary/10">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-primary" />
-                  Progress Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-foreground">
-                <div className="flex items-center justify-between">
-                  <span>Total rows</span>
-                  <span className="font-semibold">{rows.length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Ready to issue</span>
-                  <span className="font-semibold text-green-600">{readyRows}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Issued (pending mint)</span>
-                  <span className="font-semibold text-blue-600">{issuedRows}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Needs attention</span>
-                  <span className="font-semibold text-red-600">{errorRows}</span>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 }
-

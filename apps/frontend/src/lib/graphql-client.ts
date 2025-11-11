@@ -629,10 +629,26 @@ class GraphQLClient {
     fullName: string;
     studentNumber: string;
     nationalId: string;
-    walletAddress?: string;
-    program?: string;
-    department?: string;
-    enrollmentYear?: number;
+    walletAddress: string;
+    program: string;
+    department: string;
+    enrollmentYear: number;
+    primaryEnrollment: {
+      course: {
+        code: string;
+        name: string;
+        description?: string;
+        credits?: number;
+        semester?: string;
+        department: string;
+        degreeType: string;
+      };
+      batchYear: number;
+      semester?: string;
+      status?: string;
+      gpa?: number;
+      grade?: string;
+    };
     achievements?: Array<{
       id?: string;
       title?: string;
@@ -650,6 +666,26 @@ class GraphQLClient {
           fullName
           studentNumber
           walletAddress
+          program
+          department
+          enrollmentYear
+          enrollments {
+            id
+            batchYear
+            semester
+            status
+            gpa
+            grade
+            course {
+              id
+              code
+              name
+              level
+              department
+              credits
+              semester
+            }
+          }
           achievements {
             id
             notes
@@ -675,10 +711,20 @@ class GraphQLClient {
       email: string;
       studentNumber: string;
       nationalId: string;
-      walletAddress?: string | null;
-      program?: string | null;
-      department?: string | null;
-      enrollmentYear?: number | null;
+      walletAddress: string;
+      program: string;
+      department: string;
+      enrollmentYear: number;
+      courseCode: string;
+      courseName: string;
+      courseDescription?: string | null;
+      courseCredits?: number | null;
+      courseSemester?: string | null;
+      degreeType: string;
+      enrollmentSemester?: string | null;
+      enrollmentStatus?: string | null;
+      enrollmentGpa?: number | null;
+      enrollmentGrade?: string | null;
       achievements?: string[] | null;
     }>;
     overwriteWalletFromGlobalIndex?: boolean;
@@ -759,6 +805,61 @@ class GraphQLClient {
     }>(query, { nationalId });
   }
 
+  async getStudentsWithoutCertificates(params?: { limit?: number; offset?: number }) {
+    const query = `
+      query StudentsWithoutCertificates($limit: Int, $offset: Int) {
+        studentsWithoutCertificates(limit: $limit, offset: $offset) {
+          id
+          fullName
+          email
+          studentNumber
+          walletAddress
+          program
+          department
+          enrollmentYear
+          achievements {
+            id
+            notes
+            awardedAt
+            achievement {
+              id
+              title
+              description
+              category
+            }
+          }
+          enrollments {
+            id
+            batchYear
+            semester
+            status
+            gpa
+            grade
+            achievements {
+              id
+              badgeTitle
+              achievementDate
+            }
+            course {
+              id
+              code
+              name
+              description
+              credits
+              department
+            }
+          }
+          certificates {
+            id
+            status
+          }
+        }
+      }
+    `;
+
+    return this.request<{ studentsWithoutCertificates: any[] }>(query, params);
+  }
+
   // Certificates
   async getCertificates(params?: {
     status?: string;
@@ -797,13 +898,106 @@ class GraphQLClient {
     return this.request<{ certificates: any[] }>(query, params);
   }
 
+  async getCertificateTemplates() {
+    const query = `
+      query CertificateTemplates {
+        certificateTemplates {
+          id
+          name
+          degreeType
+          description
+          templateFields
+          designTemplate
+          backgroundImage
+          isActive
+          timesUsed
+          createdAt
+        }
+      }
+    `;
+
+    return this.request<{ certificateTemplates: any[] }>(query, {});
+  }
+
+  async createCertificateTemplate(input: {
+    name: string;
+    degreeType: string;
+    description?: string;
+    templateFields: Record<string, unknown>;
+    designTemplate: Record<string, unknown>;
+    backgroundImage?: string | null;
+  }) {
+    const mutation = `
+      mutation CreateCertificateTemplate($input: CreateTemplateInput!) {
+        createCertificateTemplate(input: $input) {
+          id
+          name
+          degreeType
+          description
+          templateFields
+          designTemplate
+          backgroundImage
+          isActive
+          timesUsed
+          createdAt
+        }
+      }
+    `;
+
+    return this.request<{ createCertificateTemplate: any }>(mutation, { input });
+  }
+
+  async updateCertificateTemplate(
+    id: string,
+    input: {
+      name?: string;
+      description?: string;
+      templateFields?: Record<string, unknown>;
+      designTemplate?: Record<string, unknown>;
+      backgroundImage?: string | null;
+      isActive?: boolean;
+    }
+  ) {
+    const mutation = `
+      mutation UpdateCertificateTemplate($id: ID!, $input: UpdateTemplateInput!) {
+        updateCertificateTemplate(id: $id, input: $input) {
+          id
+          name
+          degreeType
+          description
+          templateFields
+          designTemplate
+          backgroundImage
+          isActive
+          timesUsed
+          createdAt
+        }
+      }
+    `;
+
+    return this.request<{ updateCertificateTemplate: any }>(mutation, { id, input });
+  }
+
+  async deleteCertificateTemplate(id: string) {
+    const mutation = `
+      mutation DeleteCertificateTemplate($id: ID!) {
+        deleteCertificateTemplate(id: $id)
+      }
+    `;
+
+    return this.request<{ deleteCertificateTemplate: boolean }>(mutation, { id });
+  }
+
   async issueCertificate(input: {
     studentId: string;
+    templateId: string;
+    enrollmentId?: string;
     badgeTitle: string;
     description?: string;
     degreeType?: string;
     metadata: Record<string, any>;
     achievementIds?: string[];
+    expiryDate?: string;
   }) {
     const query = `
       mutation IssueCertificate($input: IssueCertificateInput!) {
@@ -812,6 +1006,9 @@ class GraphQLClient {
           certificateNumber
           badgeTitle
           status
+          mintAddress
+          ipfsMetadataUri
+          achievementIds
         }
       }
     `;

@@ -66,6 +66,54 @@ export const studentQueries = {
     });
   },
 
+  async studentsWithoutCertificates(
+    _: any,
+    { limit, offset }: { limit?: number; offset?: number },
+    context: GraphQLContext
+  ) {
+    requireUniversityAdmin(context);
+    const universityDb = requireUniversityDb(context);
+
+    const take = Math.min(limit ?? 10, 50);
+    const skip = offset ?? 0;
+
+    return universityDb.student.findMany({
+      where: {
+        isActive: true,
+        certificates: {
+          none: {
+            status: 'MINTED',
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+      take,
+      skip,
+      include: {
+        certificates: true,
+        enrollments: {
+          include: {
+            course: true,
+            achievements: true,
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+        achievements: {
+          include: {
+            achievement: true,
+          },
+          orderBy: {
+            awardedAt: 'desc',
+          },
+        },
+      },
+    });
+  },
+
   /**
    * Get student by ID
    */

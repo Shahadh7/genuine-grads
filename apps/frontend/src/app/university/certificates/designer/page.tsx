@@ -1,6 +1,6 @@
 'use client';
 import React from "react"
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -51,9 +51,12 @@ import {
   Grid3X3,
   ZoomIn,
   ZoomOut,
-  Maximize2
+  Maximize2,
+  Loader2
 } from 'lucide-react';
 import QRCode from 'react-qr-code';
+import { graphqlClient } from '@/lib/graphql-client';
+import { useToast } from '@/hooks/useToast';
 
 // Sample data for preview mode
 const sampleData = {
@@ -145,6 +148,7 @@ interface Props {
 }
 
 export default function CertificateDesignerPage(): React.JSX.Element {
+  const toast = useToast();
   const [elements, setElements] = useState<any>([]);
   const [selectedElement, setSelectedElement] = useState<any>(null);
   const [isPreviewMode, setIsPreviewMode] = useState<any>(false);
@@ -155,35 +159,75 @@ export default function CertificateDesignerPage(): React.JSX.Element {
   const [showGrid, setShowGrid] = useState<any>(false);
   const [isFullscreen, setIsFullscreen] = useState<any>(false);
   const [backgroundColor, setBackgroundColor] = useState<any>('#ffffff');
+  const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState<boolean>(false);
+  const [savingTemplate, setSavingTemplate] = useState<boolean>(false);
   const fileInputRef = useRef(null);
   const canvasRef = useRef(null);
   const canvasContainerRef = useRef(null);
+
+  const normalizeTemplate = useCallback((template: any) => {
+    const design = template?.designTemplate ?? {};
+    return {
+      ...template,
+      templateFields: template?.templateFields ?? {},
+      designTemplate: {
+        backgroundColor: design?.backgroundColor ?? '#ffffff',
+        elements: Array.isArray(design?.elements) ? design.elements : [],
+      },
+    };
+  }, []);
+  
+  const fetchTemplates = useCallback(async () => {
+    setTemplatesLoading(true);
+    try {
+      const response = await graphqlClient.getCertificateTemplates();
+      if ((response as any)?.errors?.length) {
+        throw new Error(response.errors[0]?.message ?? 'Failed to load templates');
+      }
+      const templates = response.data?.certificateTemplates ?? [];
+      setSavedTemplates(templates.map((template: any) => normalizeTemplate(template)));
+    } catch (error: any) {
+      console.error('Failed to load templates', error);
+      toast.error({
+        title: 'Unable to load templates',
+        description: error?.message || 'Please try again later.',
+      });
+    } finally {
+      setTemplatesLoading(false);
+    }
+  }, [normalizeTemplate, toast]);
+
 
   // Load default template on mount
   useEffect(() => {
     setElements(defaultTemplate.elements);
     setCurrentTemplate(defaultTemplate);
   }, []);
+  
 
-  // Load templates from localStorage
-  const loadTemplatesFromStorage = () => {
-    try {
-      const saved = localStorage.getItem('certificateTemplates');
-      return saved ? JSON.parse(saved) : [];
-    } catch (error) {
-      console.error('Error loading templates:', error);
-      return [];
-    }
-  };
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
-  // Save templates to localStorage
-  const saveTemplatesToStorage = (templates) => {
-    try {
-      localStorage.setItem('certificateTemplates', JSON.stringify(templates));
-    } catch (error) {
-      console.error('Error saving templates:', error);
-    }
-  };
+  const buildTemplateFieldSchema = useCallback(() => {
+    const schema: Record<string, string> = {};
+
+    elements
+      .filter((el: any) => el.type === 'placeholder' && typeof el.value === 'string')
+      .forEach((el: any) => {
+        const key = el.value.replace(/[{}]/g, '').trim();
+        if (key.length > 0 && !schema[key]) {
+          schema[key] = 'string';
+        }
+      });
+
+    return schema;
+  }, [elements]);
+
+  
+
+  
 
   const addElement = (type, value = '') => {
     const newElement = {
@@ -234,29 +278,73 @@ export default function CertificateDesignerPage(): React.JSX.Element {
     }
   };
 
-  const saveTemplate = () => {
+  const saveTemplate = async () => {
+    if (savingTemplate) {
+      return;
+    }
+
     const templateName = prompt('Enter template name:');
-    if (templateName) {
-      const template = {
-        templateId: `template_${Date.now()}`,
-        universityId: "uni_default",
+    if (!templateName || templateName.trim().length === 0) {
+      return;
+    }
+
+    const degreeInput = prompt('Enter degree type (e.g. Bachelor, Diploma):', 'Certificate');
+    if (degreeInput === null) {
+      return;
+    }
+
+    const descriptionInput = prompt('Optional description for this template:');
+    const templateFields = buildTemplateFieldSchema();
+
+    setSavingTemplate(true);
+    try {
+      const response = await graphqlClient.createCertificateTemplate({
+        name: templateName.trim(),
+        degreeType: degreeInput?.trim() || 'Certificate',
+        description: descriptionInput?.trim() || undefined,
+        templateFields,
+        designTemplate: {
+          backgroundColor,
+          elements,
+        },
         backgroundImage: null,
-        name: templateName,
-        createdAt: new Date().toISOString(),
-        elements: elements
-      };
-      
-      const existingTemplates = loadTemplatesFromStorage();
-      const updatedTemplates = [...existingTemplates, template];
-      saveTemplatesToStorage(updatedTemplates);
-      
-      alert('Template saved successfully!');
+      });
+
+      if ((response as any)?.errors?.length) {
+        throw new Error(response.errors[0]?.message ?? 'Failed to save template');
+      }
+
+      const created = response.data?.createCertificateTemplate;
+      if (created) {
+        const normalized = normalizeTemplate(created);
+        setSavedTemplates((prev) => [normalized, ...prev.filter((template) => template.id !== normalized.id)]);
+        setCurrentTemplate(normalized);
+        setBackgroundColor(normalized.designTemplate?.backgroundColor ?? '#ffffff');
+        setElements(normalized.designTemplate?.elements ?? elements);
+      }
+
+      await fetchTemplates();
+
+      toast.success({
+        title: 'Template saved',
+        description: 'Certificate template stored in your university workspace.',
+      });
+    } catch (error: any) {
+      console.error('Failed to save template', error);
+      toast.error({
+        title: 'Failed to save template',
+        description: error?.message || 'Please try again.',
+      });
+    } finally {
+      setSavingTemplate(false);
     }
   };
 
   const loadTemplate = (template) => {
-    setElements(template.elements);
-    setCurrentTemplate(template);
+    const normalized = normalizeTemplate(template);
+    setElements(normalized.designTemplate?.elements ?? []);
+    setBackgroundColor(normalized.designTemplate?.backgroundColor ?? '#ffffff');
+    setCurrentTemplate(normalized);
     setSelectedElement(null);
   };
 
@@ -268,12 +356,17 @@ export default function CertificateDesignerPage(): React.JSX.Element {
   };
 
   const exportTemplate = () => {
+    const design = currentTemplate?.designTemplate ?? {
+      backgroundColor,
+      elements,
+    };
+
     const template = {
-      templateId: currentTemplate?.templateId || `template_${Date.now()}`,
+      templateId: currentTemplate?.templateId || currentTemplate?.id || `template_${Date.now()}`,
       universityId: currentTemplate?.universityId || "uni_default",
       backgroundImage: currentTemplate?.backgroundImage || null,
-      backgroundColor: backgroundColor,
-      elements: elements
+      backgroundColor: design.backgroundColor ?? backgroundColor,
+      elements: design.elements ?? elements,
     };
     
     const blob = new Blob([JSON.stringify(template, null, 2)], { type: 'application/json' });
@@ -437,8 +530,6 @@ export default function CertificateDesignerPage(): React.JSX.Element {
   }, []);
 
   const selectedElementData = elements.find(el => el.id === selectedElement);
-  const savedTemplates = loadTemplatesFromStorage();
-
   return (
     <div className="h-screen flex flex-col bg-background">
       {/* Header */}
@@ -535,18 +626,34 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {savedTemplates.map((template: any) => (
-                  <DropdownMenuItem
-                    key={template.templateId}
-                    onClick={() => loadTemplate(template)}
-                  >
-                    {template.name}
+                <DropdownMenuItem onClick={() => loadTemplate(defaultTemplate)}>
+                  Default Template
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => fetchTemplates()}
+                  disabled={templatesLoading}
+                >
+                  {templatesLoading ? 'Refreshing…' : 'Refresh Templates'}
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled>
+                  Saved Templates
+                </DropdownMenuItem>
+                {templatesLoading ? (
+                  <DropdownMenuItem disabled className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading templates...
                   </DropdownMenuItem>
-                ))}
-                {savedTemplates.length === 0 && (
-                  <DropdownMenuItem disabled>
-                    No saved templates
-                  </DropdownMenuItem>
+                ) : savedTemplates.length > 0 ? (
+                  savedTemplates.map((template: any) => (
+                    <DropdownMenuItem
+                      key={template.id ?? template.templateId}
+                      onClick={() => loadTemplate(template)}
+                    >
+                      {template.name}
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled>No saved templates</DropdownMenuItem>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -558,9 +665,22 @@ export default function CertificateDesignerPage(): React.JSX.Element {
               {isPreviewMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               {isPreviewMode ? 'Edit Mode' : 'Preview Mode'}
             </Button>
-            <Button onClick={saveTemplate} className="flex items-center gap-2">
-              <Save className="h-4 w-4" />
-              Save Template
+            <Button
+              onClick={saveTemplate}
+              className="flex items-center gap-2"
+              disabled={savingTemplate}
+            >
+              {savingTemplate ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save Template
+                </>
+              )}
             </Button>
             <Button onClick={exportTemplate} variant="outline" className="flex items-center gap-2">
               <Download className="h-4 w-4" />

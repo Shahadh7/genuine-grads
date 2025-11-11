@@ -15,25 +15,31 @@ function normalizeTitle(title: string): string {
   return title.trim();
 }
 
+function normalizeCourseCode(code: string): string {
+  return code
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-');
+}
+
+type ResolvedAchievementInput = {
+  achievementId: string;
+  title: string;
+  description?: string | null;
+  category?: string | null;
+  notes?: string | null;
+  awardedAt?: Date;
+};
+
 async function resolveStudentAchievementInputs(
   universityDb: any,
   inputs?: StudentAchievementInput[] | null
-): Promise<
-  Array<{
-    achievementId: string;
-    notes?: string | null;
-    awardedAt?: Date;
-  }>
-> {
+): Promise<ResolvedAchievementInput[]> {
   if (!inputs || inputs.length === 0) {
     return [];
   }
 
-  const payload: Array<{
-    achievementId: string;
-    notes?: string | null;
-    awardedAt?: Date;
-  }> = [];
+  const payload: ResolvedAchievementInput[] = [];
 
   for (const item of inputs) {
     if (!item) continue;
@@ -64,6 +70,9 @@ async function resolveStudentAchievementInputs(
 
       payload.push({
         achievementId: achievement.id,
+        title: achievement.title,
+        description: achievement.description,
+        category: achievement.category,
         notes,
         awardedAt,
       });
@@ -89,70 +98,27 @@ async function resolveStudentAchievementInputs(
           category: item.category?.trim() || null,
         },
       });
-    } else if (item.description && !achievement.description) {
+    } else if (item.description || item.category) {
       achievement = await universityDb.achievementCatalog.update({
         where: { id: achievement.id },
         data: {
-          description: item.description?.trim() || achievement.description,
-          category: item.category?.trim() || achievement.category,
+          ...(item.description ? { description: item.description.trim() } : {}),
+          ...(item.category ? { category: item.category.trim() } : {}),
         },
       });
     }
 
     payload.push({
       achievementId: achievement.id,
+      title: achievement.title,
+      description: achievement.description,
+      category: achievement.category,
       notes,
       awardedAt,
     });
   }
 
   return payload;
-}
-
-async function ensureAchievementCatalogIds(
-  universityDb: any,
-  titles: string[],
-  cache: Map<string, string>
-): Promise<Map<string, string>> {
-  const normalized = Array.from(
-    new Set(
-      titles
-        .map((title) => normalizeTitle(title))
-        .filter((title) => title.length > 0)
-    )
-  );
-
-  if (normalized.length === 0) {
-    return cache;
-  }
-
-  const missing: string[] = [];
-
-  for (const title of normalized) {
-    const key = title.toLowerCase();
-    if (cache.has(key)) {
-      continue;
-    }
-
-    const existing = await universityDb.achievementCatalog.findUnique({
-      where: { title },
-    });
-
-    if (existing) {
-      cache.set(key, existing.id);
-    } else {
-      missing.push(title);
-    }
-  }
-
-  for (const title of missing) {
-    const created = await universityDb.achievementCatalog.create({
-      data: { title },
-    });
-    cache.set(title.toLowerCase(), created.id);
-  }
-
-  return cache;
 }
 
 interface StudentAchievementInput {
@@ -164,15 +130,35 @@ interface StudentAchievementInput {
   awardedAt?: string | null;
 }
 
+interface StudentCourseInput {
+  code: string;
+  name: string;
+  description?: string | null;
+  credits?: number | null;
+  semester?: string | null;
+  department: string;
+  degreeType: string;
+}
+
+interface StudentEnrollmentInput {
+  course: StudentCourseInput;
+  batchYear: number;
+  semester?: string | null;
+  status?: string | null;
+  gpa?: number | null;
+  grade?: string | null;
+}
+
 interface RegisterStudentInput {
   email: string;
   fullName: string;
   studentNumber: string;
   nationalId: string;
-  walletAddress?: string;
-  program?: string;
-  department?: string;
-  enrollmentYear?: number;
+  walletAddress: string;
+  program: string;
+  department: string;
+  enrollmentYear: number;
+  primaryEnrollment: StudentEnrollmentInput;
   achievements?: StudentAchievementInput[] | null;
 }
 
@@ -202,18 +188,76 @@ export const studentMutations = {
       program,
       department,
       enrollmentYear,
+      primaryEnrollment,
       achievements,
     } = input;
 
-    let walletAddress = input.walletAddress;
+    if (!primaryEnrollment || !primaryEnrollment.course) {
+      throw new GraphQLError('Primary enrollment details are required for registration', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!isValidEmail(normalizedEmail)) {
+      throw new GraphQLError('Invalid email format', {
+        extensions: { code: 'BAD_USER_INPUT', field: 'email' },
+      });
+    }
+
+    const sanitizedFullName = fullName.trim();
+    const sanitizedStudentNumber = studentNumber.trim();
+    const sanitizedNationalId = nationalId.trim();
+    const sanitizedProgram = program.trim();
+    const sanitizedDepartment = department.trim();
+
+    if (!sanitizedFullName || !sanitizedStudentNumber || !sanitizedNationalId) {
+      throw new GraphQLError('Full name, student number, and national ID are required', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    const { course, batchYear, semester, status, gpa, grade } = primaryEnrollment;
+    const courseCodeRaw = course.code?.trim();
+    const courseName = course.name?.trim();
+    const courseDegreeType = course.degreeType?.trim();
+    const courseDepartment = course.department?.trim();
+
+    if (!courseCodeRaw || !courseName || !courseDegreeType || !courseDepartment) {
+      throw new GraphQLError('Course code, name, degree type, and department are required for the primary enrollment', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    if (!Number.isInteger(batchYear)) {
+      throw new GraphQLError('Batch year must be an integer value', {
+        extensions: { code: 'BAD_USER_INPUT', field: 'batchYear' },
+      });
+    }
+
+    if (batchYear !== enrollmentYear) {
+      logger.warn(
+        { studentNumber: sanitizedStudentNumber, enrollmentYear, batchYear },
+        'Batch year differs from enrollment year; proceeding with provided values'
+      );
+    }
+
+    let normalizedWalletAddress: string;
+    try {
+      normalizedWalletAddress = new PublicKey(input.walletAddress.trim()).toBase58();
+    } catch {
+      throw new GraphQLError('Invalid Solana wallet address provided', {
+        extensions: { code: 'BAD_USER_INPUT', field: 'walletAddress' },
+      });
+    }
 
     // Hash the National ID for privacy
-    const nicHash = hashNIC(nationalId);
+    const nicHash = hashNIC(sanitizedNationalId);
 
     // Check if student already exists in THIS university
     const existingInUniversity = await universityDb.student.findFirst({
       where: {
-        OR: [{ email }, { studentNumber }, { nicHash }],
+        OR: [{ email: normalizedEmail }, { studentNumber: sanitizedStudentNumber }, { nicHash }],
       },
     });
 
@@ -233,34 +277,33 @@ export const studentMutations = {
       },
     });
 
-    // If student exists globally but with different wallet, handle it
     if (globalIndex) {
-      logger.info(
-        {
-          nicHash,
-          existingUniversity: globalIndex.createdByUniversity.name,
-          newUniversity: context.admin!.universityId,
-        },
-        'Student already registered in another university'
-      );
-
-      // If wallet addresses don't match and global index has a wallet, warn
-      if (globalIndex.walletAddress && walletAddress && globalIndex.walletAddress !== walletAddress) {
-        logger.warn({ nicHash }, 'Wallet address mismatch with global index');
-        // Still allow registration but use the wallet from global index
+      if (globalIndex.walletAddress && globalIndex.walletAddress !== normalizedWalletAddress) {
+        throw new GraphQLError(
+          'Wallet address does not match existing record in the Global Student Index. Please verify the wallet with support.',
+          {
+            extensions: { code: 'BAD_USER_INPUT', field: 'walletAddress' },
+          }
+        );
       }
 
-      // Use existing wallet from global index if available
-      if (globalIndex.walletAddress && !walletAddress) {
-        walletAddress = globalIndex.walletAddress;
+      if (!globalIndex.walletAddress) {
+        globalIndex = await sharedDb.globalStudentIndex.update({
+          where: { nicHash },
+          data: { walletAddress: normalizedWalletAddress },
+          include: {
+            createdByUniversity: {
+              select: { name: true },
+            },
+          },
+        });
       }
     } else {
-      // Create new entry in global student index
       globalIndex = await sharedDb.globalStudentIndex.create({
         data: {
           nicHash,
-          walletAddress,
-          encryptedEmail: encrypt(email), // Store encrypted email for support purposes
+          walletAddress: normalizedWalletAddress,
+          encryptedEmail: encrypt(normalizedEmail),
           createdByUniversityId: context.admin!.universityId!,
         },
         include: {
@@ -279,31 +322,136 @@ export const studentMutations = {
       );
     }
 
-    const achievementPayloads = await resolveStudentAchievementInputs(universityDb, achievements);
+    const { student } = await universityDb.$transaction(async (tx: any) => {
+      const achievementPayloads = await resolveStudentAchievementInputs(tx, achievements);
 
-    // Create student in university database
-    const student = await universityDb.student.create({
+      const normalizedCourseCode = normalizeCourseCode(courseCodeRaw.length > 0 ? courseCodeRaw : courseName);
+      const courseCreateData: any = {
+        code: normalizedCourseCode,
+        name: courseName,
+        department: courseDepartment,
+        level: courseDegreeType,
+        isActive: true,
+      };
+      const courseUpdateData: any = {
+        name: courseName,
+        department: courseDepartment,
+        level: courseDegreeType,
+        isActive: true,
+      };
+
+      if (course.description?.trim()) {
+        const desc = course.description.trim();
+        courseCreateData.description = desc;
+        courseUpdateData.description = desc;
+      }
+
+      if (typeof course.credits === 'number') {
+        courseCreateData.credits = course.credits;
+        courseUpdateData.credits = course.credits;
+      }
+
+      if (course.semester?.trim()) {
+        const semesterValue = course.semester.trim();
+        courseCreateData.semester = semesterValue;
+        courseUpdateData.semester = semesterValue;
+      }
+
+      const courseRecord = await tx.course.upsert({
+        where: { code: normalizedCourseCode },
+        create: courseCreateData,
+        update: courseUpdateData,
+      });
+
+      const studentRecord = await tx.student.create({
       data: {
-        email,
-        fullName,
-        studentNumber,
+          email: normalizedEmail,
+          fullName: sanitizedFullName,
+          studentNumber: sanitizedStudentNumber,
         nicHash,
-        walletAddress: walletAddress || globalIndex.walletAddress,
-        program,
-        department,
+          walletAddress: normalizedWalletAddress,
+          program: sanitizedProgram,
+          department: sanitizedDepartment,
         enrollmentYear,
-        achievements:
-          achievementPayloads.length > 0
-            ? {
-                create: achievementPayloads.map(({ achievementId, notes, awardedAt }) => ({
-                  achievement: {
-                    connect: { id: achievementId },
-                  },
-                  ...(notes ? { notes } : {}),
-                  ...(awardedAt ? { awardedAt } : {}),
-                })),
-              }
-            : undefined,
+        },
+      });
+
+      const statusValue = status?.trim().toUpperCase() ?? 'ACTIVE';
+      const semesterValue = semester?.trim() || null;
+
+      const enrollmentRecord = await tx.enrollment.create({
+        data: {
+          studentId: studentRecord.id,
+          courseId: courseRecord.id,
+          batchYear,
+          semester: semesterValue,
+          status: statusValue,
+          gpa: typeof gpa === 'number' ? gpa : null,
+          grade: grade?.trim() || null,
+        },
+      });
+
+      if (achievementPayloads.length > 0) {
+        const studentAchievementData = achievementPayloads.map(({ achievementId, notes, awardedAt }) => {
+          const entry: Record<string, any> = {
+            studentId: studentRecord.id,
+            achievementId,
+          };
+
+          if (notes) {
+            entry.notes = notes;
+          }
+
+          if (awardedAt) {
+            entry.awardedAt = awardedAt;
+          }
+
+          return entry;
+        });
+
+        if (studentAchievementData.length > 0) {
+          await tx.studentAchievement.createMany({
+            data: studentAchievementData,
+            skipDuplicates: true,
+          });
+        }
+
+        const enrollmentAchievementData = achievementPayloads.map(
+          ({ title, description: achievementDescription, category, awardedAt }) => ({
+            enrollmentId: enrollmentRecord.id,
+            badgeTitle: title,
+            description: achievementDescription ?? null,
+            badgeType: category ?? null,
+            semester: semesterValue,
+            achievementDate: awardedAt ?? null,
+          })
+        );
+
+        if (enrollmentAchievementData.length > 0) {
+          await tx.achievement.createMany({
+            data: enrollmentAchievementData,
+          });
+        }
+      }
+
+      return { student: studentRecord };
+    });
+
+    const studentWithRelations = await universityDb.student.findUnique({
+      where: { id: student.id },
+      include: {
+        achievements: {
+          include: {
+            achievement: true,
+          },
+        },
+        enrollments: {
+          include: {
+            course: true,
+            achievements: true,
+          },
+        },
+        certificates: true,
       },
     });
 
@@ -311,12 +459,12 @@ export const studentMutations = {
       {
         studentId: student.id,
         universityId: context.admin!.universityId,
-        email: student.email,
+        email: normalizedEmail,
       },
       'Student registered'
     );
 
-    return student;
+    return studentWithRelations ?? student;
   },
 
   /**
@@ -335,10 +483,20 @@ export const studentMutations = {
           email: string;
           studentNumber: string;
           nationalId: string;
-          walletAddress?: string | null;
-          program?: string | null;
-          department?: string | null;
-          enrollmentYear?: number | null;
+          walletAddress: string;
+          program: string;
+          department: string;
+          enrollmentYear: number;
+          courseCode: string;
+          courseName: string;
+          courseDescription?: string | null;
+          courseCredits?: number | null;
+          courseSemester?: string | null;
+          degreeType: string;
+          enrollmentSemester?: string | null;
+          enrollmentStatus?: string | null;
+          enrollmentGpa?: number | null;
+          enrollmentGrade?: string | null;
           achievements?: string[] | null;
         }>;
         overwriteWalletFromGlobalIndex?: boolean | null;
@@ -370,19 +528,27 @@ export const studentMutations = {
     let successCount = 0;
 
     const overwriteWithGlobalWallet = input.overwriteWalletFromGlobalIndex ?? false;
-    const achievementCache = new Map<string, string>();
 
     for (const row of input.students) {
       const rowNumber = row.rowNumber ?? 0;
-      const fullName = row.fullName?.trim();
-      const emailRaw = row.email?.trim();
-      const email = emailRaw ? emailRaw.toLowerCase() : '';
-      const studentNumber = row.studentNumber?.trim();
-      const nationalId = row.nationalId?.trim();
-      const program = row.program?.trim() || undefined;
-      const department = row.department?.trim() || undefined;
-      const enrollmentYear = row.enrollmentYear ?? undefined;
-      const walletAddressInput = row.walletAddress?.trim() || undefined;
+      const fullName = row.fullName?.trim() ?? '';
+      const email = row.email?.trim().toLowerCase() ?? '';
+      const studentNumber = row.studentNumber?.trim() ?? '';
+      const nationalId = row.nationalId?.trim() ?? '';
+      const program = row.program?.trim() ?? '';
+      const department = row.department?.trim() ?? '';
+      const enrollmentYear = row.enrollmentYear;
+      const courseCode = row.courseCode?.trim() ?? '';
+      const courseName = row.courseName?.trim() ?? '';
+      const courseDescription = row.courseDescription?.trim() ?? null;
+      const courseCredits = typeof row.courseCredits === 'number' ? row.courseCredits : null;
+      const courseSemester = row.courseSemester?.trim() ?? null;
+      const degreeType = row.degreeType?.trim() ?? '';
+      const enrollmentSemester = row.enrollmentSemester?.trim() ?? null;
+      const enrollmentStatus = row.enrollmentStatus?.trim() ?? null;
+      const enrollmentGpa = typeof row.enrollmentGpa === 'number' ? row.enrollmentGpa : null;
+      const enrollmentGrade = row.enrollmentGrade?.trim() ?? null;
+      const walletAddressInput = row.walletAddress?.trim() ?? '';
       const achievementTitles =
         Array.isArray(row.achievements) && row.achievements.length > 0
           ? row.achievements
@@ -425,6 +591,49 @@ export const studentMutations = {
         continue;
       }
 
+      if (!program) {
+        addFailure('Program is required', 'program');
+        continue;
+      }
+
+      if (!department) {
+        addFailure('Department is required', 'department');
+        continue;
+      }
+
+      if (!courseCode) {
+        addFailure('Course code is required', 'courseCode');
+        continue;
+      }
+
+      if (!courseName) {
+        addFailure('Course name is required', 'courseName');
+        continue;
+      }
+
+      if (!degreeType) {
+        addFailure('Degree type is required', 'degreeType');
+        continue;
+      }
+
+      if (!Number.isInteger(enrollmentYear)) {
+        addFailure('Enrollment year must be an integer', 'enrollmentYear');
+        continue;
+      }
+
+      if (!walletAddressInput) {
+        addFailure('Wallet address is required', 'walletAddress');
+        continue;
+      }
+
+      let normalizedWallet: string;
+      try {
+        normalizedWallet = new PublicKey(walletAddressInput).toBase58();
+      } catch {
+        addFailure('Invalid Solana wallet address', 'walletAddress');
+        continue;
+      }
+
       const nicHash = hashNIC(nationalId);
 
       if (seenEmails.has(email)) {
@@ -451,16 +660,6 @@ export const studentMutations = {
       }
       seenNicHashes.set(nicHash, rowNumber);
 
-      let normalizedWallet: string | undefined;
-      if (walletAddressInput) {
-        try {
-          normalizedWallet = new PublicKey(walletAddressInput).toBase58();
-        } catch {
-          addFailure('Invalid Solana wallet address', 'walletAddress');
-          continue;
-        }
-      }
-
       try {
         const existingInUniversity = await universityDb.student.findFirst({
           where: {
@@ -483,7 +682,8 @@ export const studentMutations = {
 
         if (globalIndex) {
           if (globalIndex.walletAddress) {
-            if (normalizedWallet && globalIndex.walletAddress !== normalizedWallet && !overwriteWithGlobalWallet) {
+            if (globalIndex.walletAddress !== normalizedWallet) {
+              if (overwriteWithGlobalWallet) {
               logger.warn(
                 {
                   nicHash,
@@ -491,21 +691,26 @@ export const studentMutations = {
                   globalWallet: globalIndex.walletAddress,
                   rowNumber,
                 },
-                'Wallet mismatch with global index, defaulting to existing global wallet'
-              );
+                  'Wallet mismatch with global index, overwriting with existing global wallet'
+                );
+                normalizedWallet = globalIndex.walletAddress;
+              } else {
+                throw new GraphQLError(
+                  'Wallet address does not match existing record in the Global Student Index. Enable "Prefer wallet from Global Index" to use the existing wallet.',
+                  {
+                    extensions: { code: 'BAD_USER_INPUT', field: 'walletAddress' },
+                  }
+                );
+              }
             }
-
-            normalizedWallet = overwriteWithGlobalWallet
-              ? globalIndex.walletAddress
-              : normalizedWallet ?? globalIndex.walletAddress;
-          } else if (normalizedWallet && overwriteWithGlobalWallet) {
-            globalIndex = await sharedDb.globalStudentIndex.update({
+          } else {
+            await sharedDb.globalStudentIndex.update({
               where: { nicHash },
               data: { walletAddress: normalizedWallet },
             });
           }
         } else {
-          globalIndex = await sharedDb.globalStudentIndex.create({
+          await sharedDb.globalStudentIndex.create({
             data: {
               nicHash,
               walletAddress: normalizedWallet,
@@ -515,43 +720,120 @@ export const studentMutations = {
           });
         }
 
-        const student = await universityDb.student.create({
+        const achievementsInput: StudentAchievementInput[] = achievementTitles.map((title) => ({
+          title,
+        }));
+
+        await universityDb.$transaction(async (tx: any) => {
+          const achievementPayloads = await resolveStudentAchievementInputs(tx, achievementsInput);
+
+          const normalizedCourseCode = normalizeCourseCode(courseCode.length > 0 ? courseCode : courseName);
+          const courseCreateData: any = {
+            code: normalizedCourseCode,
+            name: courseName,
+            department,
+            level: degreeType,
+            isActive: true,
+          };
+          const courseUpdateData: any = {
+            name: courseName,
+            department,
+            level: degreeType,
+            isActive: true,
+          };
+
+          if (courseDescription) {
+            courseCreateData.description = courseDescription;
+            courseUpdateData.description = courseDescription;
+          }
+
+          if (courseCredits !== null) {
+            courseCreateData.credits = courseCredits;
+            courseUpdateData.credits = courseCredits;
+          }
+
+          if (courseSemester) {
+            courseCreateData.semester = courseSemester;
+            courseUpdateData.semester = courseSemester;
+          }
+
+          const courseRecord = await tx.course.upsert({
+            where: { code: normalizedCourseCode },
+            create: courseCreateData,
+            update: courseUpdateData,
+          });
+
+          const studentRecord = await tx.student.create({
           data: {
             email,
             fullName,
             studentNumber,
             nicHash,
-            walletAddress: normalizedWallet ?? globalIndex.walletAddress,
+              walletAddress: normalizedWallet,
             program,
             department,
             enrollmentYear,
           },
         });
 
-        if (achievementTitles.length > 0) {
-          await ensureAchievementCatalogIds(universityDb, achievementTitles, achievementCache);
+          const statusValue = enrollmentStatus?.toUpperCase() ?? 'ACTIVE';
+          const semesterValue = enrollmentSemester ?? null;
 
-          const data = achievementTitles
-            .map((title) => {
-              const key = title.toLowerCase();
-              const achievementId = achievementCache.get(key);
-              if (!achievementId) {
-                return null;
-              }
-              return {
-                studentId: student.id,
+          const enrollmentRecord = await tx.enrollment.create({
+            data: {
+              studentId: studentRecord.id,
+              courseId: courseRecord.id,
+              batchYear: enrollmentYear,
+              semester: semesterValue,
+              status: statusValue,
+              gpa: enrollmentGpa,
+              grade: enrollmentGrade,
+            },
+          });
+
+          if (achievementPayloads.length > 0) {
+            const studentAchievementData = achievementPayloads.map(({ achievementId, notes, awardedAt }) => {
+              const entry: Record<string, any> = {
+                studentId: studentRecord.id,
                 achievementId,
               };
-            })
-            .filter((entry): entry is { studentId: string; achievementId: string } => !!entry);
 
-          if (data.length > 0) {
-            await universityDb.studentAchievement.createMany({
-              data,
-              skipDuplicates: true,
+              if (notes) {
+                entry.notes = notes;
+              }
+
+              if (awardedAt) {
+                entry.awardedAt = awardedAt;
+              }
+
+              return entry;
             });
+
+            if (studentAchievementData.length > 0) {
+              await tx.studentAchievement.createMany({
+                data: studentAchievementData,
+                skipDuplicates: true,
+              });
+            }
+
+            const enrollmentAchievementData = achievementPayloads.map(
+              ({ title, description: achievementDescription, category, awardedAt }) => ({
+                enrollmentId: enrollmentRecord.id,
+                badgeTitle: title,
+                description: achievementDescription ?? null,
+                badgeType: category ?? null,
+                semester: semesterValue,
+                achievementDate: awardedAt ?? null,
+              })
+            );
+
+            if (enrollmentAchievementData.length > 0) {
+              await tx.achievement.createMany({
+                data: enrollmentAchievementData,
+              });
+            }
           }
-        }
+        });
 
         successCount += 1;
       } catch (error: any) {

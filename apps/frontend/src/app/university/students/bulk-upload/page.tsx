@@ -85,6 +85,16 @@ export default function BulkUploadPage(): React.JSX.Element {
           department: row.department || '',
           walletAddress: row.walletAddress || row.wallet_address || '',
           enrollmentYear: row.enrollmentYear || row.enrollment_year || '',
+          courseCode: row.courseCode || row.course_code || '',
+          courseName: row.courseName || row.course_name || '',
+          courseDescription: row.courseDescription || row.course_description || '',
+          courseCredits: row.courseCredits || row.course_credits || '',
+          courseSemester: row.courseSemester || row.course_semester || '',
+          degreeType: row.degreeType || row.degree_type || '',
+          enrollmentSemester: row.enrollmentSemester || row.enrollment_semester || '',
+          enrollmentStatus: row.enrollmentStatus || row.enrollment_status || '',
+          enrollmentGpa: row.enrollmentGpa || row.enrollment_gpa || '',
+          enrollmentGrade: row.enrollmentGrade || row.enrollment_grade || '',
           achievements: parseAchievements(row.achievements || row.achievement || ''),
         };
         return normalized;
@@ -116,11 +126,28 @@ export default function BulkUploadPage(): React.JSX.Element {
         if (!row.enrollmentYear) {
           validationErrors.push({ row: row.rowNumber, field: 'enrollmentYear', message: 'Enrollment year is required' });
         }
-        if (row.walletAddress && !isValidWalletAddress(row.walletAddress)) {
+        if (!row.courseCode) {
+          validationErrors.push({ row: row.rowNumber, field: 'courseCode', message: 'Course code is required' });
+        }
+        if (!row.courseName) {
+          validationErrors.push({ row: row.rowNumber, field: 'courseName', message: 'Course name is required' });
+        }
+        if (!row.degreeType) {
+          validationErrors.push({ row: row.rowNumber, field: 'degreeType', message: 'Degree type is required' });
+        }
+        if (!row.walletAddress) {
+          validationErrors.push({ row: row.rowNumber, field: 'walletAddress', message: 'Wallet address is required' });
+        } else if (!isValidWalletAddress(row.walletAddress)) {
           validationErrors.push({ row: row.rowNumber, field: 'walletAddress', message: 'Invalid wallet address format' });
         }
         if (row.enrollmentYear && isNaN(Number(row.enrollmentYear))) {
           validationErrors.push({ row: row.rowNumber, field: 'enrollmentYear', message: 'Enrollment year must be a number' });
+        }
+        if (row.courseCredits && isNaN(Number(row.courseCredits))) {
+          validationErrors.push({ row: row.rowNumber, field: 'courseCredits', message: 'Course credits must be numeric' });
+        }
+        if (row.enrollmentGpa && isNaN(Number(row.enrollmentGpa))) {
+          validationErrors.push({ row: row.rowNumber, field: 'enrollmentGpa', message: 'GPA must be numeric' });
         }
       });
 
@@ -152,10 +179,20 @@ export default function BulkUploadPage(): React.JSX.Element {
           email: row.email,
           studentNumber: row.studentNumber,
           nationalId: row.nationalId,
-          walletAddress: row.walletAddress || null,
-          program: row.program || null,
-          department: row.department || null,
-          enrollmentYear: row.enrollmentYear ? Number(row.enrollmentYear) : null,
+          walletAddress: row.walletAddress,
+          program: row.program,
+          department: row.department,
+          enrollmentYear: Number(row.enrollmentYear),
+          courseCode: row.courseCode,
+          courseName: row.courseName,
+          courseDescription: row.courseDescription || null,
+          courseCredits: row.courseCredits ? Number(row.courseCredits) : null,
+          courseSemester: row.courseSemester || null,
+          degreeType: row.degreeType,
+          enrollmentSemester: row.enrollmentSemester || null,
+          enrollmentStatus: row.enrollmentStatus || null,
+          enrollmentGpa: row.enrollmentGpa ? Number(row.enrollmentGpa) : null,
+          enrollmentGrade: row.enrollmentGrade || null,
           achievements: Array.isArray(row.achievements) && row.achievements.length > 0 ? row.achievements : [],
         })),
         overwriteWalletFromGlobalIndex: overwriteWallet,
@@ -199,10 +236,10 @@ export default function BulkUploadPage(): React.JSX.Element {
   };
 
   const downloadTemplate = () => {
-    const template = `fullName,studentNumber,nationalId,email,program,department,enrollmentYear,walletAddress,achievements
-John Doe,STU-2024-001,NIC123456789V,john.doe@student.edu,Bachelor of Computer Science,Engineering,2021,9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM,"Dean's List 2023|Hackathon Winner"
-Jane Smith,STU-2024-002,NIC987654321V,jane.smith@student.edu,Master of Business Administration,Business,2020,,"Academic Excellence Award"
-Arjun Perera,STU-2024-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Engineering,Technology,2022,7T3Y7LqjjswXf3bcE8Hu2nQqzHmv8b5e4pNnMxD2qR4B,"Hackathon Champion; Research Fellowship 2024"`;
+    const template = `fullName,studentNumber,nationalId,email,program,department,enrollmentYear,walletAddress,courseCode,courseName,courseDescription,degreeType,courseCredits,courseSemester,enrollmentStatus,enrollmentSemester,enrollmentGpa,enrollmentGrade,achievements
+John Doe,STU-2025-001,NIC123456789V,john.doe@student.edu,Bachelor of Computer Science,Engineering,2021,9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM,CSC-410,Advanced Distributed Systems,"Core final-year module covering Solana + Web3 concepts.",Bachelor,120,Fall 2024,ACTIVE,Semester 7,3.85,"First Class","Dean's List 2023|Hackathon Winner"
+Jane Smith,STU-2025-002,NIC987654321V,jane.smith@student.edu,Master of Business Administration,Business School,2020,7T3Y7LqjjswXf3bcE8Hu2nQqzHmv8b5e4pNnMxD2qR4B,MBA-502,Strategic Leadership,"Capstone course with board simulation.",Master,60,Spring 2024,COMPLETED,Semester 4,3.78,"Distinction","Valedictorian|Leadership Award"
+Arjun Perera,STU-2025-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Engineering,Technology,2022,8fycQkYbKd8B1u4sQpgo1sr5Yk8XkmGS2o8sDQibV1Uo,ENG-305,Robotics & Automation,"Robotics practicum with industry placement.",Bachelor,90,Summer 2024,ACTIVE,Semester 5,3.65,"Merit","Hackathon Champion; Research Fellowship 2024"`;
     
     const blob = new Blob([template], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -264,7 +301,7 @@ Arjun Perera,STU-2024-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Eng
                   </div>
                   <h3 className="text-xl font-semibold mb-3">Choose a CSV file</h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    Include columns: <strong>fullName</strong>, <strong>studentNumber</strong>, <strong>nationalId</strong>, <strong>email</strong>, <strong>program</strong>, <strong>department</strong>, <strong>enrollmentYear</strong>, <strong>walletAddress</strong> (optional) and <strong>achievements</strong> (optional; separate multiple entries with <code>;</code> or <code>|</code>).
+                    Include columns: <strong>fullName</strong>, <strong>studentNumber</strong>, <strong>nationalId</strong>, <strong>email</strong>, <strong>program</strong>, <strong>department</strong>, <strong>enrollmentYear</strong>, <strong>walletAddress</strong>, <strong>courseCode</strong>, <strong>courseName</strong>, <strong>degreeType</strong>, and optional columns for <strong>courseCredits</strong>, <strong>courseSemester</strong>, <strong>enrollmentStatus</strong>, <strong>enrollmentSemester</strong>, <strong>enrollmentGpa</strong>, <strong>enrollmentGrade</strong>, plus <strong>achievements</strong> (separate multiple entries with <code>;</code> or <code>|</code>).
                   </p>
                   <input
                     type="file"
@@ -436,6 +473,10 @@ Arjun Perera,STU-2024-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Eng
                           <TableHead className="font-medium">Program</TableHead>
                           <TableHead className="font-medium">Department</TableHead>
                           <TableHead className="font-medium whitespace-nowrap">Enrollment Year</TableHead>
+                          <TableHead className="font-medium whitespace-nowrap">Course Code</TableHead>
+                          <TableHead className="font-medium whitespace-nowrap">Course Name</TableHead>
+                          <TableHead className="font-medium whitespace-nowrap">Degree Type</TableHead>
+                          <TableHead className="font-medium whitespace-nowrap">GPA</TableHead>
                           <TableHead className="font-medium">Achievements</TableHead>
                           <TableHead className="font-medium">Wallet</TableHead>
                           <TableHead className="font-medium">Status</TableHead>
@@ -535,6 +576,46 @@ Arjun Perera,STU-2024-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Eng
                                 </div>
                               </TableCell>
                               <TableCell>
+                                <div className={rowErrors.find(e => e.field === 'courseCode') ? 'text-red-600 font-medium' : 'font-medium'}>
+                                  {row.courseCode || 'Missing'}
+                                </div>
+                                {rowErrors.find(e => e.field === 'courseCode') && (
+                                  <div className="text-xs text-red-600 mt-1">
+                                    {rowErrors.find(e => e.field === 'courseCode').message}
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className={rowErrors.find(e => e.field === 'courseName') ? 'text-red-600 font-medium' : 'font-medium'}>
+                                  {row.courseName || 'Missing'}
+                                </div>
+                                {rowErrors.find(e => e.field === 'courseName') && (
+                                  <div className="text-xs text-red-600 mt-1">
+                                    {rowErrors.find(e => e.field === 'courseName').message}
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className={rowErrors.find(e => e.field === 'degreeType') ? 'text-red-600 font-medium' : 'font-medium'}>
+                                  {row.degreeType || 'Missing'}
+                                </div>
+                                {rowErrors.find(e => e.field === 'degreeType') && (
+                                  <div className="text-xs text-red-600 mt-1">
+                                    {rowErrors.find(e => e.field === 'degreeType').message}
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className={rowErrors.find(e => e.field === 'enrollmentGpa') ? 'text-red-600 font-medium' : 'font-medium'}>
+                                  {row.enrollmentGpa || '—'}
+                                </div>
+                                {rowErrors.find(e => e.field === 'enrollmentGpa') && (
+                                  <div className="text-xs text-red-600 mt-1">
+                                    {rowErrors.find(e => e.field === 'enrollmentGpa').message}
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
                                 {Array.isArray(row.achievements) && row.achievements.length > 0 ? (
                                   <div className="flex flex-wrap gap-1">
                                     {row.achievements.map((achievement: string, index: number) => (
@@ -597,7 +678,7 @@ Arjun Perera,STU-2024-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Eng
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-sm text-muted-foreground">
-                    CSV file must include: full name, national ID, email, program, department, and enrollment year columns.
+                    CSV file must include all required academic fields: full name, national ID, email, program, department, enrollment year, wallet address, course code, course name, and degree type. Optional academic metrics like GPA and achievements can also be provided.
                   </p>
                 </div>
                 <div className="flex items-start gap-3">

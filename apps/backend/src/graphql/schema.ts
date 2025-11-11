@@ -177,6 +177,8 @@ export const typeDefs = gql`
     degreeType: String!
     description: String
     templateFields: JSON!
+    designTemplate: JSON
+    backgroundImage: String
     isActive: Boolean!
     timesUsed: Int!
     createdAt: DateTime!
@@ -364,6 +366,11 @@ type StudentAchievement {
       offset: Int
     ): [Student!]! @auth(requires: ADMIN)
     
+    studentsWithoutCertificates(
+      limit: Int
+      offset: Int
+    ): [Student!]! @auth(requires: ADMIN)
+    
     student(id: ID!): Student @auth(requires: ADMIN)
     lookupStudentByNationalId(nationalId: String!): StudentLookupResult! @auth(requires: ADMIN)
     
@@ -524,16 +531,36 @@ type StudentAchievement {
     websiteUrl: String
   }
   
+  input StudentCourseInput {
+    code: String!
+    name: String!
+    description: String
+    credits: Int
+    semester: String
+    department: String!
+    degreeType: String!
+  }
+
+  input StudentEnrollmentInput {
+    course: StudentCourseInput!
+    batchYear: Int!
+    semester: String
+    status: String
+    gpa: Float
+    grade: String
+  }
+
   input RegisterStudentInput {
     email: String!
     fullName: String!
     studentNumber: String!
     nationalId: String!
-    walletAddress: String
-    program: String
-    department: String
-    enrollmentYear: Int
-  achievements: [StudentAchievementInput!]
+    walletAddress: String!
+    program: String!
+    department: String!
+    enrollmentYear: Int!
+    primaryEnrollment: StudentEnrollmentInput!
+    achievements: [StudentAchievementInput!]
   }
   
   input UpdateStudentInput {
@@ -596,19 +623,23 @@ input StudentAchievementInput {
     degreeType: String!
     description: String
     templateFields: JSON!
+    designTemplate: JSON!
+    backgroundImage: String
   }
   
   input UpdateTemplateInput {
     name: String
     description: String
     templateFields: JSON
+    designTemplate: JSON
+    backgroundImage: String
     isActive: Boolean
   }
   
   input IssueCertificateInput {
     studentId: ID!
     enrollmentId: ID
-    templateId: ID
+    templateId: ID!
     badgeTitle: String!
     description: String
     degreeType: String
@@ -644,11 +675,21 @@ input StudentAchievementInput {
     email: String!
     studentNumber: String!
     nationalId: String!
-    walletAddress: String
-    program: String
-    department: String
-    enrollmentYear: Int
-  achievements: [String!]
+    walletAddress: String!
+    program: String!
+    department: String!
+    enrollmentYear: Int!
+    courseCode: String!
+    courseName: String!
+    courseDescription: String
+    courseCredits: Int
+    courseSemester: String
+    degreeType: String!
+    enrollmentSemester: String
+    enrollmentStatus: String
+    enrollmentGpa: Float
+    enrollmentGrade: String
+    achievements: [String!]
   }
 
   input BulkStudentImportInput {
