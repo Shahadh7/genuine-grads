@@ -1,7 +1,7 @@
 'use client';
 import React from "react";
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,63 +16,306 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { mockPrograms } from '@/lib/mock-data-clean';
-import { studentsAPI } from '@/lib/api';
-import { ArrowLeft, Save, UserPlus, GraduationCap, Award, Info } from 'lucide-react';
+import { graphqlClient } from '@/lib/graphql-client';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
+import { ArrowLeft, Save, UserPlus, GraduationCap, Info, Trophy, Plus, X } from 'lucide-react';
 import Link from 'next/link';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useToast } from '@/hooks/useToast';
 
-interface Props {
-  // Add props here
+interface AchievementOption {
+  id: string;
+  title: string;
+  description?: string | null;
+  category?: string | null;
+}
+
+interface SelectedAchievement {
+  id?: string;
+  title: string;
+  description?: string | null;
+  category?: string | null;
+  notes?: string | null;
+  awardedAt?: string | null;
 }
 
 export default function AddStudentPage(): React.JSX.Element {
   const router = useRouter();
-  const [formData, setFormData] = useState<any>({
-    name: '',
-    nic: '',
+  const { loading: guardLoading } = useRoleGuard(['university_admin']);
+  const toast = useToast();
+  const [programs, setPrograms] = useState<string[]>([]);
+  const [programsLoading, setProgramsLoading] = useState<boolean>(true);
+  const [formData, setFormData] = useState({
+    fullName: '',
+    studentNumber: '',
+    nationalId: '',
     email: '',
     program: '',
+    department: '',
+    enrollmentYear: new Date().getFullYear().toString(),
     walletAddress: '',
-    achievements: ''
   });
-  const [loading, setLoading] = useState<any>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [availableAchievements, setAvailableAchievements] = useState<AchievementOption[]>([]);
+  const [achievementsLoading, setAchievementsLoading] = useState<boolean>(false);
+  const [achievementsError, setAchievementsError] = useState<string | null>(null);
+  const [achievementSearch, setAchievementSearch] = useState('');
+  const [selectedAchievements, setSelectedAchievements] = useState<SelectedAchievement[]>([]);
+  const [newAchievement, setNewAchievement] = useState({
+    title: '',
+    description: '',
+    category: '',
+  });
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({
+  const filteredAchievements = useMemo(() => {
+    if (!achievementSearch) {
+      return availableAchievements.filter(
+        (item) =>
+          !selectedAchievements.some(
+            (selected) =>
+              selected.id === item.id || selected.title.toLowerCase() === item.title.toLowerCase()
+          )
+      );
+    }
+
+    const searchValue = achievementSearch.toLowerCase();
+
+    return availableAchievements.filter((item) => {
+      const alreadySelected = selectedAchievements.some(
+        (selected) =>
+          selected.id === item.id || selected.title.toLowerCase() === item.title.toLowerCase()
+      );
+      if (alreadySelected) {
+        return false;
+      }
+      return (
+        item.title.toLowerCase().includes(searchValue) ||
+        (item.description ?? '').toLowerCase().includes(searchValue)
+      );
+    });
+  }, [availableAchievements, achievementSearch, selectedAchievements]);
+
+  useEffect(() => {
+    const loadPrograms = async () => {
+      type StudentRecord = { program?: string | null };
+      try {
+        const response = await graphqlClient.getStudents({ limit: 200 });
+        const students = (response.data?.students ?? []) as StudentRecord[];
+        const uniquePrograms = Array.from(
+          new Set(
+            students
+              .map((student) => student.program?.trim())
+              .filter((program): program is string => !!program)
+          )
+        ).sort((a, b) => a.localeCompare(b));
+
+        setPrograms(uniquePrograms);
+      } catch (loadError) {
+        console.error('Failed to load available programs:', loadError);
+      } finally {
+        setProgramsLoading(false);
+      }
+    };
+
+    const loadAchievements = async () => {
+      try {
+        setAchievementsLoading(true);
+        const response = await graphqlClient.getAchievementCatalog();
+        setAvailableAchievements(response.data?.achievementCatalog ?? []);
+        setAchievementsError(null);
+      } catch (loadError) {
+        console.error('Failed to load achievement catalog:', loadError);
+        setAchievementsError('Unable to load achievements. You can still create new ones below.');
+      } finally {
+        setAchievementsLoading(false);
+      }
+    };
+
+    loadPrograms();
+    loadAchievements();
+  }, []);
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
+
+    if (errors[field]) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
   };
 
-  const handleSubmit = async (e) => {
+  const handleAddExistingAchievement = (achievementId: string) => {
+    const achievement = availableAchievements.find((item) => item.id === achievementId);
+    if (!achievement) {
+      return;
+    }
+
+    const alreadySelected = selectedAchievements.some(
+      (item) => item.id === achievement.id || item.title.toLowerCase() === achievement.title.toLowerCase()
+    );
+
+    if (alreadySelected) {
+      toast.info(`"${achievement.title}" is already selected.`);
+      return;
+    }
+
+    setSelectedAchievements((prev) => [
+      ...prev,
+      {
+        id: achievement.id,
+        title: achievement.title,
+        description: achievement.description ?? undefined,
+        category: achievement.category ?? undefined,
+      },
+    ]);
+
+    toast.success({
+      title: 'Achievement added',
+      description: `"${achievement.title}" linked to this student.`,
+    });
+  };
+
+  const handleRemoveAchievement = (identifier: string) => {
+    setSelectedAchievements((prev) => {
+      const target = prev.find((item) => (item.id ?? item.title.toLowerCase()) === identifier);
+      const next = prev.filter((item) => {
+        const key = item.id ?? item.title.toLowerCase();
+        return key !== identifier;
+      });
+
+      if (target) {
+        toast.info({
+          title: 'Achievement removed',
+          description: `"${target.title}" will not be linked to this student.`,
+        });
+      }
+
+      return next;
+    });
+  };
+
+  const handleCreateAchievement = () => {
+    const title = newAchievement.title.trim();
+    if (!title) {
+      toast.error({
+        title: 'Achievement title required',
+        description: 'Provide a title before adding a new achievement.',
+      });
+      return;
+    }
+
+    const duplicate = selectedAchievements.some(
+      (item) => item.title.toLowerCase() === title.toLowerCase()
+    );
+
+    if (duplicate) {
+      toast.warning({
+        title: 'Duplicate achievement',
+        description: `"${title}" has already been added.`,
+      });
+      return;
+    }
+
+    setSelectedAchievements((prev) => [
+      ...prev,
+      {
+        title,
+        description: newAchievement.description.trim() || undefined,
+        category: newAchievement.category.trim() || undefined,
+      },
+    ]);
+
+    setNewAchievement({
+      title: '',
+      description: '',
+      category: '',
+    });
+
+    toast.success({
+      title: 'New achievement added',
+      description: `"${title}" will be created for this student.`,
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
 
     try {
-      const result = await studentsAPI.create({
-        name: formData.name,
-        nic: formData.nic,
-        email: formData.email,
-        program: formData.program,
-        walletAddress: formData.walletAddress,
-        achievements: formData.achievements
+      const response = await graphqlClient.registerStudent({
+        email: formData.email.trim(),
+        fullName: formData.fullName.trim(),
+        studentNumber: formData.studentNumber.trim(),
+        nationalId: formData.nationalId.trim(),
+        walletAddress: formData.walletAddress.trim(),
+        program: formData.program || undefined,
+        department: formData.department || undefined,
+        enrollmentYear: formData.enrollmentYear ? Number(formData.enrollmentYear) : undefined,
+        achievements: selectedAchievements.map((achievement) =>
+          achievement.id
+            ? {
+                id: achievement.id,
+                notes: achievement.notes ?? undefined,
+                awardedAt: achievement.awardedAt ?? undefined,
+              }
+            : {
+                title: achievement.title,
+                description: achievement.description ?? undefined,
+                category: achievement.category ?? undefined,
+                notes: achievement.notes ?? undefined,
+                awardedAt: achievement.awardedAt ?? undefined,
+              }
+        ),
       });
 
-      if (result.success) {
-        router.push('/university/students');
-      } else {
-        // Handle errors
-        console.error('Failed to create student:', result.errors);
-        // In a real app, you would show these errors to the user
+      if (response.errors?.length) {
+        throw new Error(response.errors[0].message);
       }
+
+      toast.success({
+        title: 'Student registered',
+        description: `${formData.fullName.trim()} has been added successfully.`,
+      });
+      router.push('/university/students');
     } catch (error) {
       console.error('Error creating student:', error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to register student. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const isFormValid = formData.name && formData.nic && formData.email && formData.program && formData.walletAddress;
+  const isFormValid =
+    formData.fullName.trim().length > 0 &&
+    formData.studentNumber.trim().length > 0 &&
+    formData.nationalId.trim().length > 0 &&
+    formData.email.trim().length > 0 &&
+    formData.program.trim().length > 0 &&
+    formData.department.trim().length > 0 &&
+    formData.enrollmentYear.trim().length > 0 &&
+    !Number.isNaN(Number(formData.enrollmentYear)) &&
+    formData.walletAddress.trim().length > 0;
+
+  if (guardLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -115,6 +358,12 @@ export default function AddStudentPage(): React.JSX.Element {
             </CardHeader>
             <CardContent className="space-y-6">
               <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
                 {/* Name and NIC Row */}
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-3">
@@ -124,26 +373,41 @@ export default function AddStudentPage(): React.JSX.Element {
                     <Input
                       id="name"
                       placeholder="Enter student's full name"
-                      value={formData.name}
-                      onChange={(e: any) => handleInputChange('name', e.target.value)}
+                      value={formData.fullName}
+                      onChange={(e: any) => handleInputChange('fullName', e.target.value)}
                       className="h-11 bg-background/50 border-muted focus:border-primary"
                       required
                     />
                   </div>
 
                   <div className="space-y-3">
-                    <Label htmlFor="nic" className="text-sm font-medium">
-                      NIC Number <span className="text-destructive">*</span>
+                    <Label htmlFor="studentNumber" className="text-sm font-medium">
+                      Student Number <span className="text-destructive">*</span>
                     </Label>
                     <Input
-                      id="nic"
-                      placeholder="Enter NIC number"
-                      value={formData.nic}
-                      onChange={(e: any) => handleInputChange('nic', e.target.value)}
+                      id="studentNumber"
+                      placeholder="e.g. STU-2025-001"
+                      value={formData.studentNumber}
+                      onChange={(e: any) => handleInputChange('studentNumber', e.target.value)}
                       className="h-11 bg-background/50 border-muted focus:border-primary"
                       required
                     />
                   </div>
+                </div>
+
+                {/* NIC / National ID */}
+                <div className="space-y-3">
+                  <Label htmlFor="nationalId" className="text-sm font-medium">
+                    National ID / NIC <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="nationalId"
+                    placeholder="Enter NIC or national identification number"
+                    value={formData.nationalId}
+                    onChange={(e: any) => handleInputChange('nationalId', e.target.value)}
+                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                    required
+                  />
                 </div>
 
                 {/* Email */}
@@ -167,22 +431,80 @@ export default function AddStudentPage(): React.JSX.Element {
                   <Label htmlFor="program" className="text-sm font-medium">
                     Program Enrolled <span className="text-destructive">*</span>
                   </Label>
-                  <Select 
-                    value={formData.program} 
-                    onValueChange={(value) => handleInputChange('program', value)}
-                    required
-                  >
-                    <SelectTrigger className="h-11 bg-background/50 border-muted focus:border-primary">
-                      <SelectValue placeholder="Select a program" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mockPrograms.map((program: any) => (
-                        <SelectItem key={program} value={program}>
-                          {program}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {programsLoading ? (
+                    <Select value={formData.program}>
+                      <SelectTrigger
+                        className="h-11 bg-background/50 border-muted focus:border-primary"
+                        disabled
+                      >
+                        <SelectValue placeholder="Loading programs..." />
+                      </SelectTrigger>
+                    </Select>
+                  ) : programs.length > 0 ? (
+                    <Select
+                      value={formData.program}
+                      onValueChange={(value) => handleInputChange('program', value)}
+                    >
+                      <SelectTrigger className="h-11 bg-background/50 border-muted focus:border-primary">
+                        <SelectValue placeholder="Select a program" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {programs.map((program) => (
+                          <SelectItem key={program} value={program}>
+                            {program}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <>
+                      <Input
+                        id="program"
+                        placeholder="Enter program name"
+                        value={formData.program}
+                        onChange={(e: any) => handleInputChange('program', e.target.value)}
+                        className="h-11 bg-background/50 border-muted focus:border-primary"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        No existing programs found. Enter the program name manually.
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                {/* Department and Enrollment Year */}
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <Label htmlFor="department" className="text-sm font-medium">
+                      Department <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="department"
+                      placeholder="e.g. Faculty of Engineering"
+                      value={formData.department}
+                      onChange={(e: any) => handleInputChange('department', e.target.value)}
+                      className="h-11 bg-background/50 border-muted focus:border-primary"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label htmlFor="enrollmentYear" className="text-sm font-medium">
+                      Enrollment Year <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="enrollmentYear"
+                      type="number"
+                      min="1900"
+                      max="2100"
+                      placeholder="e.g. 2025"
+                      value={formData.enrollmentYear}
+                      onChange={(e: any) => handleInputChange('enrollmentYear', e.target.value)}
+                      className="h-11 bg-background/50 border-muted focus:border-primary"
+                      required
+                    />
+                  </div>
                 </div>
 
                 {/* Wallet Address */}
@@ -204,25 +526,134 @@ export default function AddStudentPage(): React.JSX.Element {
                   </p>
                 </div>
 
-                {/* Achievements */}
-                <div className="space-y-3">
-                  <Label htmlFor="achievements" className="text-sm font-medium flex items-center gap-2">
-                    <Award className="h-4 w-4 text-muted-foreground" />
-                    Achievements <Badge variant="secondary" className="text-xs">Optional</Badge>
-                  </Label>
-                  <Textarea
-                    id="achievements"
-                    placeholder="Enter any achievements, awards, or notable accomplishments"
-                    value={formData.achievements}
-                    onChange={(e: any) => handleInputChange('achievements', e.target.value)}
-                    rows={4}
-                    className="bg-background/50 border-muted focus:border-primary resize-none"
-                  />
-                  <p className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Info className="h-3 w-3" />
-                    Separate multiple achievements with commas
-                  </p>
+              {/* Achievements */}
+              <div className="space-y-4 border rounded-lg p-4 bg-background/40">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-primary/10 rounded-full">
+                    <Trophy className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold leading-tight">Student Achievements</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Select existing achievements or add new highlights for this student.
+                    </p>
+                  </div>
                 </div>
+
+                {achievementsError && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{achievementsError}</AlertDescription>
+                  </Alert>
+                )}
+
+                <div className="space-y-3">
+                  <Label htmlFor="achievement-search" className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Search existing achievements
+                  </Label>
+                  <Input
+                    id="achievement-search"
+                    placeholder="Search by title or keyword"
+                    value={achievementSearch}
+                    onChange={(event) => setAchievementSearch(event.target.value)}
+                    className="h-10 bg-background/60 border-muted focus:border-primary"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {achievementsLoading ? (
+                      <p className="text-xs text-muted-foreground">Loading achievements…</p>
+                    ) : filteredAchievements.slice(0, 8).map((achievement) => (
+                      <Button
+                        key={achievement.id}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full border-primary/30 text-primary hover:bg-primary/10"
+                        onClick={() => handleAddExistingAchievement(achievement.id)}
+                      >
+                        <Trophy className="h-3 w-3 mr-1" />
+                        {achievement.title}
+                      </Button>
+                    ))}
+                    {!achievementsLoading && filteredAchievements.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        No achievements match your search. Create a new one below.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Selected achievements
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedAchievements.length > 0 ? (
+                      selectedAchievements.map((achievement) => {
+                        const identifier = achievement.id ?? achievement.title.toLowerCase();
+                        return (
+                          <div
+                            key={identifier}
+                            className="inline-flex items-center gap-2 rounded-full bg-primary/10 text-primary px-3 py-1 text-xs font-medium"
+                          >
+                            <span>{achievement.title}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAchievement(identifier)}
+                              className="p-0.5 rounded-full hover:bg-primary/20 transition-colors"
+                              aria-label={`Remove ${achievement.title}`}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <p className="text-xs text-muted-foreground">No achievements selected yet.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-3 border-t pt-4">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Add a new achievement
+                  </Label>
+                  <div className="grid gap-3">
+                    <Input
+                      placeholder="Achievement title (required)"
+                      value={newAchievement.title}
+                      onChange={(event) =>
+                        setNewAchievement((prev) => ({ ...prev, title: event.target.value }))
+                      }
+                      className="h-10 bg-background/60 border-muted focus:border-primary"
+                    />
+                    <Textarea
+                      placeholder="Description (optional)"
+                      value={newAchievement.description}
+                      onChange={(event) =>
+                        setNewAchievement((prev) => ({ ...prev, description: event.target.value }))
+                      }
+                      className="bg-background/60 border-muted focus:border-primary"
+                      rows={3}
+                    />
+                    <Input
+                      placeholder="Category (optional)"
+                      value={newAchievement.category}
+                      onChange={(event) =>
+                        setNewAchievement((prev) => ({ ...prev, category: event.target.value }))
+                      }
+                      className="h-10 bg-background/60 border-muted focus:border-primary"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full md:w-auto bg-primary/10 text-primary hover:bg-primary/20"
+                      onClick={handleCreateAchievement}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Achievement
+                    </Button>
+                  </div>
+                </div>
+              </div>
 
                 {/* Action Buttons */}
                 <div className="flex gap-4 pt-6 border-t">

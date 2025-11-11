@@ -1,11 +1,12 @@
 'use client';
-import React from "react";
-
-import { useState } from 'react';
+import React, { useState } from "react";
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { 
   Table, 
   TableBody, 
@@ -27,7 +28,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import Link from 'next/link';
-import { studentsAPI } from '@/lib/api';
+import { graphqlClient } from '@/lib/graphql-client';
 
 interface Props {
   // Add props here
@@ -38,7 +39,20 @@ export default function BulkUploadPage(): React.JSX.Element {
   const [uploadedData, setUploadedData] = useState<any>(null);
   const [loading, setLoading] = useState<any>(false);
   const [errors, setErrors] = useState<any>([]);
+  const [serverFailures, setServerFailures] = useState<any>([]);
   const [uploadResults, setUploadResults] = useState<any>(null);
+  const [overwriteWallet, setOverwriteWallet] = useState<boolean>(false);
+
+  const generalErrors = errors.filter((error: any) => !error.row);
+
+  const parseAchievements = (value: string): string[] => {
+    if (!value) return [];
+    return value
+      .replace(/^"|"$/g, '')
+      .split(/;|\|/)
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0);
+  };
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -46,28 +60,47 @@ export default function BulkUploadPage(): React.JSX.Element {
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const csv = e.target.result;
-      const lines = csv.split('\n');
+      const csv = (e.target?.result as string) || '';
+      const lines = csv.split(/\r?\n/).filter((line: string) => line.trim().length > 0);
+      if (lines.length === 0) {
+        setErrors([{ message: 'The uploaded file is empty.' }]);
+        return;
+      }
+
       const headers = lines[0].split(',').map(h => h.trim());
       
       const data = lines.slice(1).map((line: any, index: any) => {
         const values = line.split(',').map(v => v.trim());
-        const row = {};
+        const row: Record<string, string> = {};
         headers.forEach((header, i: any) => {
           row[header] = values[i] || '';
         });
-        row.rowNumber = index + 2; // +2 because we start from line 2 and index starts at 0
-        return row;
-      }).filter(row => row.name || row.nic || row.email); // Remove empty rows
+        const normalized = {
+          rowNumber: index + 2,
+          fullName: row.fullName || row.name || '',
+          email: row.email || '',
+          studentNumber: row.studentNumber || row.student_number || row.studentNo || '',
+          nationalId: row.nationalId || row.national_id || row.nic || '',
+          program: row.program || '',
+          department: row.department || '',
+          walletAddress: row.walletAddress || row.wallet_address || '',
+          enrollmentYear: row.enrollmentYear || row.enrollment_year || '',
+          achievements: parseAchievements(row.achievements || row.achievement || ''),
+        };
+        return normalized;
+      }).filter(row => row.fullName || row.nationalId || row.email);
 
       // Validate data
       const validationErrors = [];
       data.forEach((row: any) => {
-        if (!row.name) {
-          validationErrors.push({ row: row.rowNumber, field: 'name', message: 'Name is required' });
+        if (!row.fullName) {
+          validationErrors.push({ row: row.rowNumber, field: 'fullName', message: 'Full name is required' });
         }
-        if (!row.nic) {
-          validationErrors.push({ row: row.rowNumber, field: 'nic', message: 'NIC is required' });
+        if (!row.studentNumber) {
+          validationErrors.push({ row: row.rowNumber, field: 'studentNumber', message: 'Student number is required' });
+        }
+        if (!row.nationalId) {
+          validationErrors.push({ row: row.rowNumber, field: 'nationalId', message: 'National ID is required' });
         }
         if (!row.email) {
           validationErrors.push({ row: row.rowNumber, field: 'email', message: 'Email is required' });
@@ -77,14 +110,23 @@ export default function BulkUploadPage(): React.JSX.Element {
         if (!row.program) {
           validationErrors.push({ row: row.rowNumber, field: 'program', message: 'Program is required' });
         }
-        if (!row.walletAddress) {
-          validationErrors.push({ row: row.rowNumber, field: 'walletAddress', message: 'Wallet address is required' });
-        } else if (!isValidWalletAddress(row.walletAddress)) {
+        if (!row.department) {
+          validationErrors.push({ row: row.rowNumber, field: 'department', message: 'Department is required' });
+        }
+        if (!row.enrollmentYear) {
+          validationErrors.push({ row: row.rowNumber, field: 'enrollmentYear', message: 'Enrollment year is required' });
+        }
+        if (row.walletAddress && !isValidWalletAddress(row.walletAddress)) {
           validationErrors.push({ row: row.rowNumber, field: 'walletAddress', message: 'Invalid wallet address format' });
+        }
+        if (row.enrollmentYear && isNaN(Number(row.enrollmentYear))) {
+          validationErrors.push({ row: row.rowNumber, field: 'enrollmentYear', message: 'Enrollment year must be a number' });
         }
       });
 
       setErrors(validationErrors);
+      setServerFailures([]);
+      setUploadResults(null);
       setUploadedData(data);
     };
     reader.readAsText(file);
@@ -103,12 +145,35 @@ export default function BulkUploadPage(): React.JSX.Element {
     setLoading(true);
     
     try {
-      // Use the mock API to bulk create students
-      const results = await studentsAPI.bulkCreate(uploadedData);
-      setUploadResults(results);
-      
-      if (results.success.length > 0) {
-        // Show success message and redirect after a delay
+      const payload = {
+        students: uploadedData.map((row: any) => ({
+          rowNumber: row.rowNumber,
+          fullName: row.fullName,
+          email: row.email,
+          studentNumber: row.studentNumber,
+          nationalId: row.nationalId,
+          walletAddress: row.walletAddress || null,
+          program: row.program || null,
+          department: row.department || null,
+          enrollmentYear: row.enrollmentYear ? Number(row.enrollmentYear) : null,
+          achievements: Array.isArray(row.achievements) && row.achievements.length > 0 ? row.achievements : [],
+        })),
+        overwriteWalletFromGlobalIndex: overwriteWallet,
+      };
+
+      const response = await graphqlClient.bulkImportStudents(payload);
+
+      if (response.errors && response.errors.length > 0) {
+        setErrors([{ message: response.errors[0]?.message || 'Bulk import failed.' }]);
+        return;
+      }
+
+      const result = response.data?.bulkImportStudents;
+
+      setUploadResults(result);
+      setServerFailures(result?.failures ?? []);
+
+      if (result && result.successCount > 0) {
         setTimeout(() => {
           router.push('/university/students');
         }, 2000);
@@ -122,13 +187,22 @@ export default function BulkUploadPage(): React.JSX.Element {
   };
 
   const getRowError = (rowNumber) => {
-    return errors.filter(error => error.row === rowNumber);
+    const clientErrorsForRow = errors.filter((error: any) => error.row === rowNumber);
+    const serverErrorsForRow = serverFailures
+      .filter((failure: any) => failure.rowNumber === rowNumber)
+      .map((failure: any) => ({
+        row: failure.rowNumber,
+        field: failure.field,
+        message: failure.message,
+      }));
+    return [...clientErrorsForRow, ...serverErrorsForRow];
   };
 
   const downloadTemplate = () => {
-    const template = `name,nic,email,program,walletAddress,achievements
-John Doe,NIC123456789,john.doe@student.edu,Bachelor of Computer Science,9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM,"Dean's List 2023, Hackathon Winner"
-Jane Smith,NIC987654321,jane.smith@student.edu,Master of Business Administration,7XzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM,"Academic Excellence Award"`;
+    const template = `fullName,studentNumber,nationalId,email,program,department,enrollmentYear,walletAddress,achievements
+John Doe,STU-2024-001,NIC123456789V,john.doe@student.edu,Bachelor of Computer Science,Engineering,2021,9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM,"Dean's List 2023|Hackathon Winner"
+Jane Smith,STU-2024-002,NIC987654321V,jane.smith@student.edu,Master of Business Administration,Business,2020,,"Academic Excellence Award"
+Arjun Perera,STU-2024-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Engineering,Technology,2022,7T3Y7LqjjswXf3bcE8Hu2nQqzHmv8b5e4pNnMxD2qR4B,"Hackathon Champion; Research Fellowship 2024"`;
     
     const blob = new Blob([template], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -190,7 +264,7 @@ Jane Smith,NIC987654321,jane.smith@student.edu,Master of Business Administration
                   </div>
                   <h3 className="text-xl font-semibold mb-3">Choose a CSV file</h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    The file should contain columns: <strong>name</strong>, <strong>nic</strong>, <strong>email</strong>, <strong>program</strong>, <strong>walletAddress</strong> (required), <strong>achievements</strong> (optional)
+                    Include columns: <strong>fullName</strong>, <strong>studentNumber</strong>, <strong>nationalId</strong>, <strong>email</strong>, <strong>program</strong>, <strong>department</strong>, <strong>enrollmentYear</strong>, <strong>walletAddress</strong> (optional) and <strong>achievements</strong> (optional; separate multiple entries with <code>;</code> or <code>|</code>).
                   </p>
                   <input
                     type="file"
@@ -200,8 +274,8 @@ Jane Smith,NIC987654321,jane.smith@student.edu,Master of Business Administration
                     id="csv-upload"
                   />
                   <label htmlFor="csv-upload">
-                    <Button as="span" className="cursor-pointer h-11 px-6 bg-primary hover:bg-primary/90 shadow-lg">
-                      Select File
+                    <Button asChild className="cursor-pointer h-11 px-6 bg-primary hover:bg-primary/90 shadow-lg">
+                      <span>Select File</span>
                     </Button>
                   </label>
                 </div>
@@ -219,6 +293,17 @@ Jane Smith,NIC987654321,jane.smith@student.edu,Master of Business Administration
           {/* Preview Section */}
           {uploadedData && (
             <div className="space-y-6">
+              {generalErrors.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription className="space-y-1">
+                    {generalErrors.map((error: any, index: number) => (
+                      <div key={index}>{error.message}</div>
+                    ))}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {/* Summary Card */}
               <Card className="border-0 shadow-lg bg-gradient-to-r from-green-500/5 to-blue-500/5">
                 <CardContent className="p-6">
@@ -251,18 +336,42 @@ Jane Smith,NIC987654321,jane.smith@student.edu,Master of Business Administration
                           </div>
                           <div>
                             <p className="text-sm text-muted-foreground">Successfully Added</p>
-                            <p className="text-2xl font-bold text-blue-600">{uploadResults.success.length}</p>
+                            <p className="text-2xl font-bold text-blue-600">{uploadResults.successCount}</p>
+                          </div>
+                        </div>
+                      )}
+                      {uploadResults && uploadResults.failureCount > 0 && (
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-red-500/10 rounded-lg">
+                            <AlertTriangle className="h-5 w-5 text-red-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Failed Imports</p>
+                            <p className="text-2xl font-bold text-red-600">{uploadResults.failureCount}</p>
                           </div>
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
+                      <div className="flex items-center gap-2">
+                        <Checkbox
+                          id="overwrite-wallet"
+                          checked={overwriteWallet}
+                          onCheckedChange={(value) => setOverwriteWallet(Boolean(value))}
+                        />
+                        <Label htmlFor="overwrite-wallet" className="text-sm text-muted-foreground">
+                          Prefer wallet from Global Student Index when available
+                        </Label>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 mt-4 md:mt-0">
                       <Button 
                         variant="outline" 
                         onClick={() => {
                           setUploadedData(null);
                           setUploadResults(null);
                           setErrors([]);
+                          setServerFailures([]);
                         }}
                         className="h-11"
                       >
@@ -287,7 +396,7 @@ Jane Smith,NIC987654321,jane.smith@student.edu,Master of Business Administration
                           )}
                         </Button>
                       )}
-                      {uploadResults && uploadResults.success.length > 0 && (
+                      {uploadResults && uploadResults.successCount > 0 && (
                         <Button 
                           onClick={() => router.push('/university/students')}
                           className="h-11 bg-green-600 hover:bg-green-700 shadow-lg"
@@ -320,10 +429,15 @@ Jane Smith,NIC987654321,jane.smith@student.edu,Master of Business Administration
                       <TableHeader>
                         <TableRow className="bg-muted/50">
                           <TableHead className="font-medium">Row</TableHead>
-                          <TableHead className="font-medium">Name</TableHead>
-                          <TableHead className="font-medium">NIC</TableHead>
+                          <TableHead className="font-medium">Student #</TableHead>
+                          <TableHead className="font-medium">Full Name</TableHead>
+                          <TableHead className="font-medium">National ID</TableHead>
                           <TableHead className="font-medium">Email</TableHead>
                           <TableHead className="font-medium">Program</TableHead>
+                          <TableHead className="font-medium">Department</TableHead>
+                          <TableHead className="font-medium whitespace-nowrap">Enrollment Year</TableHead>
+                          <TableHead className="font-medium">Achievements</TableHead>
+                          <TableHead className="font-medium">Wallet</TableHead>
                           <TableHead className="font-medium">Status</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -339,25 +453,35 @@ Jane Smith,NIC987654321,jane.smith@student.edu,Master of Business Administration
                             >
                               <TableCell className="font-mono text-sm font-medium">{row.rowNumber}</TableCell>
                               <TableCell>
-                                <div>
-                                  <div className={rowErrors.find(e => e.field === 'name') ? 'text-red-600 font-medium' : 'font-medium'}>
-                                    {row.name || 'Missing'}
+                                <div className={rowErrors.find(e => e.field === 'studentNumber') ? 'text-red-600 font-medium' : 'font-medium'}>
+                                  {row.studentNumber || 'Missing'}
+                                </div>
+                                {rowErrors.find(e => e.field === 'studentNumber') && (
+                                  <div className="text-xs text-red-600 mt-1">
+                                    {rowErrors.find(e => e.field === 'studentNumber').message}
                                   </div>
-                                  {rowErrors.find(e => e.field === 'name') && (
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div>
+                                  <div className={rowErrors.find(e => e.field === 'fullName') ? 'text-red-600 font-medium' : 'font-medium'}>
+                                    {row.fullName || 'Missing'}
+                                  </div>
+                                  {rowErrors.find(e => e.field === 'fullName') && (
                                     <div className="text-xs text-red-600 mt-1">
-                                      {rowErrors.find(e => e.field === 'name').message}
+                                      {rowErrors.find(e => e.field === 'fullName').message}
                                     </div>
                                   )}
                                 </div>
                               </TableCell>
                               <TableCell>
                                 <div>
-                                  <div className={rowErrors.find(e => e.field === 'nic') ? 'text-red-600 font-medium' : 'font-medium'}>
-                                    {row.nic || 'Missing'}
+                                  <div className={rowErrors.find(e => e.field === 'nationalId') ? 'text-red-600 font-medium' : 'font-medium'}>
+                                    {row.nationalId || 'Missing'}
                                   </div>
-                                  {rowErrors.find(e => e.field === 'nic') && (
+                                  {rowErrors.find(e => e.field === 'nationalId') && (
                                     <div className="text-xs text-red-600 mt-1">
-                                      {rowErrors.find(e => e.field === 'nic').message}
+                                      {rowErrors.find(e => e.field === 'nationalId').message}
                                     </div>
                                   )}
                                 </div>
@@ -385,6 +509,53 @@ Jane Smith,NIC987654321,jane.smith@student.edu,Master of Business Administration
                                     </div>
                                   )}
                                 </div>
+                              </TableCell>
+                              <TableCell>
+                                <div>
+                                  <div className={rowErrors.find(e => e.field === 'department') ? 'text-red-600 font-medium' : 'font-medium'}>
+                                    {row.department || 'Missing'}
+                                  </div>
+                                  {rowErrors.find(e => e.field === 'department') && (
+                                    <div className="text-xs text-red-600 mt-1">
+                                      {rowErrors.find(e => e.field === 'department').message}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div>
+                                  <div className={rowErrors.find(e => e.field === 'enrollmentYear') ? 'text-red-600 font-medium' : 'font-medium'}>
+                                    {row.enrollmentYear || 'Missing'}
+                                  </div>
+                                  {rowErrors.find(e => e.field === 'enrollmentYear') && (
+                                    <div className="text-xs text-red-600 mt-1">
+                                      {rowErrors.find(e => e.field === 'enrollmentYear').message}
+                                    </div>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {Array.isArray(row.achievements) && row.achievements.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {row.achievements.map((achievement: string, index: number) => (
+                                      <Badge key={`${row.rowNumber}-ach-${index}`} variant="secondary" className="text-xs px-2 py-0">
+                                        {achievement}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">None</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className={rowErrors.find(e => e.field === 'walletAddress') ? 'text-red-600 font-medium' : 'font-medium'}>
+                                  {row.walletAddress || <span className="text-muted-foreground">Not provided</span>}
+                                </div>
+                                {rowErrors.find(e => e.field === 'walletAddress') && (
+                                  <div className="text-xs text-red-600 mt-1">
+                                    {rowErrors.find(e => e.field === 'walletAddress').message}
+                                  </div>
+                                )}
                               </TableCell>
                               <TableCell>
                                 {hasErrors ? (
@@ -426,13 +597,13 @@ Jane Smith,NIC987654321,jane.smith@student.edu,Master of Business Administration
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-sm text-muted-foreground">
-                    CSV file must include: name, nic, email, and program columns.
+                    CSV file must include: full name, national ID, email, program, department, and enrollment year columns.
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="w-2 h-2 bg-primary rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-sm text-muted-foreground">
-                    Achievements column is optional and can contain multiple values separated by commas.
+                    Achievements column is optional. Separate multiple entries with semicolons (<code>;</code>) or pipes (<code>|</code>).
                   </p>
                 </div>
                 <div className="flex items-start gap-3">

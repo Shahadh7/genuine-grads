@@ -8,6 +8,8 @@ import { authMutations } from './mutations/auth.mutations.js';
 import { universityMutations } from './mutations/university.mutations.js';
 import { studentMutations } from './mutations/student.mutations.js';
 import { certificateMutations } from './mutations/certificate.mutations.js';
+import { requireUniversityDb } from '../context.js';
+// import { solanaMutations } from './mutations/solana.mutations.js'; // TODO: Update for new architecture
 
 export const resolvers = {
   // Custom scalars
@@ -45,6 +47,9 @@ export const resolvers = {
     
     // Certificates
     ...certificateMutations,
+    
+    // Solana transactions (integrated into university/certificate mutations)
+    // ...solanaMutations, // TODO: Update for new architecture
   },
 
   // Field resolvers (for nested data)
@@ -74,6 +79,28 @@ export const resolvers = {
         activeStudents,
         totalStudents,
       };
+    },
+  },
+
+  Student: {
+    achievements: async (parent: any, _: any, context: any) => {
+      if (!context || !context.admin) {
+        return [];
+      }
+
+      if (Array.isArray(parent.achievements) && parent.achievements.length > 0) {
+        const needsHydration = parent.achievements.some((item: any) => !item?.achievement);
+        if (!needsHydration) {
+          return parent.achievements;
+        }
+      }
+
+      const universityDb = requireUniversityDb(context);
+      return universityDb.studentAchievement.findMany({
+        where: { studentId: parent.id },
+        include: { achievement: true },
+        orderBy: { awardedAt: 'desc' },
+      });
     },
   },
 

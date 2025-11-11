@@ -47,15 +47,27 @@ export const typeDefs = gql`
     logoUrl: String
     websiteUrl: String
     walletAddress: String!
+    universityPDA: String
     merkleTreeAddress: String
+    collectionAddress: String
     status: UniversityStatus!
     approvedAt: DateTime
     createdAt: DateTime!
     updatedAt: DateTime!
+    rejectedReason: String
+    
+    # Blockchain transaction signatures
+    registrationTxSignature: String
+    approvalTxSignature: String
+    deactivationTxSignature: String
     
     # Relations
     admins: [Admin!]!
     stats: UniversityStats
+    mintLogs: [MintActivityLog!]!
+    databaseName: String
+    databaseUrl: String
+    superAdminPubkey: String
   }
   
   type UniversityStats {
@@ -110,6 +122,7 @@ export const typeDefs = gql`
     # Relations
     certificates: [Certificate!]!
     enrollments: [Enrollment!]!
+  achievements: [StudentAchievement!]!
   }
   
   type GlobalStudentIndex {
@@ -118,6 +131,17 @@ export const typeDefs = gql`
     walletAddress: String
     createdByUniversity: University!
     createdAt: DateTime!
+  }
+
+  type StudentLookupResult {
+    existsInUniversity: Boolean!
+    globalExists: Boolean!
+    studentId: ID
+    fullName: String
+    email: String
+    walletAddress: String
+    globalWalletAddress: String
+    createdByUniversityName: String
   }
 
   # ============================================
@@ -194,6 +218,23 @@ export const typeDefs = gql`
     zkpCommitmentHash: String
     proofGenerated: Boolean!
   }
+
+type AchievementCatalog {
+  id: ID!
+  title: String!
+  description: String
+  category: String
+  isActive: Boolean!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type StudentAchievement {
+  id: ID!
+  achievement: AchievementCatalog!
+  awardedAt: DateTime!
+  notes: String
+}
 
   # ============================================
   # MINTING & LOGS TYPES
@@ -324,6 +365,7 @@ export const typeDefs = gql`
     ): [Student!]! @auth(requires: ADMIN)
     
     student(id: ID!): Student @auth(requires: ADMIN)
+    lookupStudentByNationalId(nationalId: String!): StudentLookupResult! @auth(requires: ADMIN)
     
     # Certificates
     certificates(
@@ -353,6 +395,7 @@ export const typeDefs = gql`
       offset: Int
     ): [MintActivityLog!]! @auth(requires: ADMIN)
     
+  achievementCatalog(search: String): [AchievementCatalog!]! @auth(requires: ADMIN)
     revokedCertificates: [RevokedCertIndex!]! @auth(requires: ADMIN)
     
     # Batch Jobs
@@ -377,18 +420,21 @@ export const typeDefs = gql`
     refreshToken(refreshToken: String!): AuthPayload!
     logout: Boolean!
     
+    # ========== PUBLIC ==========
+    registerUniversity(input: RegisterUniversityInput!): University!
+    
     # ========== SUPER ADMIN ==========
-    registerUniversity(input: RegisterUniversityInput!): University! @auth(requires: SUPER_ADMIN)
-    approveUniversity(universityId: ID!): University! @auth(requires: SUPER_ADMIN)
+    approveUniversity(input: ApproveUniversityInput!): University! @auth(requires: SUPER_ADMIN)
+    deactivateUniversity(input: DeactivateUniversityInput!): University! @auth(requires: SUPER_ADMIN)
     rejectUniversity(universityId: ID!, reason: String!): University! @auth(requires: SUPER_ADMIN)
-    suspendUniversity(universityId: ID!, reason: String!): University! @auth(requires: SUPER_ADMIN)
+    suspendUniversity(input: SuspendUniversityInput!): University! @auth(requires: SUPER_ADMIN)
     
     # ========== UNIVERSITY ADMIN ==========
     updateUniversityProfile(input: UpdateUniversityInput!): University! @auth(requires: ADMIN)
     
     # Students
     registerStudent(input: RegisterStudentInput!): Student! @auth(requires: ADMIN)
-    bulkImportStudents(file: String!): BatchImportResult! @auth(requires: ADMIN)
+    bulkImportStudents(input: BulkStudentImportInput!): BulkStudentImportResult! @auth(requires: ADMIN)
     updateStudent(id: ID!, input: UpdateStudentInput!): Student! @auth(requires: ADMIN)
     deleteStudent(id: ID!): Boolean! @auth(requires: ADMIN)
     
@@ -444,11 +490,34 @@ export const typeDefs = gql`
     country: String!
     logoUrl: String
     websiteUrl: String
+    walletAddress: String!
     adminEmail: String!
     adminPassword: String!
     adminFullName: String!
+    registrationSignature: String!
+    universityPda: String!
   }
   
+  input ApproveUniversityInput {
+    universityId: ID!
+    approvalSignature: String!
+    universityPda: String!
+  }
+
+  input DeactivateUniversityInput {
+    universityId: ID!
+    deactivationSignature: String!
+    universityPda: String!
+    reason: String
+  }
+
+  input SuspendUniversityInput {
+    universityId: ID!
+    deactivationSignature: String!
+    universityPda: String!
+    reason: String!
+  }
+
   input UpdateUniversityInput {
     name: String
     logoUrl: String
@@ -464,6 +533,7 @@ export const typeDefs = gql`
     program: String
     department: String
     enrollmentYear: Int
+  achievements: [StudentAchievementInput!]
   }
   
   input UpdateStudentInput {
@@ -474,6 +544,15 @@ export const typeDefs = gql`
     department: String
     graduationYear: Int
   }
+
+input StudentAchievementInput {
+  id: ID
+  title: String
+  description: String
+  category: String
+  notes: String
+  awardedAt: DateTime
+}
   
   input CreateCourseInput {
     name: String!
@@ -559,10 +638,36 @@ export const typeDefs = gql`
     expiresIn: Int
   }
   
-  type BatchImportResult {
-    jobId: String!
-    totalRecords: Int!
+  input BulkStudentRowInput {
+    rowNumber: Int!
+    fullName: String!
+    email: String!
+    studentNumber: String!
+    nationalId: String!
+    walletAddress: String
+    program: String
+    department: String
+    enrollmentYear: Int
+  achievements: [String!]
+  }
+
+  input BulkStudentImportInput {
+    students: [BulkStudentRowInput!]!
+    overwriteWalletFromGlobalIndex: Boolean
+  }
+
+  type BulkStudentImportFailure {
+    rowNumber: Int!
     message: String!
+    field: String
+    email: String
+    studentNumber: String
+  }
+
+  type BulkStudentImportResult {
+    successCount: Int!
+    failureCount: Int!
+    failures: [BulkStudentImportFailure!]!
   }
 
   # ============================================

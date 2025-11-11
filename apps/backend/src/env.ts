@@ -22,17 +22,17 @@ const envSchema = z.object({
   // Solana & Helius
   SOLANA_NETWORK: z.enum(['mainnet-beta', 'devnet', 'testnet']).default('devnet'),
   SOLANA_RPC_URL: z.string().url('SOLANA_RPC_URL must be a valid URL'),
+  SOLANA_PROGRAM_ID: z.string().min(32, 'SOLANA_PROGRAM_ID is required (program address)'),
+  SOLANA_SUPER_ADMIN_PUBKEY: z.string().min(32, 'SOLANA_SUPER_ADMIN_PUBKEY is required (wallet public key)'),
   HELIUS_API_KEY: z.string().min(1, 'HELIUS_API_KEY is required'),
   HELIUS_WEBHOOK_SECRET: z.string().optional(),
   
   // Encryption
   MASTER_ENCRYPTION_KEY: z.string().length(64, 'MASTER_ENCRYPTION_KEY must be 64 hex characters'),
   
-  // IPFS
-  IPFS_API_URL: z.string().url('IPFS_API_URL must be a valid URL'),
-  IPFS_API_KEY: z.string().min(1, 'IPFS_API_KEY is required'),
-  IPFS_SECRET_KEY: z.string().min(1, 'IPFS_SECRET_KEY is required'),
-  IPFS_GATEWAY: z.string().url('IPFS_GATEWAY must be a valid URL'),
+  // Pinata (IPFS)
+  PINATA_JWT: z.string().min(1, 'PINATA_JWT is required'),
+  PINATA_GATEWAY: z.string().url('PINATA_GATEWAY must be a valid URL').default('https://gateway.pinata.cloud'),
   
   // Redis
   REDIS_URL: z.string().url('REDIS_URL must be a valid URL'),

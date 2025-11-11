@@ -70,14 +70,22 @@ export async function createApolloServer() {
   // Start Apollo Server
   await server.start();
 
-  // Apply middleware
+  // Apply CORS globally (must be before routes)
   app.use(
-    '/graphql',
     cors<cors.CorsRequest>({
       origin: env.CORS_ORIGIN.split(',').map((origin) => origin.trim()),
       credentials: true,
-    }),
-    express.json({ limit: '10mb' }),
+      methods: ['GET', 'POST', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+    })
+  );
+
+  // Apply JSON parsing middleware
+  app.use(express.json({ limit: '10mb' }));
+
+  // GraphQL endpoint
+  app.use(
+    '/graphql',
     expressMiddleware(server, {
       context: createContext,
     })
@@ -105,3 +113,20 @@ export async function createApolloServer() {
   return { app, httpServer, server };
 }
 
+/**
+ * Start the server
+ */
+export async function startServer() {
+  const { app, httpServer } = await createApolloServer();
+  
+  const PORT = parseInt(env.PORT, 10) || 4000;
+  
+  await new Promise<void>((resolve) => {
+    httpServer.listen(PORT, () => {
+      logger.info({ port: PORT }, `🚀 Server ready at http://localhost:${PORT}/graphql`);
+      resolve();
+    });
+  });
+  
+  return httpServer;
+}

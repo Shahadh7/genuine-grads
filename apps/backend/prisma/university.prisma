@@ -40,6 +40,7 @@ model Student {
   // Relationships
   enrollments     Enrollment[]
   certificates    Certificate[]
+  achievements    StudentAchievement[]
   zkpRequests     ZKPProofRequest[]
   
   // Metadata
@@ -150,6 +151,38 @@ model Achievement {
   @@index([enrollmentId])
   @@index([badgeType])
   @@map("achievements")
+}
+
+// Achievement catalog entries that can be linked to students
+model AchievementCatalog {
+  id          String               @id @default(cuid())
+  title       String
+  description String?
+  category    String?
+  isActive    Boolean              @default(true) @map("is_active")
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+
+  students    StudentAchievement[]
+
+  @@unique([title])
+  @@map("achievement_catalog")
+}
+
+// Join table linking students to catalog achievements
+model StudentAchievement {
+  id             String             @id @default(cuid())
+  studentId      String             @map("student_id")
+  achievementId  String             @map("achievement_id")
+  awardedAt      DateTime           @default(now()) @map("awarded_at")
+  notes          String?
+
+  student        Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  achievement    AchievementCatalog @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, achievementId])
+  @@index([achievementId])
+  @@map("student_achievements")
 }
 
 // Issued certificates (references to cNFTs on Solana)

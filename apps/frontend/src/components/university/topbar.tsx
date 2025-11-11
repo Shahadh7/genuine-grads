@@ -23,6 +23,7 @@ import {
   ChevronDown,
   Building
 } from 'lucide-react';
+import { graphqlClient } from '@/lib/graphql-client';
 import { clearSession } from '@/lib/session';
 
 interface Props {
@@ -33,9 +34,15 @@ export default function Topbar({session, walletAddress}): React.React.JSX.Elemen
   const router = useRouter();
   const [notifications] = useState<any>(3);
 
-  const handleLogout = () => {
-    clearSession();
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await graphqlClient.logout();
+    } catch (error) {
+      console.warn('Logout failed in topbar, clearing session locally.', error);
+    } finally {
+      clearSession();
+      router.push('/login');
+    }
   };
 
   const getInitials = (name) => {
@@ -105,11 +112,13 @@ export default function Topbar({session, walletAddress}): React.React.JSX.Elemen
               <Button variant="ghost" className="flex items-center space-x-3 px-3 py-2 hover:bg-muted/50">
                 <Avatar className="h-8 w-8 border-2 border-muted">
                   <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
-                    {getInitials(session?.nic || 'UN')}
+                    {getInitials(session?.fullName || session?.email || 'UU')}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden sm:block text-left">
-                  <p className="text-sm font-medium text-foreground">{session?.nic}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {session?.fullName || 'University Admin'}
+                  </p>
                   <p className="text-xs text-muted-foreground">{session?.email}</p>
                 </div>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -117,7 +126,9 @@ export default function Topbar({session, walletAddress}): React.React.JSX.Elemen
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64">
               <div className="p-3 border-b">
-                <p className="text-sm font-medium text-foreground">{session?.nic}</p>
+                <p className="text-sm font-medium text-foreground">
+                  {session?.fullName || 'University Admin'}
+                </p>
                 <p className="text-xs text-muted-foreground">{session?.email}</p>
               </div>
               <DropdownMenuItem className="flex items-center space-x-2 py-2.5">

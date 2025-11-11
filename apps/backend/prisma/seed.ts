@@ -70,6 +70,7 @@ async function main() {
             ...uni,
             walletAddress,
             status: 'PENDING_APPROVAL',
+            superAdminPubkey: env.SOLANA_SUPER_ADMIN_PUBKEY,
           },
         });
 

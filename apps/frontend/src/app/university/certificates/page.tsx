@@ -20,14 +20,13 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { certificatesAPI, studentsAPI } from '@/lib/api';
+import { graphqlClient } from '@/lib/graphql-client';
 import { 
   Plus, 
   Search, 
   MoreHorizontal, 
   Eye, 
   XCircle, 
-  Award,
   Calendar,
   Filter,
   Settings
@@ -38,32 +37,55 @@ interface Props {
   // Add props here
 }
 
-export default function CertificatesPage(): React.JSX.Element {
-  const [searchTerm, setSearchTerm] = useState<any>('');
-  const [statusFilter, setStatusFilter] = useState<any>('all');
-  const [programFilter, setProgramFilter] = useState<any>('all');
-  const [certificates, setCertificates] = useState<any>([]);
-  const [students, setStudents] = useState<any>([]);
-  const [loading, setLoading] = useState<any>(true);
+type CertificateRecord = {
+  id: string;
+  badgeTitle: string;
+  certificateNumber?: string | null;
+  status: 'PENDING' | 'MINTED' | 'FAILED';
+  issuedAt?: string | null;
+  mintAddress?: string | null;
+  transactionSignature?: string | null;
+  student?: {
+    id: string;
+    fullName?: string | null;
+    email?: string | null;
+    walletAddress?: string | null;
+    studentNumber?: string | null;
+    program?: string | null;
+    department?: string | null;
+  } | null;
+};
 
-  // Load data on component mount
+export default function CertificatesPage(): React.JSX.Element {
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [programFilter, setProgramFilter] = useState<string>('all');
+  const [certificates, setCertificates] = useState<CertificateRecord[]>([]);
+  const [programOptions, setProgramOptions] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     const loadData = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const [certificatesResult, studentsResult] = await Promise.all([
-          certificatesAPI.getPending(),
-          studentsAPI.getAll()
-        ]);
-        
-        if (certificatesResult.success) {
-          setCertificates(certificatesResult.data);
-        }
-        
-        if (studentsResult.success) {
-          setStudents(studentsResult.data);
-        }
+        const certificatesResponse = await graphqlClient.getCertificates();
+        const certs = (certificatesResponse.data?.certificates ?? []) as CertificateRecord[];
+        setCertificates(certs);
+
+        const programs = Array.from(
+          new Set(
+            certs
+              .map((cert) => cert.student?.program?.trim())
+              .filter((program): program is string => !!program)
+          )
+        ).sort((a, b) => a.localeCompare(b));
+
+        setProgramOptions(programs);
       } catch (error) {
         console.error('Failed to load certificates:', error);
+        setError('Unable to load certificates. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -72,27 +94,8 @@ export default function CertificatesPage(): React.JSX.Element {
     loadData();
   }, []);
 
-  const getStudentName = (studentId) => {
-    const student = students.find(s => s.id === studentId);
-    return student ? student.name : 'Unknown Student';
-  };
-
-  const filteredCertificates = certificates.filter((cert: any) => {
-    const studentName = getStudentName(cert.studentId);
-    const matchesSearch = 
-      studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cert.certificateTitle.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'issued' && cert.mintAddress) ||
-      (statusFilter === 'pending' && !cert.mintAddress);
-    
-    const matchesProgram = programFilter === 'all' || cert.certificateTitle.includes(programFilter);
-    
-    return matchesSearch && matchesStatus && matchesProgram;
-  });
-
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'Pending';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -100,24 +103,55 @@ export default function CertificatesPage(): React.JSX.Element {
     });
   };
 
-  // Define table columns
+  const filteredCertificates = certificates.filter((cert) => {
+    const studentName = cert.student?.fullName ?? '';
+    const studentNumber = cert.student?.studentNumber ?? '';
+    const search = searchTerm.trim().toLowerCase();
+
+    const matchesSearch =
+      !search ||
+      studentName.toLowerCase().includes(search) ||
+      studentNumber.toLowerCase().includes(search) ||
+      (cert.badgeTitle ?? '').toLowerCase().includes(search) ||
+      (cert.certificateNumber ?? '').toLowerCase().includes(search);
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'issued' && cert.status === 'MINTED') ||
+      (statusFilter === 'pending' && cert.status === 'PENDING') ||
+      (statusFilter === 'failed' && cert.status === 'FAILED');
+
+    const matchesProgram =
+      programFilter === 'all' ||
+      (cert.student?.program?.toLowerCase() ?? '') === programFilter.toLowerCase();
+
+    return matchesSearch && matchesStatus && matchesProgram;
+  });
+
   const columns = [
     {
       key: 'student',
       header: 'Student',
-      render: (cert) => (
+      render: (cert: CertificateRecord) => (
         <div>
-          <div className="font-medium">{getStudentName(cert.studentId)}</div>
-          <div className="text-sm text-muted-foreground">Student ID: {cert.studentId}</div>
+          <div className="font-medium">{cert.student?.fullName ?? 'Unknown Student'}</div>
+          <div className="text-sm text-muted-foreground">
+            ID: {cert.student?.studentNumber ?? cert.student?.id ?? '—'}
+          </div>
+          {cert.student?.program && (
+            <div className="text-xs text-muted-foreground mt-1">
+              Program: {cert.student.program}
+            </div>
+          )}
         </div>
       )
     },
     {
       key: 'certificate',
       header: 'Certificate',
-      render: (cert) => (
-        <div className="max-w-[200px]">
-          <div className="font-medium">{cert.certificateTitle}</div>
+      render: (cert: CertificateRecord) => (
+        <div className="max-w-[240px]">
+          <div className="font-medium">{cert.badgeTitle}</div>
           {cert.mintAddress && (
             <div className="text-sm text-muted-foreground font-mono">
               {cert.mintAddress.slice(0, 8)}...
@@ -127,22 +161,13 @@ export default function CertificatesPage(): React.JSX.Element {
       )
     },
     {
-      key: 'gpa',
-      header: 'GPA',
-      render: (cert) => (
-        <Badge variant="secondary" className="font-mono">
-          {cert.gpa}
-        </Badge>
-      )
-    },
-    {
       key: 'issueDate',
       header: 'Issue Date',
-      render: (cert) => (
+      render: (cert: CertificateRecord) => (
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm">
-            {cert.timestamp ? formatDate(cert.timestamp) : 'Pending'}
+            {formatDate(cert.issuedAt ?? null)}
           </span>
         </div>
       )
@@ -150,33 +175,25 @@ export default function CertificatesPage(): React.JSX.Element {
     {
       key: 'status',
       header: 'Status',
-      render: (cert) => (
-        <Badge variant={cert.mintAddress ? 'default' : 'secondary'}>
-          {cert.mintAddress ? 'Issued' : 'Pending'}
+      render: (cert: CertificateRecord) => (
+        <Badge
+          variant={
+            cert.status === 'MINTED'
+              ? 'default'
+              : cert.status === 'FAILED'
+              ? 'destructive'
+              : 'secondary'
+          }
+        >
+          {cert.status === 'MINTED' ? 'Issued' : cert.status === 'FAILED' ? 'Failed' : 'Pending'}
         </Badge>
-      )
-    },
-    {
-      key: 'badges',
-      header: 'Badges',
-      render: (cert) => (
-        <div className="flex items-center gap-2">
-          {cert.badgeTitles.length > 0 ? (
-            <>
-              <Award className="h-4 w-4 text-yellow-600" />
-              <span className="text-sm">{cert.badgeTitles.length} badge{cert.badgeTitles.length !== 1 ? 's' : ''}</span>
-            </>
-          ) : (
-            <span className="text-sm text-muted-foreground">None</span>
-          )}
-        </div>
       )
     },
     {
       key: 'actions',
       header: 'Actions',
       className: 'text-right',
-      render: (cert) => (
+      render: (cert: CertificateRecord) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
@@ -189,7 +206,7 @@ export default function CertificatesPage(): React.JSX.Element {
               <Eye className="h-4 w-4" />
               <span>View Details</span>
             </DropdownMenuItem>
-            {cert.mintAddress && (
+            {cert.status === 'MINTED' && (
               <DropdownMenuItem className="flex items-center gap-2 text-destructive focus:text-destructive">
                 <XCircle className="h-4 w-4" />
                 <span>Revoke Certificate</span>
@@ -205,9 +222,10 @@ export default function CertificatesPage(): React.JSX.Element {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
+        <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold">Certificates</h1>
           <p className="text-muted-foreground">Manage issued certificates and their status.</p>
+          {error && <div className="text-sm text-destructive">{error}</div>}
         </div>
         <div className="flex gap-2">
           <Link href="/university/certificates/issue">
@@ -253,6 +271,7 @@ export default function CertificatesPage(): React.JSX.Element {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="issued">Issued</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
               </SelectContent>
             </Select>
 
@@ -262,14 +281,23 @@ export default function CertificatesPage(): React.JSX.Element {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Programs</SelectItem>
-                <SelectItem value="Computer Science">Computer Science</SelectItem>
-                <SelectItem value="Business Administration">Business Administration</SelectItem>
-                <SelectItem value="Engineering">Engineering</SelectItem>
-                <SelectItem value="Arts">Arts</SelectItem>
+                {programOptions.map((program) => (
+                  <SelectItem key={program} value={program}>
+                    {program}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={() => {
+                setSearchTerm('');
+                setStatusFilter('all');
+                setProgramFilter('all');
+              }}
+            >
               <Filter className="h-4 w-4" />
               Clear Filters
             </Button>

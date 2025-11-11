@@ -33,10 +33,23 @@ model University {
   logoUrl             String?
   websiteUrl          String?
   
-  // Blockchain
-  walletAddress       String            @unique // Solana public key (derived from private key)
-  privateKeyEncrypted String?           // Encrypted with MASTER_ENCRYPTION_KEY
-  merkleTreeAddress   String?           @unique // Bubblegum Merkle tree PDA
+  // Blockchain - Wallet address provided by university (no private keys stored)
+  walletAddress       String            @unique // Solana public key from university wallet
+  
+  // On-chain program accounts (PDAs)
+  universityPDA       String?           @unique // University PDA on program
+  merkleTreeAddress   String?           @unique // Bubblegum Merkle tree address
+  treeConfigAddress   String?           // Tree config PDA
+  collectionAddress   String?           @unique // MPL Core collection address
+  collectionPDA       String?           // University collection PDA on program
+  
+  // Super admin public key (for deriving GlobalConfig)
+  superAdminPubkey    String?           // Super admin's public key
+
+  // Transaction signatures
+  registrationTxSignature String?       @unique
+  approvalTxSignature     String?       @unique
+  deactivationTxSignature String?       @unique
   
   // Approval status
   status              UniversityStatus  @default(PENDING_APPROVAL)

@@ -1,12 +1,11 @@
 'use client';
 import React from "react"
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { getSession } from '@/lib/session';
 import { 
   GraduationCap, 
   Award, 
@@ -24,7 +23,9 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { graphqlClient } from '@/lib/graphql-client';
 import { clearSession } from '@/lib/session';
+import { useRoleGuard } from '@/hooks/useRoleGuard';
 
 const navigationItems = [
   {
@@ -66,27 +67,19 @@ interface Props {
 export default function StudentLayout({children}): React.React.JSX.Element {
   const [sidebarOpen, setSidebarOpen] = useState<any>(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<any>(false);
-  const [loading, setLoading] = useState<any>(true);
   const router = useRouter();
   const pathname = usePathname();
+  const { session, loading } = useRoleGuard(['student']);
 
-  useEffect(() => {
-    const currentSession = getSession();
-    console.log('Student layout - current session:', currentSession);
-    
-    if (!currentSession || currentSession.role !== 'student') {
-      console.log('Student layout - redirecting to login, session invalid:', currentSession);
-      router.replace('/login');
-      return;
+  const handleLogout = async () => {
+    try {
+      await graphqlClient.logout();
+    } catch (error) {
+      console.warn('Student logout failed, clearing session locally.', error);
+    } finally {
+      clearSession();
+      router.push('/login');
     }
-    
-    console.log('Student layout - session valid');
-    setLoading(false);
-  }, []); // Remove router from dependency array
-
-  const handleLogout = () => {
-    clearSession();
-    router.push('/login');
   };
 
   const handleNavigation = (path) => {
@@ -104,6 +97,10 @@ export default function StudentLayout({children}): React.React.JSX.Element {
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
+  }
+
+  if (!session) {
+    return null;
   }
 
   return (

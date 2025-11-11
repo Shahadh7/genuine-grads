@@ -1,12 +1,12 @@
 import { GraphQLError } from 'graphql';
-import { Keypair } from '@solana/web3.js';
+import { PublicKey } from '@solana/web3.js';
 import { sharedDb } from '../../../db/shared.client.js';
 import { hashPassword } from '../../../auth/password.js';
-import { encrypt } from '../../../utils/crypto.js';
 import { GraphQLContext, requireSuperAdmin, requireUniversityAdmin } from '../../context.js';
 import { logger } from '../../../utils/logger.js';
 import { env } from '../../../env.js';
 import { provisionUniversityDatabase } from '../../../services/database/provisioning.service.js';
+import { solanaService } from '../../../services/solana/solana.service.js';
 
 interface RegisterUniversityInput {
   name: string;
@@ -14,9 +14,29 @@ interface RegisterUniversityInput {
   country: string;
   logoUrl?: string;
   websiteUrl?: string;
+  walletAddress: string;
   adminEmail: string;
   adminPassword: string;
   adminFullName: string;
+  registrationSignature: string;
+  universityPda: string;
+}
+
+interface ApproveUniversityInput {
+  universityId: string;
+  approvalSignature: string;
+  universityPda: string;
+}
+
+interface DeactivateUniversityInput {
+  universityId: string;
+  deactivationSignature: string;
+  universityPda: string;
+  reason?: string;
+}
+
+interface SuspendUniversityInput extends DeactivateUniversityInput {
+  reason: string;
 }
 
 interface UpdateUniversityInput {
@@ -25,57 +45,159 @@ interface UpdateUniversityInput {
   websiteUrl?: string;
 }
 
+async function performUniversityDeactivation({
+  universityId,
+  deactivationSignature,
+  universityPda,
+  reason,
+  adminId,
+}: DeactivateUniversityInput & { adminId: string }) {
+  const university = await sharedDb.university.findUnique({
+    where: { id: universityId },
+  });
+
+  if (!university) {
+    throw new GraphQLError('University not found', {
+      extensions: { code: 'NOT_FOUND' },
+    });
+  }
+
+  const authority = new PublicKey(university.walletAddress);
+  const [expectedUniversityPda] = solanaService.deriveUniversityPDA(authority);
+
+  if (expectedUniversityPda.toBase58() !== universityPda) {
+    throw new GraphQLError('Provided university PDA does not match the derived PDA for this wallet', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  await solanaService.confirmSignature(deactivationSignature);
+
+  const onChainExists = await solanaService.universityExists(authority);
+  if (!onChainExists) {
+    throw new GraphQLError('University account not found on-chain after deactivation transaction', {
+      extensions: { code: 'BLOCKCHAIN_ERROR' },
+    });
+  }
+
+  const updateData: Record<string, any> = {
+    status: 'SUSPENDED',
+    deactivationTxSignature: deactivationSignature,
+  };
+
+  if (typeof reason === 'string') {
+    updateData.rejectedReason = reason;
+  }
+
+  const updated = await sharedDb.university.update({
+    where: { id: universityId },
+    data: updateData as any,
+  });
+
+  logger.info(
+    {
+      universityId,
+      signature: deactivationSignature,
+      reason,
+      adminId,
+    },
+    'University deactivated on-chain and indexed'
+  );
+
+  return updated;
+}
+
 export const universityMutations = {
   /**
-   * Register a new university (Super Admin only)
-   * This creates the university and its admin account
+   * Register a new university (Public - no auth required)
+   * This creates the university and its admin account with PENDING_APPROVAL status
+   * Super Admin will approve/reject later
    */
-  async registerUniversity(_: any, { input }: { input: RegisterUniversityInput }, context: GraphQLContext) {
-    requireSuperAdmin(context);
+  async registerUniversity(_: any, { input }: { input: RegisterUniversityInput }) {
+    const {
+      name,
+      domain,
+      country,
+      logoUrl,
+      websiteUrl,
+      walletAddress,
+      adminEmail,
+      adminPassword,
+      adminFullName,
+      registrationSignature,
+      universityPda,
+    } = input;
 
-    const { name, domain, country, logoUrl, websiteUrl, adminEmail, adminPassword, adminFullName } = input;
+    if (!walletAddress || walletAddress.length < 32 || walletAddress.length > 44) {
+      throw new GraphQLError('Invalid Solana wallet address format', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
 
-    // Check if domain already exists
-    const existing = await sharedDb.university.findUnique({
-      where: { domain },
-    });
+    if (!registrationSignature) {
+      throw new GraphQLError('registrationSignature is required', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
 
+    if (!universityPda) {
+      throw new GraphQLError('universityPda is required', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    const universityAuthority = new PublicKey(walletAddress);
+    const [expectedUniversityPda] = solanaService.deriveUniversityPDA(universityAuthority);
+
+    if (expectedUniversityPda.toBase58() !== universityPda) {
+      throw new GraphQLError('Provided university PDA does not match expected PDA for this wallet', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    const existing = await sharedDb.university.findUnique({ where: { domain } });
     if (existing) {
       throw new GraphQLError(`University with domain ${domain} already exists`, {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
 
-    // Check if admin email already exists
-    const existingAdmin = await sharedDb.admin.findUnique({
-      where: { email: adminEmail },
-    });
+    const existingWallet = await sharedDb.university.findUnique({ where: { walletAddress } });
+    if (existingWallet) {
+      throw new GraphQLError(`This wallet address is already registered with another university`, {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
 
+    const existingPda = await sharedDb.university.findUnique({ where: { universityPDA: universityPda } });
+    if (existingPda) {
+      throw new GraphQLError('This university PDA is already registered', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    const existingAdmin = await sharedDb.admin.findUnique({ where: { email: adminEmail } });
     if (existingAdmin) {
       throw new GraphQLError(`Admin with email ${adminEmail} already exists`, {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
 
-    // Generate unique username from domain (use full domain with dots replaced)
+    await solanaService.confirmSignature(registrationSignature);
+
+    const onChainExists = await solanaService.universityExists(universityAuthority);
+    if (!onChainExists) {
+      throw new GraphQLError('University account was not found on-chain. Please retry the transaction.', {
+        extensions: { code: 'BLOCKCHAIN_ERROR' },
+      });
+    }
+
     const username = domain.replace(/\./g, '_').toLowerCase();
-
-    // Generate Solana wallet for university
-    const keypair = Keypair.generate();
-    const walletAddress = keypair.publicKey.toBase58();
-    const privateKey = Buffer.from(keypair.secretKey).toString('base64');
-    const privateKeyEncrypted = encrypt(privateKey);
-
-    // Generate database name for this university
     const databaseName = `genuinegrads_${domain.replace(/\./g, '_').toLowerCase()}`;
     const databaseUrl = env.UNIVERSITY_DATABASE_URL.replace(/\/[^/]*$/, `/${databaseName}`);
-
-    // Hash admin password
     const passwordHash = await hashPassword(adminPassword);
 
-    // Create university and admin in a transaction
     const result = await sharedDb.$transaction(async (tx) => {
-      // Create university
       const university = await tx.university.create({
         data: {
           name,
@@ -84,18 +206,19 @@ export const universityMutations = {
           logoUrl,
           websiteUrl,
           walletAddress,
-          privateKeyEncrypted,
+          universityPDA: universityPda,
+          registrationTxSignature: registrationSignature,
+          superAdminPubkey: env.SOLANA_SUPER_ADMIN_PUBKEY,
           databaseUrl,
           databaseName,
           status: 'PENDING_APPROVAL',
-        },
+        } as any,
       });
 
-      // Create admin for this university
-      const admin = await tx.admin.create({
+      await tx.admin.create({
         data: {
           email: adminEmail,
-          username, // Use full domain as username (guaranteed unique)
+          username,
           passwordHash,
           fullName: adminFullName,
           universityId: university.id,
@@ -103,27 +226,26 @@ export const universityMutations = {
         },
       });
 
-      return { university, admin };
+      return university;
     });
 
     logger.info(
       {
-        universityId: result.university.id,
+        universityId: result.id,
         domain,
-        adminEmail,
+        walletAddress,
+        signature: registrationSignature,
       },
-      'University registered'
+      'University registration indexed after on-chain success'
     );
 
-    return result.university;
+    return result;
   },
 
-  /**
-   * Approve a pending university (Super Admin only)
-   * This provisions the private database and initializes Merkle tree
-   */
-  async approveUniversity(_: any, { universityId }: { universityId: string }, context: GraphQLContext) {
+  async approveUniversity(_: any, { input }: { input: ApproveUniversityInput }, context: GraphQLContext) {
     requireSuperAdmin(context);
+
+    const { universityId, approvalSignature, universityPda } = input;
 
     const university = await sharedDb.university.findUnique({
       where: { id: universityId },
@@ -141,90 +263,83 @@ export const universityMutations = {
       });
     }
 
+    const authority = new PublicKey(university.walletAddress);
+    const [expectedUniversityPda] = solanaService.deriveUniversityPDA(authority);
+
+    if (expectedUniversityPda.toBase58() !== universityPda) {
+      throw new GraphQLError('Provided university PDA does not match the derived PDA for this wallet', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    await solanaService.confirmSignature(approvalSignature);
+
+    const onChainExists = await solanaService.universityExists(authority);
+    if (!onChainExists) {
+      throw new GraphQLError('University account not found on-chain after approval transaction', {
+        extensions: { code: 'BLOCKCHAIN_ERROR' },
+      });
+    }
+
     logger.info(
-      { 
-        universityId, 
-        domain: university.domain, 
-        approvedBy: context.admin!.id 
+      {
+        universityId,
+        domain: university.domain,
+        approvedBy: context.admin!.id,
       },
-      'Starting university approval process'
+      'Provisioning university database after on-chain approval'
     );
 
-    // Step 1: Provision university private database
-    logger.info({ domain: university.domain }, 'Provisioning university database');
-    
     const provisionResult = await provisionUniversityDatabase(university.domain);
 
     if (!provisionResult.success) {
       logger.error(
-        { 
-          universityId, 
-          error: provisionResult.error 
+        {
+          universityId,
+          error: provisionResult.error,
         },
         'Failed to provision university database'
       );
-      
-      throw new GraphQLError(
-        `Failed to provision database: ${provisionResult.error}`,
-        {
-          extensions: { code: 'INTERNAL_SERVER_ERROR' },
-        }
-      );
+
+      throw new GraphQLError(`Failed to provision database: ${provisionResult.error}`, {
+        extensions: { code: 'INTERNAL_SERVER_ERROR' },
+      });
     }
 
-    logger.info(
-      { 
-        universityId, 
-        databaseName: provisionResult.databaseName 
-      },
-      'Database provisioned successfully'
-    );
-
-    // Step 2: TODO - Initialize Bubblegum Merkle tree on Solana
-    // This would call the Solana program to create a new tree
-    // For now, we'll set a placeholder
-    let merkleTreeAddress: string | undefined = undefined;
-    
-    try {
-      // Placeholder for Merkle tree creation
-      // In production, this would:
-      // 1. Create a new Bubblegum tree
-      // 2. Set university as tree authority
-      // 3. Configure tree parameters (max depth, max buffer size, canopy depth)
-      // merkleTreeAddress = await createBubblegumTree(university.walletAddress);
-      
-      logger.info({ universityId }, 'Merkle tree creation skipped (placeholder)');
-    } catch (error) {
-      logger.warn(
-        { error, universityId },
-        'Merkle tree creation failed, but continuing approval'
-      );
-    }
-
-    // Step 3: Update university status to APPROVED
     const updated = await sharedDb.university.update({
       where: { id: universityId },
       data: {
         status: 'APPROVED',
         approvedAt: new Date(),
         approvedBy: context.admin!.id,
+        approvalTxSignature: approvalSignature,
+        universityPDA: universityPda,
         databaseUrl: provisionResult.databaseUrl,
         databaseName: provisionResult.databaseName,
-        ...(merkleTreeAddress && { merkleTreeAddress }),
-      },
+        deactivationTxSignature: null,
+        rejectedReason: null,
+      } as any,
     });
 
     logger.info(
-      { 
-        universityId, 
+      {
+        universityId,
         domain: university.domain,
         databaseName: provisionResult.databaseName,
-        approvedBy: context.admin!.id 
+        approvedBy: context.admin!.id,
       },
-      '✅ University approved successfully'
+      '✅ University approval indexed after on-chain confirmation'
     );
 
     return updated;
+  },
+
+  async deactivateUniversity(_: any, { input }: { input: DeactivateUniversityInput }, context: GraphQLContext) {
+    requireSuperAdmin(context);
+    return performUniversityDeactivation({
+      ...input,
+      adminId: context.admin!.id,
+    });
   },
 
   /**
@@ -269,34 +384,19 @@ export const universityMutations = {
   /**
    * Suspend a university (Super Admin only)
    */
-  async suspendUniversity(
-    _: any,
-    { universityId, reason }: { universityId: string; reason: string },
-    context: GraphQLContext
-  ) {
+  async suspendUniversity(_: any, { input }: { input: SuspendUniversityInput }, context: GraphQLContext) {
     requireSuperAdmin(context);
 
-    const university = await sharedDb.university.findUnique({
-      where: { id: universityId },
-    });
-
-    if (!university) {
-      throw new GraphQLError('University not found', {
-        extensions: { code: 'NOT_FOUND' },
+    if (!input.reason || input.reason.trim().length === 0) {
+      throw new GraphQLError('Suspension reason is required', {
+        extensions: { code: 'BAD_USER_INPUT' },
       });
     }
 
-    const updated = await sharedDb.university.update({
-      where: { id: universityId },
-      data: {
-        status: 'SUSPENDED',
-        rejectedReason: reason,
-      },
+    return performUniversityDeactivation({
+      ...input,
+      adminId: context.admin!.id,
     });
-
-    logger.info({ universityId, reason }, 'University suspended');
-
-    return updated;
   },
 
   /**

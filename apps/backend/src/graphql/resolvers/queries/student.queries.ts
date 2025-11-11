@@ -1,5 +1,7 @@
 import { GraphQLError } from 'graphql';
 import { GraphQLContext, requireUniversityAdmin, requireUniversityDb } from '../../context.js';
+import { hashNIC } from '../../../utils/crypto.js';
+import { sharedDb } from '../../../db/shared.client.js';
 
 interface StudentsFilter {
   search?: string;
@@ -52,6 +54,14 @@ export const studentQueries = {
             enrollments: true,
           },
         },
+        achievements: {
+          include: {
+            achievement: true,
+          },
+          orderBy: {
+            awardedAt: 'desc',
+          },
+        },
       },
     });
   },
@@ -77,6 +87,14 @@ export const studentQueries = {
             achievements: true,
           },
         },
+        achievements: {
+          include: {
+            achievement: true,
+          },
+          orderBy: {
+            awardedAt: 'desc',
+          },
+        },
       },
     });
 
@@ -87,6 +105,71 @@ export const studentQueries = {
     }
 
     return student;
+  },
+
+  async lookupStudentByNationalId(
+    _: any,
+    { nationalId }: { nationalId: string },
+    context: GraphQLContext
+  ) {
+    requireUniversityAdmin(context);
+    const universityDb = requireUniversityDb(context);
+
+    if (!nationalId || nationalId.trim().length === 0) {
+      throw new GraphQLError('National ID is required', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    const nicHash = hashNIC(nationalId.trim());
+
+    const [student, globalIndex] = await Promise.all([
+      universityDb.student.findFirst({
+        where: { nicHash },
+      }),
+      sharedDb.globalStudentIndex.findUnique({
+        where: { nicHash },
+        include: {
+          createdByUniversity: {
+            select: { name: true },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      existsInUniversity: !!student,
+      globalExists: !!globalIndex,
+      studentId: student?.id ?? null,
+      fullName: student?.fullName ?? null,
+      email: student?.email ?? null,
+      walletAddress: student?.walletAddress ?? null,
+      globalWalletAddress: globalIndex?.walletAddress ?? null,
+      createdByUniversityName: globalIndex?.createdByUniversity?.name ?? null,
+    };
+  },
+
+  async achievementCatalog(
+    _: any,
+    { search }: { search?: string },
+    context: GraphQLContext
+  ) {
+    requireUniversityAdmin(context);
+    const universityDb = requireUniversityDb(context);
+
+    return universityDb.achievementCatalog.findMany({
+      where: search
+        ? {
+            title: {
+              contains: search,
+              mode: 'insensitive',
+            },
+          }
+        : undefined,
+      orderBy: {
+        title: 'asc',
+      },
+    });
   },
 };
 
