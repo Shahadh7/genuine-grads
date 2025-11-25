@@ -169,6 +169,7 @@ model MintActivityLog {
   @@index([studentWallet])
   @@index([universityId])
   @@index([mintAddress])
+  @@index([certificateNumber])
   @@index([status])
   @@index([timestamp])
   @@map("mint_activity_logs")
@@ -195,6 +196,7 @@ model RevokedCertIndex {
   revokedAt             DateTime    @default(now())
   
   @@index([mintAddress])
+  @@index([certificateNumber])
   @@index([revokedByUniversityId])
   @@index([revokedAt])
   @@map("revoked_cert_index")

@@ -211,9 +211,7 @@ export default function BulkUploadPage(): React.JSX.Element {
       setServerFailures(result?.failures ?? []);
 
       if (result && result.successCount > 0) {
-        setTimeout(() => {
-          router.push('/university/students');
-        }, 2000);
+        router.push('/university/students');
       }
     } catch (error) {
       console.error('Upload failed:', error);
@@ -700,50 +698,6 @@ Arjun Perera,STU-2025-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Eng
                   </p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Upload Stats Card */}
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500/5 to-blue-600/10">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Upload Statistics</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total Uploads</span>
-                <Badge variant="secondary">24</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">This Month</span>
-                <Badge variant="default">+8</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Success Rate</span>
-                <Badge variant="outline" className="text-green-600">98.5%</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Avg. Students/Upload</span>
-                <Badge variant="outline">15</Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions Card */}
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-green-500/5 to-green-600/10">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start" onClick={downloadTemplate}>
-                <Download className="h-4 w-4 mr-2" />
-                Download Template
-              </Button>
-              <Link href="/university/students/add" className="w-full">
-                <Button variant="outline" className="w-full justify-start">
-                  <Users className="h-4 w-4 mr-2" />
-                  Add Single Student
-                </Button>
-              </Link>
             </CardContent>
           </Card>
         </div>

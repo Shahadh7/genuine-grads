@@ -1064,6 +1064,36 @@ async function submitSignedTransactionMutation(
           where: { id: metadata.certificateId },
           data: updateData,
         });
+
+        // Update MintActivityLog with the real mintAddress if cNFT details were extracted
+        if (cnftDetails && metadata.certificateNumber) {
+          try {
+            await sharedDb.mintActivityLog.updateMany({
+              where: {
+                certificateNumber: metadata.certificateNumber,
+                universityId: university.id,
+              },
+              data: {
+                mintAddress: cnftDetails.assetId,
+                transactionSignature: result.signature,
+                status: 'SUCCESS',
+                confirmedAt: new Date(),
+              },
+            });
+            logger.info(
+              {
+                certificateNumber: metadata.certificateNumber,
+                assetId: cnftDetails.assetId,
+              },
+              'Updated MintActivityLog with real assetId'
+            );
+          } catch (error: any) {
+            logger.error(
+              { error: error.message, certificateNumber: metadata.certificateNumber },
+              'Failed to update MintActivityLog'
+            );
+          }
+        }
       }
     }
 
@@ -1292,11 +1322,41 @@ async function confirmTransaction(
             );
           }
 
-          await uniDb.certificate.update({
+          const updatedCertificate = await uniDb.certificate.update({
             where: { id: metadata.certificateId },
             data: updateData,
           });
           logger.info({ certificateId: metadata.certificateId }, 'Updated certificate status to MINTED');
+
+          // Update MintActivityLog with the real mintAddress if cNFT details were extracted
+          if (cnftDetails && metadata.certificateNumber) {
+            try {
+              await sharedDb.mintActivityLog.updateMany({
+                where: {
+                  certificateNumber: metadata.certificateNumber,
+                  universityId: metadata.universityId,
+                },
+                data: {
+                  mintAddress: cnftDetails.assetId,
+                  transactionSignature: signature,
+                  status: 'SUCCESS',
+                  confirmedAt: new Date(),
+                },
+              });
+              logger.info(
+                {
+                  certificateNumber: metadata.certificateNumber,
+                  assetId: cnftDetails.assetId,
+                },
+                'Updated MintActivityLog with real assetId'
+              );
+            } catch (error: any) {
+              logger.error(
+                { error: error.message, certificateNumber: metadata.certificateNumber },
+                'Failed to update MintActivityLog'
+              );
+            }
+          }
         } else {
           logger.error({ universityId: metadata.universityId }, 'University database URL not found');
         }

@@ -47,6 +47,18 @@ export const publicQueries = {
             },
           },
         });
+      } else if (certificateNumber) {
+        revokedCert = await sharedDb.revokedCertIndex.findFirst({
+          where: { certificateNumber },
+          include: {
+            revokedByUniversity: {
+              select: {
+                name: true,
+                logoUrl: true,
+              },
+            },
+          },
+        });
       }
 
       if (revokedCert) {
@@ -79,6 +91,10 @@ export const publicQueries = {
             university: true,
           },
         });
+        logger.info(
+          { mintAddress, found: !!mintLog },
+          'Searched MintActivityLog by mintAddress'
+        );
       } else if (certificateNumber) {
         mintLog = await sharedDb.mintActivityLog.findFirst({
           where: { certificateNumber },
@@ -86,9 +102,17 @@ export const publicQueries = {
             university: true,
           },
         });
+        logger.info(
+          { certificateNumber, found: !!mintLog },
+          'Searched MintActivityLog by certificateNumber'
+        );
       }
 
       if (!mintLog) {
+        logger.warn(
+          { certificateNumber, mintAddress },
+          'Certificate not found in MintActivityLog'
+        );
         return {
           isValid: false,
           status: 'INVALID',
@@ -105,7 +129,7 @@ export const publicQueries = {
 
       // Step 3: Fetch full certificate details from university database
       const universityDb = getUniversityDb(mintLog.university.databaseUrl!);
-      
+
       const certificate = certificateNumber
         ? await universityDb.certificate.findUnique({
             where: { certificateNumber },
@@ -131,6 +155,15 @@ export const publicQueries = {
           });
 
       if (!certificate) {
+        logger.warn(
+          {
+            certificateNumber,
+            mintAddress,
+            universityId: mintLog.university.id,
+            universityName: mintLog.university.name,
+          },
+          'Certificate not found in university database'
+        );
         return {
           isValid: false,
           status: 'INVALID',
@@ -144,6 +177,16 @@ export const publicQueries = {
           verificationTimestamp: new Date(),
         };
       }
+
+      logger.info(
+        {
+          certificateId: certificate.id,
+          certificateNumber: certificate.certificateNumber,
+          mintAddress: certificate.mintAddress,
+          status: certificate.status,
+        },
+        'Certificate found and verified'
+      );
 
       // Check if revoked (double check at university level)
       if (certificate.revoked) {
