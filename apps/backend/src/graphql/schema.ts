@@ -323,6 +323,38 @@ type StudentAchievement {
     verifiedAt: DateTime!
   }
 
+  type PreparedSolanaTransaction {
+    operationType: String
+    transaction: String!
+    blockhash: String!
+    lastValidBlockHeight: Int!
+    message: String!
+    metadata: JSON
+    accountsCreated: [PreparedAccountDescriptor!]
+  }
+
+  type PreparedAccountDescriptor {
+    name: String!
+    address: String!
+  }
+
+  type TransactionSubmissionResult {
+    success: Boolean!
+    signature: String!
+    message: String!
+  }
+
+  type PrepareMintCertificateWorkflowPayload {
+    prerequisites: [PreparedSolanaTransaction!]!
+    mint: PreparedSolanaTransaction
+  }
+
+  type ImageUploadResult {
+    success: Boolean!
+    imageUrl: String!
+    ipfsHash: String!
+  }
+
   # ============================================
   # ZKP TYPES
   # ============================================
@@ -441,6 +473,7 @@ type StudentAchievement {
     
     # Students
     registerStudent(input: RegisterStudentInput!): Student! @auth(requires: ADMIN)
+    enrollStudentInCourse(input: EnrollStudentInCourseInput!): Enrollment! @auth(requires: ADMIN)
     bulkImportStudents(input: BulkStudentImportInput!): BulkStudentImportResult! @auth(requires: ADMIN)
     updateStudent(id: ID!, input: UpdateStudentInput!): Student! @auth(requires: ADMIN)
     deleteStudent(id: ID!): Boolean! @auth(requires: ADMIN)
@@ -469,6 +502,25 @@ type StudentAchievement {
     
     # Certificate Revocation
     revokeCertificate(input: RevokeCertificateInput!): Certificate! @auth(requires: ADMIN)
+
+    # On-chain certificate mint workflow
+    prepareMintCertificateWorkflow(certificateId: ID!): PrepareMintCertificateWorkflowPayload! @auth(requires: ADMIN)
+    prepareRegisterUniversityTransaction(universityId: ID!, superAdminPubkey: String!): PreparedSolanaTransaction! @auth(requires: SUPER_ADMIN)
+    submitRegisterUniversityTransaction(universityId: ID!, signedTransaction: String!): TransactionSubmissionResult! @auth(requires: SUPER_ADMIN)
+    prepareApproveUniversityTransaction(universityId: ID!): PreparedSolanaTransaction! @auth(requires: SUPER_ADMIN)
+    prepareCreateTreeTransaction(universityId: ID!, maxDepth: Int!, maxBufferSize: Int!, isPublic: Boolean!): PreparedSolanaTransaction! @auth(requires: ADMIN)
+    prepareCreateCollectionTransaction(universityId: ID!, name: String!, uri: String!): PreparedSolanaTransaction! @auth(requires: ADMIN)
+    prepareMintCertificateTransaction(certificateId: ID!): PreparedSolanaTransaction! @auth(requires: ADMIN)
+    submitSignedTransaction(signedTransaction: String!, operationType: String!, metadata: JSON): TransactionSubmissionResult! @auth(requires: ADMIN)
+
+    # One-click transaction mutations (client-side signing with wallet)
+    createMerkleTree(universityId: ID!, maxDepth: Int!, maxBufferSize: Int!, isPublic: Boolean!): PreparedSolanaTransaction! @auth(requires: ADMIN)
+    createCollection(universityId: ID!, name: String!, imageBase64: String!, symbol: String, description: String): PreparedSolanaTransaction! @auth(requires: ADMIN)
+    confirmTransaction(signature: String!, operationType: String!, metadata: JSON): TransactionSubmissionResult! @auth(requires: ADMIN)
+    mintCertificate(certificateId: ID!, attachCollection: Boolean!): PreparedSolanaTransaction! @auth(requires: ADMIN)
+
+    # Image upload for collections and certificates
+    uploadImageToIPFS(imageBase64: String!, fileName: String!): ImageUploadResult! @auth(requires: ADMIN)
     
     # ZKP (would be called from student frontend, needs different auth)
     generateZKProof(input: ZKProofInput!): ZKPProofRequest!
@@ -570,6 +622,17 @@ type StudentAchievement {
     program: String
     department: String
     graduationYear: Int
+  }
+
+  input EnrollStudentInCourseInput {
+    studentId: ID!
+    course: StudentCourseInput!
+    batchYear: Int!
+    semester: String
+    status: String
+    gpa: Float
+    grade: String
+    achievements: [StudentAchievementInput!]
   }
 
 input StudentAchievementInput {

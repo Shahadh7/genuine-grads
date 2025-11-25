@@ -159,3 +159,98 @@ export function buildCertificateMetadata(params: {
   };
 }
 
+/**
+ * Collection metadata interface for NFT collections (Metaplex Standard)
+ */
+export interface CollectionMetadata {
+  name: string;
+  symbol: string;
+  description: string;
+  image: string;
+  animation_url?: string;
+  external_url?: string;
+  seller_fee_basis_points: number;
+  attributes: Array<{
+    trait_type: string;
+    value: string | number;
+  }>;
+  properties: {
+    files: Array<{
+      uri: string;
+      type: string;
+    }>;
+    category: 'image';
+  };
+}
+
+/**
+ * Build collection metadata for university certificate collection
+ * Follows Metaplex NFT Metadata Standard
+ */
+export function buildCollectionMetadata(params: {
+  collectionName: string;
+  universityName: string;
+  imageUrl: string;
+  websiteUrl?: string;
+  symbol?: string;
+  description?: string;
+}): CollectionMetadata {
+  const { collectionName, universityName, imageUrl, websiteUrl, symbol, description } = params;
+
+  // Use provided symbol or generate from university name (first 3-4 chars, uppercase)
+  const finalSymbol = symbol?.trim() || universityName
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .substring(0, 4)
+    .toUpperCase() || 'CERT';
+
+  // Use provided description or generate default
+  const finalDescription = description?.trim() || `Official certificate collection from ${universityName}. Verify academic credentials instantly on the Solana blockchain using compressed NFT technology.`;
+
+  // Determine image type from URL
+  const imageType = imageUrl.toLowerCase().endsWith('.png')
+    ? 'image/png'
+    : imageUrl.toLowerCase().endsWith('.jpg') || imageUrl.toLowerCase().endsWith('.jpeg')
+    ? 'image/jpeg'
+    : imageUrl.toLowerCase().endsWith('.gif')
+    ? 'image/gif'
+    : imageUrl.toLowerCase().endsWith('.webp')
+    ? 'image/webp'
+    : 'image/png';
+
+  return {
+    name: collectionName,
+    symbol: finalSymbol,
+    description: finalDescription,
+    image: imageUrl,
+    external_url: websiteUrl,
+    seller_fee_basis_points: 0, // No royalties for educational certificates
+    attributes: [
+      {
+        trait_type: 'University',
+        value: universityName,
+      },
+      {
+        trait_type: 'Collection Type',
+        value: 'Academic Certificates',
+      },
+      {
+        trait_type: 'Blockchain',
+        value: 'Solana',
+      },
+      {
+        trait_type: 'Standard',
+        value: 'Metaplex Compressed NFT',
+      },
+    ],
+    properties: {
+      files: [
+        {
+          uri: imageUrl,
+          type: imageType,
+        },
+      ],
+      category: 'image',
+    },
+  };
+}
+

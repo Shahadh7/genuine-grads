@@ -16,7 +16,8 @@ import {
   X,
   Building,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Shield
 } from 'lucide-react';
 
 const navigation = [
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Certificates', href: '/university/certificates', icon: Award },
   { name: 'Analytics', href: '/university/analytics', icon: BarChart3 },
   { name: 'Settings', href: '/university/settings', icon: Settings },
+  { name: 'Blockchain Setup', href: '/university/settings/blockchain', icon: Shield },
 ];
 
 interface Props {

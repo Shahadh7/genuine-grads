@@ -9,9 +9,9 @@ import { universityMutations } from './mutations/university.mutations.js';
 import { studentMutations } from './mutations/student.mutations.js';
 import { certificateMutations } from './mutations/certificate.mutations.js';
 import { requireUniversityDb } from '../context.js';
-// import { solanaMutations } from './mutations/solana.mutations.js'; // TODO: Update for new architecture
+import { solanaMutations } from './mutations/solana.mutations.js';
 
-export const resolvers = {
+export const resolvers: Record<string, any> = {
   // Custom scalars
   DateTime: DateTimeResolver,
   JSON: JSONResolver,
@@ -49,12 +49,12 @@ export const resolvers = {
     ...certificateMutations,
     
     // Solana transactions (integrated into university/certificate mutations)
-    // ...solanaMutations, // TODO: Update for new architecture
+    ...solanaMutations,
   },
 
   // Field resolvers (for nested data)
   University: {
-    stats: async (parent: any, _: any, context: any) => {
+    stats: async (_parent: any, _: any, context: any) => {
       // This is called when stats field is requested
       if (!context.universityDb) {
         return null;

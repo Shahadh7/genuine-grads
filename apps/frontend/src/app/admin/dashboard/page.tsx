@@ -102,15 +102,9 @@ export default function SuperAdminDashboard() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage university registrations and approvals</p>
-        </div>
-        <Button onClick={() => router.push('/admin/universities/register')}>
-          <Building2 className="h-4 w-4 mr-2" />
-          Register New University
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
+        <p className="text-muted-foreground">Manage university registrations and approvals</p>
       </div>
 
       {/* Stats Cards */}

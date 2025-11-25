@@ -25,6 +25,7 @@ import {
   Award,
   Calendar,
   AlertTriangle,
+  UserPlus,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -199,6 +200,12 @@ export default function StudentsPage(): React.JSX.Element {
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
               Add Student
+            </Button>
+          </Link>
+          <Link href="/university/students/enroll">
+            <Button variant="outline" className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
+              Enroll in Course
             </Button>
           </Link>
           <Link href="/university/students/bulk-upload">

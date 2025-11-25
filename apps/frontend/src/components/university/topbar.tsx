@@ -3,22 +3,24 @@ import React from "react";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { 
-  Wallet, 
-  LogOut, 
-  User, 
-  Settings, 
+import {
+  Wallet,
+  LogOut,
+  User,
+  Settings,
   Bell,
   ChevronDown,
   Building
@@ -33,6 +35,7 @@ interface Props {
 export default function Topbar({session, walletAddress}): React.React.JSX.Element {
   const router = useRouter();
   const [notifications] = useState<any>(3);
+  const { publicKey, connected } = useWallet();
 
   const handleLogout = async () => {
     try {
@@ -54,11 +57,6 @@ export default function Topbar({session, walletAddress}): React.React.JSX.Elemen
       .slice(0, 2);
   };
 
-  const formatWalletAddress = (address) => {
-    if (!address) return 'Not Connected';
-    return `${address.slice(0, 4)}...${address.slice(-4)}`;
-  };
-
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center justify-between px-6">
@@ -76,15 +74,11 @@ export default function Topbar({session, walletAddress}): React.React.JSX.Elemen
             <h1 className="text-lg font-semibold text-foreground">Dashboard</h1>
           </div>
 
-          {/* Wallet Status - moved to left side */}
-          <div className="hidden sm:flex items-center space-x-2 px-3 py-1.5 bg-muted/50 rounded-lg border">
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-            <Badge 
-              variant={walletAddress ? "default" : "secondary"}
-              className="text-xs font-medium"
-            >
-              {formatWalletAddress(walletAddress)}
-            </Badge>
+          {/* Wallet Connect Button */}
+          <div className="hidden sm:flex items-center">
+            <WalletMultiButton
+              className="!bg-primary !text-primary-foreground hover:!bg-primary/90 !h-9 !text-sm !rounded-md !px-4"
+            />
           </div>
         </div>
 

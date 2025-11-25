@@ -358,6 +358,32 @@ export const certificateMutations = {
       }
     }
 
+    // Check for duplicate certificate issuance
+    // Prevent issuing the same certificate (same student + enrollment + template) twice
+    const existingCertificate = await universityDb.certificate.findFirst({
+      where: {
+        studentId: student.id,
+        enrollmentId: enrollmentRecord.id,
+        badgeTitle: badgeTitle,
+        status: {
+          in: ['PENDING', 'MINTED'], // Only check non-failed certificates
+        },
+      },
+    });
+
+    if (existingCertificate) {
+      throw new GraphQLError(
+        `A certificate "${badgeTitle}" has already been issued to this student for this enrollment. Status: ${existingCertificate.status}`,
+        {
+          extensions: {
+            code: 'DUPLICATE_CERTIFICATE',
+            existingCertificateId: existingCertificate.id,
+            certificateNumber: existingCertificate.certificateNumber,
+          },
+        }
+      );
+    }
+
     const year = new Date().getFullYear();
     const dept = student.department || 'GEN';
     const count = await universityDb.certificate.count();

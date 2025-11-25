@@ -57,15 +57,16 @@ import {
 import QRCode from 'react-qr-code';
 import { graphqlClient } from '@/lib/graphql-client';
 import { useToast } from '@/hooks/useToast';
+import designTemplatesData from '../../../../../data/designTemplates.json';
 
 // Sample data for preview mode
 const sampleData = {
   student_name: "Ayesha Perera",
-  certificate_title: "Bachelor of IT",
+  certificate_title: "Certificate of Completion",
   gpa: "3.95",
   badge_title: "Dean's List",
   university_name: "Tech University",
-  course: "Computer Science",
+  course: "Bachelor of Science in Information Technology",
   graduation_date: "2024-05-15",
   student_id: "STU2024001"
 };
@@ -81,6 +82,41 @@ const availablePlaceholders = [
   { key: 'graduation_date', label: 'Graduation Date', value: sampleData.graduation_date },
   { key: 'student_id', label: 'Student ID', value: sampleData.student_id }
 ];
+
+// Normalize pre-made templates to match the expected structure
+const normalizePreMadeTemplate = (template: any) => {
+  const normalizedElements = template.elements.map((el: any) => {
+    const normalized: any = { ...el };
+
+    // Convert type names
+    if (el.type === 'static') {
+      normalized.type = 'static_text';
+    } else if (el.type === 'qr') {
+      normalized.type = 'qr_placeholder';
+      normalized.width = el.size || 100;
+      normalized.height = el.size || 100;
+      delete normalized.size;
+    }
+
+    return normalized;
+  });
+
+  return {
+    id: template.id,
+    name: template.name,
+    description: template.description,
+    templateId: template.id,
+    universityId: "pre_made",
+    designTemplate: {
+      backgroundColor: '#ffffff',
+      elements: normalizedElements,
+    },
+    isPremade: true,
+  };
+};
+
+// Pre-made templates
+const preMadeTemplates = designTemplatesData.templates.map(normalizePreMadeTemplate);
 
 // Default template
 const defaultTemplate = {
@@ -230,7 +266,7 @@ export default function CertificateDesignerPage(): React.JSX.Element {
   
 
   const addElement = (type, value = '') => {
-    const newElement = {
+    const newElement: any = {
       id: `${type}-${Date.now()}`,
       type,
       value,
@@ -238,7 +274,7 @@ export default function CertificateDesignerPage(): React.JSX.Element {
       y: 100,
       fontSize: type === 'placeholder' ? 16 : 14,
       fontWeight: type === 'placeholder' ? 'semibold' : 'normal',
-      textAlign: 'left',
+      textAlign: 'center',
       color: '#374151'
     };
 
@@ -251,6 +287,11 @@ export default function CertificateDesignerPage(): React.JSX.Element {
       newElement.width = 100;
       newElement.height = 100;
       newElement.src = null;
+    }
+
+    // Set default width for text elements to ensure proper alignment
+    if (type === 'placeholder' || type === 'static_text') {
+      newElement.width = 400;
     }
 
     setElements([...elements, newElement]);
@@ -625,7 +666,7 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                   Load Template
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="max-h-[500px] overflow-y-auto">
                 <DropdownMenuItem onClick={() => loadTemplate(defaultTemplate)}>
                   Default Template
                 </DropdownMenuItem>
@@ -635,11 +676,32 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                 >
                   {templatesLoading ? 'Refreshing…' : 'Refresh Templates'}
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled>
+
+                {/* Pre-made Templates Section */}
+                <DropdownMenuItem disabled className="font-semibold">
+                  Pre-made Templates
+                </DropdownMenuItem>
+                {preMadeTemplates.map((template: any) => (
+                  <DropdownMenuItem
+                    key={template.id}
+                    onClick={() => loadTemplate(template)}
+                    className="pl-6"
+                  >
+                    <div className="flex flex-col">
+                      <span>{template.name}</span>
+                      {template.description && (
+                        <span className="text-xs text-muted-foreground">{template.description}</span>
+                      )}
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+
+                {/* Saved Templates Section */}
+                <DropdownMenuItem disabled className="font-semibold mt-2">
                   Saved Templates
                 </DropdownMenuItem>
                 {templatesLoading ? (
-                  <DropdownMenuItem disabled className="flex items-center gap-2">
+                  <DropdownMenuItem disabled className="flex items-center gap-2 pl-6">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Loading templates...
                   </DropdownMenuItem>
@@ -648,12 +710,13 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                     <DropdownMenuItem
                       key={template.id ?? template.templateId}
                       onClick={() => loadTemplate(template)}
+                      className="pl-6"
                     >
                       {template.name}
                     </DropdownMenuItem>
                   ))
                 ) : (
-                  <DropdownMenuItem disabled>No saved templates</DropdownMenuItem>
+                  <DropdownMenuItem disabled className="pl-6">No saved templates</DropdownMenuItem>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -1094,7 +1157,7 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                     )}
                   </div>
                 ) : (
-                  <div className="px-2 py-1">
+                  <div>
                     {getDisplayValue(element)}
                   </div>
                 )}

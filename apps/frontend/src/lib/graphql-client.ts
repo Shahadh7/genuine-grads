@@ -8,6 +8,19 @@ interface GraphQLResponse<T> {
   }>;
 }
 
+const PREPARED_TRANSACTION_FIELDS = `
+  operationType
+  transaction
+  blockhash
+  lastValidBlockHeight
+  message
+  metadata
+  accountsCreated {
+    name
+    address
+  }
+`;
+
 class GraphQLClient {
   private endpoint: string;
   private token: string | null = null;
@@ -704,6 +717,68 @@ class GraphQLClient {
     return this.request<{ registerStudent: any }>(query, { input });
   }
 
+  async enrollStudentInCourse(input: {
+    studentId: string;
+    course: {
+      code: string;
+      name: string;
+      description?: string;
+      credits?: number;
+      semester?: string;
+      department: string;
+      degreeType: string;
+    };
+    batchYear: number;
+    semester?: string;
+    status?: string;
+    gpa?: number;
+    grade?: string;
+    achievements?: Array<{
+      id?: string;
+      title?: string;
+      description?: string;
+      category?: string;
+      notes?: string;
+      awardedAt?: string;
+    }>;
+  }) {
+    const query = `
+      mutation EnrollStudentInCourse($input: EnrollStudentInCourseInput!) {
+        enrollStudentInCourse(input: $input) {
+          id
+          batchYear
+          semester
+          status
+          gpa
+          grade
+          student {
+            id
+            fullName
+            email
+            studentNumber
+            program
+            department
+          }
+          course {
+            id
+            name
+            code
+            department
+            level
+          }
+          achievements {
+            id
+            badgeTitle
+            description
+            badgeType
+          }
+        }
+      }
+    `;
+
+    return this.request<{ enrollStudentInCourse: any }>(query, { input });
+  }
+
   async bulkImportStudents(input: {
     students: Array<{
       rowNumber: number;
@@ -898,6 +973,83 @@ class GraphQLClient {
     return this.request<{ certificates: any[] }>(query, params);
   }
 
+  async revokeCertificate(input: {
+    certificateId: string;
+    reason: string;
+    adminPassword: string;
+  }) {
+    const mutation = `
+      mutation RevokeCertificate($input: RevokeCertificateInput!) {
+        revokeCertificate(input: $input) {
+          id
+          certificateNumber
+          badgeTitle
+          revoked
+          revokedAt
+          revocationReason
+          student {
+            id
+            fullName
+            email
+            walletAddress
+            studentNumber
+          }
+        }
+      }
+    `;
+
+    return this.request<{ revokeCertificate: any }>(mutation, { input });
+  }
+
+  async verifyCertificatePublic(params: {
+    certificateNumber?: string;
+    mintAddress?: string;
+  }) {
+    const query = `
+      query VerifyCertificatePublic($certificateNumber: String, $mintAddress: String) {
+        verifyCertificatePublic(certificateNumber: $certificateNumber, mintAddress: $mintAddress) {
+          isValid
+          status
+          verificationTimestamp
+          certificate {
+            badgeTitle
+            issueDate
+            degreeType
+            studentName
+            university {
+              name
+              logoUrl
+              isVerified
+            }
+          }
+          revocationInfo {
+            isRevoked
+            revokedAt
+            reason
+          }
+          blockchainProof {
+            mintAddress
+            transactionSignature
+            merkleTreeAddress
+            metadataUri
+            verifiedAt
+          }
+        }
+      }
+    `;
+
+    return this.request<{
+      verifyCertificatePublic: {
+        isValid: boolean;
+        status: string;
+        verificationTimestamp: string;
+        certificate: any;
+        revocationInfo: any;
+        blockchainProof: any;
+      };
+    }>(query, params);
+  }
+
   async getCertificateTemplates() {
     const query = `
       query CertificateTemplates {
@@ -1014,6 +1166,294 @@ class GraphQLClient {
     `;
 
     return this.request<{ issueCertificate: any }>(query, { input });
+  }
+
+  async prepareRegisterUniversityTransaction(params: {
+    universityId: string;
+    superAdminPubkey: string;
+  }) {
+    const mutation = `
+      mutation PrepareRegisterUniversityTransaction($universityId: ID!, $superAdminPubkey: String!) {
+        prepareRegisterUniversityTransaction(universityId: $universityId, superAdminPubkey: $superAdminPubkey) {
+          ${PREPARED_TRANSACTION_FIELDS}
+        }
+      }
+    `;
+
+    return this.request<{
+      prepareRegisterUniversityTransaction: any;
+    }>(mutation, params);
+  }
+
+  async submitRegisterUniversityTransaction(params: {
+    universityId: string;
+    signedTransaction: string;
+  }) {
+    const mutation = `
+      mutation SubmitRegisterUniversityTransaction($universityId: ID!, $signedTransaction: String!) {
+        submitRegisterUniversityTransaction(universityId: $universityId, signedTransaction: $signedTransaction) {
+          success
+          signature
+          message
+        }
+      }
+    `;
+
+    return this.request<{
+      submitRegisterUniversityTransaction: {
+        success: boolean;
+        signature: string;
+        message: string;
+      };
+    }>(mutation, params);
+  }
+
+  async prepareApproveUniversityTransaction(universityId: string) {
+    const mutation = `
+      mutation PrepareApproveUniversityTransaction($universityId: ID!) {
+        prepareApproveUniversityTransaction(universityId: $universityId) {
+          ${PREPARED_TRANSACTION_FIELDS}
+        }
+      }
+    `;
+
+    return this.request<{
+      prepareApproveUniversityTransaction: any;
+    }>(mutation, { universityId });
+  }
+
+  async prepareCreateTreeTransaction(params: {
+    universityId: string;
+    maxDepth: number;
+    maxBufferSize: number;
+    isPublic: boolean;
+  }) {
+    const mutation = `
+      mutation PrepareCreateTreeTransaction(
+        $universityId: ID!
+        $maxDepth: Int!
+        $maxBufferSize: Int!
+        $isPublic: Boolean!
+      ) {
+        prepareCreateTreeTransaction(
+          universityId: $universityId
+          maxDepth: $maxDepth
+          maxBufferSize: $maxBufferSize
+          isPublic: $isPublic
+        ) {
+          ${PREPARED_TRANSACTION_FIELDS}
+        }
+      }
+    `;
+
+    return this.request<{
+      prepareCreateTreeTransaction: any;
+    }>(mutation, params);
+  }
+
+  async prepareCreateCollectionTransaction(params: {
+    universityId: string;
+    name: string;
+    uri: string;
+  }) {
+    const mutation = `
+      mutation PrepareCreateCollectionTransaction(
+        $universityId: ID!
+        $name: String!
+        $uri: String!
+      ) {
+        prepareCreateCollectionTransaction(
+          universityId: $universityId
+          name: $name
+          uri: $uri
+        ) {
+          ${PREPARED_TRANSACTION_FIELDS}
+        }
+      }
+    `;
+
+    return this.request<{
+      prepareCreateCollectionTransaction: any;
+    }>(mutation, params);
+  }
+
+  async prepareMintCertificateTransaction(certificateId: string) {
+    const mutation = `
+      mutation PrepareMintCertificateTransaction($certificateId: ID!) {
+        prepareMintCertificateTransaction(certificateId: $certificateId) {
+          ${PREPARED_TRANSACTION_FIELDS}
+        }
+      }
+    `;
+
+    return this.request<{
+      prepareMintCertificateTransaction: any;
+    }>(mutation, { certificateId });
+  }
+
+  async prepareMintCertificateWorkflow(certificateId: string) {
+    const mutation = `
+      mutation PrepareMintCertificateWorkflow($certificateId: ID!) {
+        prepareMintCertificateWorkflow(certificateId: $certificateId) {
+          prerequisites {
+            ${PREPARED_TRANSACTION_FIELDS}
+          }
+          mint {
+            ${PREPARED_TRANSACTION_FIELDS}
+          }
+        }
+      }
+    `;
+
+    return this.request<{
+      prepareMintCertificateWorkflow: {
+        prerequisites: any[];
+        mint: any;
+      };
+    }>(mutation, { certificateId });
+  }
+
+  async submitSignedTransaction(params: {
+    signedTransaction: string;
+    operationType: string;
+    metadata?: Record<string, any>;
+  }) {
+    const mutation = `
+      mutation SubmitSignedTransaction(
+        $signedTransaction: String!
+        $operationType: String!
+        $metadata: JSON
+      ) {
+        submitSignedTransaction(
+          signedTransaction: $signedTransaction
+          operationType: $operationType
+          metadata: $metadata
+        ) {
+          success
+          signature
+          message
+        }
+      }
+    `;
+
+    return this.request<{
+      submitSignedTransaction: {
+        success: boolean;
+        signature: string;
+        message: string;
+      };
+    }>(mutation, params);
+  }
+
+  // New one-click transaction mutations
+  async createMerkleTree(params: {
+    universityId: string;
+    maxDepth: number;
+    maxBufferSize: number;
+    isPublic: boolean;
+  }) {
+    const mutation = `
+      mutation CreateMerkleTree(
+        $universityId: ID!
+        $maxDepth: Int!
+        $maxBufferSize: Int!
+        $isPublic: Boolean!
+      ) {
+        createMerkleTree(
+          universityId: $universityId
+          maxDepth: $maxDepth
+          maxBufferSize: $maxBufferSize
+          isPublic: $isPublic
+        ) {
+          ${PREPARED_TRANSACTION_FIELDS}
+        }
+      }
+    `;
+
+    return this.request<{ createMerkleTree: any }>(mutation, params);
+  }
+
+  async createCollection(params: {
+    universityId: string;
+    name: string;
+    imageBase64: string;
+    symbol?: string;
+    description?: string;
+  }) {
+    const mutation = `
+      mutation CreateCollection(
+        $universityId: ID!
+        $name: String!
+        $imageBase64: String!
+        $symbol: String
+        $description: String
+      ) {
+        createCollection(
+          universityId: $universityId
+          name: $name
+          imageBase64: $imageBase64
+          symbol: $symbol
+          description: $description
+        ) {
+          ${PREPARED_TRANSACTION_FIELDS}
+        }
+      }
+    `;
+
+    return this.request<{ createCollection: any }>(mutation, params);
+  }
+
+  async confirmTransaction(params: {
+    signature: string;
+    operationType: string;
+    metadata?: Record<string, any>;
+  }) {
+    const mutation = `
+      mutation ConfirmTransaction(
+        $signature: String!
+        $operationType: String!
+        $metadata: JSON
+      ) {
+        confirmTransaction(
+          signature: $signature
+          operationType: $operationType
+          metadata: $metadata
+        ) {
+          success
+          signature
+          message
+        }
+      }
+    `;
+
+    return this.request<{
+      confirmTransaction: {
+        success: boolean;
+        signature: string;
+        message: string;
+      };
+    }>(mutation, params);
+  }
+
+  async mintCertificate(params: {
+    certificateId: string;
+    attachCollection: boolean;
+  }) {
+    const mutation = `
+      mutation MintCertificate(
+        $certificateId: ID!
+        $attachCollection: Boolean!
+      ) {
+        mintCertificate(
+          certificateId: $certificateId
+          attachCollection: $attachCollection
+        ) {
+          ${PREPARED_TRANSACTION_FIELDS}
+        }
+      }
+    `;
+
+    return this.request<{ mintCertificate: any }>(mutation, params);
   }
 }
 

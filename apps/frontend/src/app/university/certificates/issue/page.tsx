@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { graphqlClient } from '@/lib/graphql-client';
 import { useToast } from '@/hooks/useToast';
+import { getSession } from '@/lib/session';
 import {
   ArrowLeft,
   CheckCircle,
@@ -76,67 +77,209 @@ function hydrateTemplateMetadata(
 ): Record<string, string> {
   const enrollment = student?.enrollments?.[0] ?? null;
   const course = enrollment?.course ?? null;
+  const session = getSession();
 
   const resolvedDegreeType = options.degreeType ?? options.template?.degreeType ?? '';
   const resolvedBadgeTitle = options.badgeTitle ?? course?.name ?? options.template?.name ?? '';
+  const universityName = session?.university?.name ?? 'University';
 
   const derived: Record<string, string> = {};
 
+  // Get current date for graduation/issue date
+  const currentDate = new Date().toISOString().split('T')[0];
+
   Object.keys(templateFieldMap).forEach((field) => {
-    const key = field.toLowerCase();
+    const key = field.toLowerCase().replace(/[_\s-]/g, ''); // Normalize field names
     let value: unknown = '';
 
     switch (key) {
+      // Student name variations
       case 'studentname':
+      case 'student':
+      case 'name':
+      case 'fullname':
         value = student?.fullName ?? '';
         break;
+      
+      // Email variations
       case 'email':
+      case 'studentemail':
         value = student?.email ?? '';
         break;
+      
+      // Program variations
       case 'program':
-        value = student?.program ?? '';
-        break;
-      case 'department':
-        value = student?.department ?? '';
-        break;
-      case 'enrollmentyear':
-      case 'batchyear':
-        value = enrollment?.batchYear ?? student?.enrollmentYear ?? '';
-        break;
-      case 'semester':
-      case 'enrollmentsemester':
-        value = enrollment?.semester ?? '';
-        break;
-      case 'gpa':
-        value = enrollment?.gpa ?? '';
-        break;
-      case 'grade':
-        value = enrollment?.grade ?? '';
-        break;
-      case 'coursename':
-        value = course?.name ?? '';
-        break;
-      case 'coursecode':
-        value = course?.code ?? '';
-        break;
-      case 'coursedescription':
-        value = course?.description ?? '';
-        break;
-      case 'coursedepartment':
-        value = course?.department ?? '';
-        break;
       case 'degree':
       case 'degreetype':
-        value = resolvedDegreeType;
+      case 'degreeprogram':
+        value = student?.program ?? resolvedDegreeType;
         break;
-      case 'walletaddress':
-        value = student?.walletAddress ?? '';
+      
+      // Department variations
+      case 'department':
+      case 'studentdepartment':
+        value = student?.department ?? '';
         break;
-      case 'certificatebadge':
+      
+      // Enrollment year variations
+      case 'enrollmentyear':
+      case 'batchyear':
+      case 'admissionyear':
+      case 'year':
+        value = enrollment?.batchYear ?? student?.enrollmentYear ?? '';
+        break;
+      
+      // Semester variations
+      case 'semester':
+      case 'enrollmentsemester':
+      case 'currentsemester':
+        value = enrollment?.semester ?? '';
+        break;
+      
+      // GPA variations
+      case 'gpa':
+      case 'grade':
+      case 'cgpa':
+      case 'gradepoint':
+        value = enrollment?.gpa ?? enrollment?.grade ?? '';
+        break;
+      
+      // Course name variations
+      case 'coursename':
+      case 'course':
+      case 'coursework':
+      case 'subject':
+      case 'major':
+        value = course?.name ?? '';
+        break;
+      
+      // Course code variations
+      case 'coursecode':
+      case 'code':
+      case 'subjectcode':
+        value = course?.code ?? '';
+        break;
+      
+      // Course description variations
+      case 'coursedescription':
+      case 'description':
+      case 'coursedetails':
+        value = course?.description ?? '';
+        break;
+      
+      // Course department variations
+      case 'coursedepartment':
+      case 'academicdepartment':
+        value = course?.department ?? student?.department ?? '';
+        break;
+      
+      // Certificate title variations
+      case 'certificatetitle':
+      case 'title':
+      case 'certificatename':
+      case 'badgetitle':
+      case 'badge':
         value = resolvedBadgeTitle;
         break;
+      
+      // University name variations
+      case 'universityname':
+      case 'university':
+      case 'institution':
+      case 'college':
+      case 'school':
+        value = universityName;
+        break;
+      
+      // Date variations
+      case 'graduationdate':
+      case 'issuedate':
+      case 'completiondate':
+      case 'date':
+      case 'certificatedate':
+        value = currentDate;
+        break;
+      
+      // Wallet address variations
+      case 'walletaddress':
+      case 'wallet':
+      case 'address':
+      case 'publickey':
+        value = student?.walletAddress ?? '';
+        break;
+      
+      // Student ID variations
+      case 'studentid':
+      case 'studentnumber':
+      case 'id':
+      case 'rollnumber':
+      case 'registrationnumber':
+        value = student?.studentNumber ?? student?.id ?? '';
+        break;
+      
+      // Achievement variations
+      case 'achievements':
+      case 'honors':
+      case 'awards':
+        value = student?.achievements?.map((a: any) => a.achievement?.title || a.title).join(', ') ?? '';
+        break;
+      
+      // Default case - try to match any remaining fields
       default:
-        value = '';
+        // Try to find a close match in student data
+        const studentFields = [
+          { key: 'fullName', aliases: ['name', 'student', 'fullname'] },
+          { key: 'email', aliases: ['email', 'emailaddress'] },
+          { key: 'program', aliases: ['program', 'degree', 'major'] },
+          { key: 'department', aliases: ['department', 'faculty'] },
+          { key: 'studentNumber', aliases: ['studentid', 'id', 'number'] },
+          { key: 'walletAddress', aliases: ['wallet', 'address'] }
+        ];
+        
+        const enrollmentFields = [
+          { key: 'gpa', aliases: ['gpa', 'grade', 'cgpa'] },
+          { key: 'semester', aliases: ['semester', 'term'] },
+          { key: 'batchYear', aliases: ['year', 'batch', 'batchyear'] }
+        ];
+        
+        const courseFields = [
+          { key: 'name', aliases: ['course', 'coursename', 'subject'] },
+          { key: 'code', aliases: ['code', 'coursecode'] },
+          { key: 'description', aliases: ['description', 'details'] }
+        ];
+        
+        // Check student fields
+        for (const fieldDef of studentFields) {
+          if (fieldDef.aliases.some(alias => key.includes(alias) || alias.includes(key))) {
+            value = student?.[fieldDef.key] ?? '';
+            break;
+          }
+        }
+        
+        // Check enrollment fields if no student field matched
+        if (!value && enrollment) {
+          for (const fieldDef of enrollmentFields) {
+            if (fieldDef.aliases.some(alias => key.includes(alias) || alias.includes(key))) {
+              value = enrollment[fieldDef.key] ?? '';
+              break;
+            }
+          }
+        }
+        
+        // Check course fields if no enrollment field matched
+        if (!value && course) {
+          for (const fieldDef of courseFields) {
+            if (fieldDef.aliases.some(alias => key.includes(alias) || alias.includes(key))) {
+              value = course[fieldDef.key] ?? '';
+              break;
+            }
+          }
+        }
+        
+        // If still no match, leave empty
+        if (!value) {
+          value = '';
+        }
     }
 
     derived[field] = stringifyValue(value);
@@ -261,6 +404,16 @@ export default function IssueCertificatePage(): React.JSX.Element {
       ...prev,
       [field]: value,
     }));
+  };
+
+  const handleRefreshMetadata = () => {
+    if (activeStudent && activeTemplate) {
+      initializeForm(activeStudent, activeTemplate);
+      toast.success({
+        title: 'Fields refreshed',
+        description: 'Certificate metadata has been auto-filled with the latest student data.',
+      });
+    }
   };
 
   const handleSkipStudent = () => {
@@ -533,7 +686,19 @@ export default function IssueCertificatePage(): React.JSX.Element {
           <div className="space-y-6">
             <Card className="border-0 shadow-lg bg-card/60 backdrop-blur">
               <CardHeader className="pb-5 space-y-2">
-                <CardTitle className="text-xl">Certificate Template & Metadata</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">Certificate Template & Metadata</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefreshMetadata}
+                    disabled={!activeStudent || !activeTemplate}
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Auto-fill
+                  </Button>
+                </div>
                 <p className="text-sm text-muted-foreground">
                   Review the data pulled from student records. Update any field if necessary before issuing the draft certificate.
                 </p>
@@ -558,21 +723,39 @@ export default function IssueCertificatePage(): React.JSX.Element {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-3">
                     <Label className="text-sm font-medium">Badge Title</Label>
-                    <Input
-                      value={badgeTitle}
-                      onChange={(event) => setBadgeTitle(event.target.value)}
-                      placeholder="e.g. Bachelor of Science in Computer Science"
-                      className="h-11 bg-background/50 border-muted focus:border-primary"
-                    />
+                    <div className="relative">
+                      <Input
+                        value={badgeTitle}
+                        onChange={(event) => setBadgeTitle(event.target.value)}
+                        placeholder="e.g. Bachelor of Science in Computer Science"
+                        className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                          badgeTitle ? 'border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20' : ''
+                        }`}
+                      />
+                      {badgeTitle && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="space-y-3">
                     <Label className="text-sm font-medium">Degree Type</Label>
-                    <Input
-                      value={degreeType}
-                      onChange={(event) => setDegreeType(event.target.value)}
-                      placeholder="e.g. Bachelor"
-                      className="h-11 bg-background/50 border-muted focus:border-primary"
-                    />
+                    <div className="relative">
+                      <Input
+                        value={degreeType}
+                        onChange={(event) => setDegreeType(event.target.value)}
+                        placeholder="e.g. Bachelor"
+                        className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                          degreeType ? 'border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20' : ''
+                        }`}
+                      />
+                      {degreeType && (
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -591,27 +774,54 @@ export default function IssueCertificatePage(): React.JSX.Element {
                           </span>
                         </Label>
                         {expectedType === 'string' || expectedType === 'any' ? (
-                          <Input
-                            value={metadataForm[field] ?? ''}
-                            onChange={(event) => handleMetadataChange(field, event.target.value)}
-                            className="h-11 bg-background/50 border-muted focus:border-primary"
-                            placeholder={`Enter ${field}`}
-                          />
+                          <div className="relative">
+                            <Input
+                              value={metadataForm[field] ?? ''}
+                              onChange={(event) => handleMetadataChange(field, event.target.value)}
+                              className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                                metadataForm[field] ? 'border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20' : ''
+                              }`}
+                              placeholder={`Enter ${field}`}
+                            />
+                            {metadataForm[field] && (
+                              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              </div>
+                            )}
+                          </div>
                         ) : expectedType === 'number' ? (
-                          <Input
-                            type="number"
-                            value={metadataForm[field] ?? ''}
-                            onChange={(event) => handleMetadataChange(field, event.target.value)}
-                            className="h-11 bg-background/50 border-muted focus:border-primary"
-                            placeholder={`Enter numeric value for ${field}`}
-                          />
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              value={metadataForm[field] ?? ''}
+                              onChange={(event) => handleMetadataChange(field, event.target.value)}
+                              className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                                metadataForm[field] ? 'border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20' : ''
+                              }`}
+                              placeholder={`Enter numeric value for ${field}`}
+                            />
+                            {metadataForm[field] && (
+                              <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              </div>
+                            )}
+                          </div>
                         ) : (
-                          <Textarea
-                            value={metadataForm[field] ?? ''}
-                            onChange={(event) => handleMetadataChange(field, event.target.value)}
-                            className="min-h-[80px] bg-background/50 border-muted focus:border-primary"
-                            placeholder={`Enter ${field}`}
-                          />
+                          <div className="relative">
+                            <Textarea
+                              value={metadataForm[field] ?? ''}
+                              onChange={(event) => handleMetadataChange(field, event.target.value)}
+                              className={`min-h-[80px] bg-background/50 border-muted focus:border-primary ${
+                                metadataForm[field] ? 'border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/20' : ''
+                              }`}
+                              placeholder={`Enter ${field}`}
+                            />
+                            {metadataForm[field] && (
+                              <div className="absolute right-2 top-2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                     ))

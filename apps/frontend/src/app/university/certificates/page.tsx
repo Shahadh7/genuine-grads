@@ -7,29 +7,36 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { DataTable } from '@/components/ui/data-table';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import { graphqlClient } from '@/lib/graphql-client';
-import { 
-  Plus, 
-  Search, 
-  MoreHorizontal, 
-  Eye, 
-  XCircle, 
+import { useToast } from '@/hooks/useToast';
+import { useConnection, useWallet } from '@solana/wallet-adapter-react';
+import { VersionedTransaction } from '@solana/web3.js';
+import bs58 from 'bs58';
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Eye,
+  XCircle,
   Calendar,
   Filter,
-  Settings
+  Settings,
+  Shield,
+  Loader2,
+  Coins
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -57,6 +64,10 @@ type CertificateRecord = {
 };
 
 export default function CertificatesPage(): React.JSX.Element {
+  const toast = useToast();
+  const { connection } = useConnection();
+  const { publicKey, signTransaction } = useWallet();
+
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [programFilter, setProgramFilter] = useState<string>('all');
@@ -64,6 +75,7 @@ export default function CertificatesPage(): React.JSX.Element {
   const [programOptions, setProgramOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [mintingCertId, setMintingCertId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -101,6 +113,84 @@ export default function CertificatesPage(): React.JSX.Element {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const handleMintCertificate = async (certificateId: string) => {
+    if (!publicKey || !signTransaction) {
+      toast.error({
+        title: 'Wallet not connected',
+        description: 'Please connect your wallet to mint certificates.',
+      });
+      return;
+    }
+
+    setMintingCertId(certificateId);
+
+    try {
+      toast.success({
+        title: 'Generating certificate',
+        description: 'Creating certificate image and uploading to IPFS...',
+      });
+
+      // Step 1: Create transaction via backend (includes image generation and IPFS upload)
+      const response = await graphqlClient.mintCertificate({
+        certificateId,
+        attachCollection: true,
+      });
+
+      const txData = response.data?.mintCertificate;
+      if (!txData) {
+        const errorMessage = response.errors?.[0]?.message ?? 'Failed to create transaction';
+        throw new Error(errorMessage);
+      }
+
+      toast.success({
+        title: 'Transaction created',
+        description: 'Please sign the transaction in your wallet.',
+      });
+
+      // Step 2: Deserialize and sign transaction
+      const txBuffer = bs58.decode(txData.transaction);
+      const transaction = VersionedTransaction.deserialize(txBuffer);
+
+      const signedTx = await signTransaction(transaction);
+
+      // Step 3: Send and confirm transaction
+      const signature = await connection.sendRawTransaction(signedTx.serialize(), {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed',
+      });
+
+      toast.success({
+        title: 'Transaction sent',
+        description: 'Waiting for confirmation...',
+      });
+
+      // Step 4: Confirm transaction via backend
+      await graphqlClient.confirmTransaction({
+        signature,
+        operationType: 'mint_certificate',
+        metadata: txData.metadata,
+      });
+
+      toast.success({
+        title: 'Certificate minted!',
+        description: 'The certificate has been successfully minted on-chain as a cNFT.',
+      });
+
+      // Reload certificates
+      const certificatesResponse = await graphqlClient.getCertificates();
+      const certs = (certificatesResponse.data?.certificates ?? []) as CertificateRecord[];
+      setCertificates(certs);
+    } catch (err: any) {
+      console.error('[Certificates] mint failed', err);
+      toast.error({
+        title: 'Minting failed',
+        description: err?.message ?? 'Unable to mint certificate.',
+      });
+    } finally {
+      setMintingCertId(null);
+    }
   };
 
   const filteredCertificates = certificates.filter((cert) => {
@@ -196,9 +286,13 @@ export default function CertificatesPage(): React.JSX.Element {
       render: (cert: CertificateRecord) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
+            <Button variant="ghost" className="h-8 w-8 p-0" disabled={mintingCertId === cert.id}>
               <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
+              {mintingCertId === cert.id ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MoreHorizontal className="h-4 w-4" />
+              )}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -206,6 +300,15 @@ export default function CertificatesPage(): React.JSX.Element {
               <Eye className="h-4 w-4" />
               <span>View Details</span>
             </DropdownMenuItem>
+            {cert.status === 'PENDING' && (
+              <DropdownMenuItem
+                className="flex items-center gap-2"
+                onClick={() => handleMintCertificate(cert.id)}
+              >
+                <Coins className="h-4 w-4" />
+                <span>Mint Certificate</span>
+              </DropdownMenuItem>
+            )}
             {cert.status === 'MINTED' && (
               <DropdownMenuItem className="flex items-center gap-2 text-destructive focus:text-destructive">
                 <XCircle className="h-4 w-4" />
@@ -244,6 +347,12 @@ export default function CertificatesPage(): React.JSX.Element {
             <Button variant="outline" className="flex items-center gap-2">
               <XCircle className="h-4 w-4" />
               Revoke Certificate
+            </Button>
+          </Link>
+          <Link href="/university/settings/blockchain">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Blockchain Setup
             </Button>
           </Link>
         </div>

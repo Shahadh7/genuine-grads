@@ -9,7 +9,7 @@ pub mod states;
 
 use instructions::*;
 
-declare_id!("J66NdjPnpQWkm3Pj3AihkU4XFjLaV9RF5vz2RUEwKSZF");
+declare_id!("43abf6xsEJEHrgoKmFGRwVJx7CgpjdyCsPNpquvky8cr");
 
 #[program]
 pub mod genuinegrads {

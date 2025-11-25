@@ -1,77 +1,191 @@
 'use client';
 import React from "react";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { mockUniversityProfile } from '@/lib/mock-data-clean';
+import { useToast } from '@/hooks/useToast';
+import { graphqlClient } from '@/lib/graphql-client';
 import { 
   Settings, 
   Building, 
-  Mail, 
   Wallet, 
-  Upload, 
   Save, 
-  LogOut,
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
 
-interface Props {
-  // Add props here
-}
-
 export default function SettingsPage(): React.JSX.Element {
-  const [formData, setFormData] = useState<any>({
-    name: mockUniversityProfile.name,
-    email: mockUniversityProfile.email,
-    description: mockUniversityProfile.description,
-    logo: null
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    name: '',
+    websiteUrl: '',
+    logoUrl: '',
   });
-  const [loading, setLoading] = useState<any>(false);
-  const [walletConnected, setWalletConnected] = useState<any>(true);
-  const [walletAddress] = useState<any>(mockUniversityProfile.walletAddress);
+  const [originalProfile, setOriginalProfile] = useState<any | null>(null);
+  const [stats, setStats] = useState({
+    totalStudents: 0,
+    activeStudents: 0,
+    totalCertificates: 0,
+    mintedCount: 0,
+    pendingCount: 0,
+    revokedCount: 0,
+  });
+  const [loadingProfile, setLoadingProfile] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleInputChange = (field, value) => {
+  useEffect(() => {
+    const loadProfile = async () => {
+      setLoadingProfile(true);
+      setError(null);
+
+      try {
+        const response = await graphqlClient.getMyUniversity();
+
+        if (response.errors?.length) {
+          throw new Error(response.errors[0]?.message ?? 'Failed to load university profile');
+        }
+
+        const university = response.data?.myUniversity;
+        if (university) {
+          setOriginalProfile(university);
+          setFormData({
+            name: university.name ?? '',
+            websiteUrl: university.websiteUrl ?? '',
+            logoUrl: university.logoUrl ?? '',
+          });
+          setStats({
+            totalStudents: university.stats?.totalStudents ?? 0,
+            activeStudents: university.stats?.activeStudents ?? 0,
+            totalCertificates: university.stats?.totalCertificates ?? 0,
+            mintedCount: university.stats?.mintedCount ?? 0,
+            pendingCount: university.stats?.pendingCount ?? 0,
+            revokedCount: university.stats?.revokedCount ?? 0,
+          });
+        }
+      } catch (err: any) {
+        setError(err?.message ?? 'Failed to load university profile');
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    loadProfile();
+  }, []);
+
+  const handleInputChange = (field: 'name' | 'websiteUrl' | 'logoUrl', value: string) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setFormData(prev => ({
-        ...prev,
-        logo: file
-      }));
+  const handleSave = async () => {
+    if (!originalProfile) return;
+
+    const payload: { name?: string; websiteUrl?: string; logoUrl?: string } = {};
+    const trimmedName = formData.name.trim();
+    const trimmedWebsite = formData.websiteUrl.trim();
+    const trimmedLogo = formData.logoUrl.trim();
+
+    if (trimmedName && trimmedName !== originalProfile.name) {
+      payload.name = trimmedName;
+    }
+    if (trimmedWebsite !== (originalProfile.websiteUrl ?? '')) {
+      payload.websiteUrl = trimmedWebsite || '';
+    }
+    if (trimmedLogo !== (originalProfile.logoUrl ?? '')) {
+      payload.logoUrl = trimmedLogo || '';
+    }
+
+    if (Object.keys(payload).length === 0) {
+      toast({
+        title: 'No changes detected',
+        description: 'Update a field before saving.',
+      });
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const response = await graphqlClient.updateUniversityProfile(payload);
+
+      if (response.errors?.length) {
+        throw new Error(response.errors[0]?.message ?? 'Failed to update university profile');
+      }
+
+      const updated = response.data?.updateUniversityProfile;
+      if (updated) {
+        setOriginalProfile(prev => (prev ? { ...prev, ...updated } : updated));
+        setFormData({
+          name: updated.name ?? trimmedName,
+          websiteUrl: updated.websiteUrl ?? '',
+          logoUrl: updated.logoUrl ?? '',
+        });
+      }
+
+      toast({
+        title: 'Profile updated',
+        description: 'Your university settings have been saved successfully.',
+      });
+    } catch (err: any) {
+      toast({
+        title: 'Failed to update profile',
+        description: err?.message ?? 'Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleSave = async () => {
-    setLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setLoading(false);
-    // In a real app, you would show a success message
-  };
-
-  const handleDisconnectWallet = () => {
-    setWalletConnected(false);
-    // In a real app, you would disconnect the wallet
-  };
-
-  const formatWalletAddress = (address) => {
+  const formatWalletAddress = (address?: string | null) => {
     if (!address) return 'Not Connected';
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
+
+  const walletAddress = originalProfile?.walletAddress ?? '';
+  const walletConnected = Boolean(walletAddress);
+  const domain = originalProfile?.domain ?? '';
+  const status = originalProfile?.status ?? '';
+
+  if (loadingProfile) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading university settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 space-y-4 text-center">
+            <AlertTriangle className="h-10 w-10 text-red-500 mx-auto" />
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Unable to load settings</h2>
+              <p className="text-muted-foreground">{error}</p>
+            </div>
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!originalProfile) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -102,57 +216,46 @@ export default function SettingsPage(): React.JSX.Element {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address *</Label>
+              <Label htmlFor="website">Website URL</Label>
               <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e: any) => handleInputChange('email', e.target.value)}
-                placeholder="Enter email address"
+                id="website"
+                value={formData.websiteUrl}
+                onChange={(e: any) => handleInputChange('websiteUrl', e.target.value)}
+                placeholder="https://example.edu"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e: any) => handleInputChange('description', e.target.value)}
-                placeholder="Enter university description"
-                rows={4}
+              <Label htmlFor="logoUrl">Logo URL</Label>
+              <Input
+                id="logoUrl"
+                value={formData.logoUrl}
+                onChange={(e: any) => handleInputChange('logoUrl', e.target.value)}
+                placeholder="https://cdn.example.edu/logo.png"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="logo">University Logo</Label>
-              <div className="flex items-center gap-4">
-                <Input
-                  id="logo"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <label htmlFor="logo">
-                  <Button variant="outline" as="span" className="flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Upload Logo
-                  </Button>
-                </label>
-                {formData.logo && (
-                  <span className="text-sm text-muted-foreground">
-                    {formData.logo.name}
-                  </span>
-                )}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <Label>Verified Domain</Label>
+                <div className="p-3 rounded-md border bg-muted/40 text-sm font-mono">
+                  {domain || 'Not set'}
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label>Status</Label>
+                <div className="p-3 rounded-md border bg-muted/40 text-sm">
+                  <span className="font-semibold">{status || 'UNKNOWN'}</span>
+                </div>
               </div>
             </div>
 
             <Button 
               onClick={handleSave}
-              disabled={loading}
+              disabled={saving || !formData.name.trim()}
               className="w-full flex items-center gap-2"
             >
-              {loading ? (
+              {saving ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                   Saving...
@@ -198,21 +301,17 @@ export default function SettingsPage(): React.JSX.Element {
                 </Badge>
               </div>
 
-              {walletConnected ? (
-                <Button 
-                  variant="outline" 
-                  onClick={handleDisconnectWallet}
-                  className="w-full flex items-center gap-2"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Disconnect Wallet
-                </Button>
-              ) : (
-                <Button className="w-full flex items-center gap-2">
-                  <Wallet className="h-4 w-4" />
-                  Connect Wallet
-                </Button>
-              )}
+              <Button 
+                variant="outline"
+                className="w-full flex items-center gap-2"
+                disabled
+              >
+                <Wallet className="h-4 w-4" />
+                Manage Wallet (Coming Soon)
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Wallet connections are configured during on-chain onboarding. Contact support to rotate keys.
+              </p>
             </div>
 
             <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg">
@@ -240,25 +339,25 @@ export default function SettingsPage(): React.JSX.Element {
           <div className="grid gap-4 md:grid-cols-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {mockUniversityProfile.stats.totalStudents.toLocaleString()}
+                {stats.totalStudents.toLocaleString()}
               </div>
               <div className="text-sm text-muted-foreground">Total Students</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {mockUniversityProfile.stats.totalCertificates.toLocaleString()}
+                {stats.totalCertificates.toLocaleString()}
               </div>
               <div className="text-sm text-muted-foreground">Certificates Issued</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                {mockUniversityProfile.stats.activeCertificates.toLocaleString()}
+                {stats.activeStudents.toLocaleString()}
               </div>
-              <div className="text-sm text-muted-foreground">Active Certificates</div>
+              <div className="text-sm text-muted-foreground">Active Students</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {mockUniversityProfile.stats.totalRevoked}
+                {stats.revokedCount.toLocaleString()}
               </div>
               <div className="text-sm text-muted-foreground">Revoked Certificates</div>
             </div>

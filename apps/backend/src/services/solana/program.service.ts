@@ -6,7 +6,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 // Program ID from IDL
-export const GENUINEGRADS_PROGRAM_ID = new PublicKey('J66NdjPnpQWkm3Pj3AihkU4XFjLaV9RF5vz2RUEwKSZF');
+export const GENUINEGRADS_PROGRAM_ID = new PublicKey('43abf6xsEJEHrgoKmFGRwVJx7CgpjdyCsPNpquvky8cr');
 
 // Well-known program IDs
 export const MPL_CORE_PROGRAM_ID = new PublicKey('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
@@ -17,8 +17,28 @@ export const SPL_NOOP_PROGRAM_ID = new PublicKey('mnoopTCrg4p8ry25e4bcWA9XZjbNjM
 // Load IDL
 let idl: Idl;
 try {
-  const idlPath = join(process.cwd(), '../program/genuinegrads/target/idl/genuinegrads.json');
-  idl = JSON.parse(readFileSync(idlPath, 'utf-8'));
+  // Try multiple possible IDL locations
+  const possiblePaths = [
+    join(process.cwd(), 'src/services/solana/idl/genuinegrads.json'), // Local copy in backend
+    join(process.cwd(), '../program/genuinegrads/target/idl/genuinegrads.json'), // Original path
+    join(process.cwd(), '../../program/genuinegrads/target/idl/genuinegrads.json'), // Adjusted for monorepo
+  ];
+
+  let loaded = false;
+  for (const idlPath of possiblePaths) {
+    try {
+      idl = JSON.parse(readFileSync(idlPath, 'utf-8'));
+      logger.info({ idlPath }, 'Loaded IDL from file');
+      loaded = true;
+      break;
+    } catch {
+      // Try next path
+    }
+  }
+
+  if (!loaded) {
+    throw new Error('IDL not found in any expected location');
+  }
 } catch (error) {
   logger.warn('Failed to load IDL from file, using fallback');
   // Fallback: you could embed the IDL here or fetch it
@@ -43,7 +63,18 @@ export function getProgram(): Program {
     commitment: 'confirmed',
   });
 
-  return new Program(idl, GENUINEGRADS_PROGRAM_ID, provider);
+  // Patch the IDL to include account type information for Anchor 0.31.x compatibility
+  // The newer IDL format (0.30+) separates account metadata from types, but Anchor 0.31.x
+  // expects them to be together for the BorshCoder to calculate account sizes
+  const patchedIdl = {
+    ...idl,
+    accounts: (idl as any).accounts?.map((acc: any) => {
+      const typeInfo = (idl as any).types?.find((t: any) => t.name === acc.name);
+      return typeInfo ? { ...acc, type: typeInfo.type } : acc;
+    }) || []
+  };
+
+  return new Program(patchedIdl as Idl, provider);
 }
 
 /**
@@ -90,9 +121,9 @@ export function deriveTreeConfig(merkleTree: PublicKey): [PublicKey, number] {
 export async function fetchGlobalConfig(superAdmin: PublicKey) {
   const program = getProgram();
   const [globalConfigPDA] = deriveGlobalConfigPDA(superAdmin);
-  
+
   try {
-    const account = await program.account.globalConfig.fetch(globalConfigPDA);
+    const account = await (program.account as any).globalConfig.fetch(globalConfigPDA);
     return account;
   } catch (error) {
     logger.warn({ superAdmin: superAdmin.toBase58(), error }, 'Global config not found');
@@ -103,9 +134,9 @@ export async function fetchGlobalConfig(superAdmin: PublicKey) {
 export async function fetchUniversity(authority: PublicKey) {
   const program = getProgram();
   const [universityPDA] = deriveUniversityPDA(authority);
-  
+
   try {
-    const account = await program.account.university.fetch(universityPDA);
+    const account = await (program.account as any).university.fetch(universityPDA);
     return account;
   } catch (error) {
     logger.warn({ authority: authority.toBase58(), error }, 'University not found');
@@ -116,9 +147,9 @@ export async function fetchUniversity(authority: PublicKey) {
 export async function fetchUniversityCollection(university: PublicKey) {
   const program = getProgram();
   const [collectionPDA] = deriveUniversityCollectionPDA(university);
-  
+
   try {
-    const account = await program.account.universityCollection.fetch(collectionPDA);
+    const account = await (program.account as any).universityCollection.fetch(collectionPDA);
     return account;
   } catch (error) {
     logger.warn({ university: university.toBase58(), error }, 'University collection not found');
@@ -129,9 +160,9 @@ export async function fetchUniversityCollection(university: PublicKey) {
 export async function fetchUniversityTree(merkleTree: PublicKey) {
   const program = getProgram();
   const [treePDA] = deriveUniversityTreePDA(merkleTree);
-  
+
   try {
-    const account = await program.account.universityTree.fetch(treePDA);
+    const account = await (program.account as any).universityTree.fetch(treePDA);
     return account;
   } catch (error) {
     logger.warn({ merkleTree: merkleTree.toBase58(), error }, 'University tree not found');
@@ -351,15 +382,9 @@ export async function buildMintCertificateInstruction(params: MintCertificatePar
   const [universityTreePDA] = deriveUniversityTreePDA(merkleTree);
   const [treeConfig] = deriveTreeConfig(merkleTree);
 
-  // Derive MPL Core CPI signer
-  const [mplCoreCpiSigner] = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from('cpi_signer'),
-      coreCollection.toBuffer(),
-      BUBBLEGUM_PROGRAM_ID.toBuffer(),
-    ],
-    MPL_CORE_PROGRAM_ID
-  );
+  // Use hardcoded MPL Core CPI signer (as specified in the Solana program at mint_certificate_v2.rs:145)
+  // TODO: This should be derived dynamically, but the program currently has it hardcoded
+  const mplCoreCpiSigner = new PublicKey('CbNY3JiXdXNE9tPNEk1aRZVEkWdj2v7kfJLNQwZZgpXk');
 
   const ix = await program.methods
     .mintCertificateV2({

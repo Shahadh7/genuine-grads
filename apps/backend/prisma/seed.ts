@@ -35,52 +35,6 @@ async function main() {
     console.log(`✅ Created super admin: ${superAdmin.email}`);
   }
 
-  // Optional: Create sample universities for testing
-  if (env.NODE_ENV === 'development') {
-    console.log('\n📚 Creating sample universities for development...');
-
-    const sampleUniversities = [
-      {
-        name: 'Massachusetts Institute of Technology',
-        domain: 'mit.edu',
-        country: 'United States',
-        logoUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/MIT_logo.svg/512px-MIT_logo.svg.png',
-        websiteUrl: 'https://www.mit.edu',
-      },
-      {
-        name: 'Stanford University',
-        domain: 'stanford.edu',
-        country: 'United States',
-        logoUrl: 'https://identity.stanford.edu/wp-content/uploads/sites/3/2020/07/block-s-right.png',
-        websiteUrl: 'https://www.stanford.edu',
-      },
-    ];
-
-    for (const uni of sampleUniversities) {
-      const existing = await sharedDb.university.findUnique({
-        where: { domain: uni.domain },
-      });
-
-      if (!existing) {
-        // Generate wallet for university (placeholder)
-        const walletAddress = `${uni.domain.split('.')[0]}_wallet_${Date.now()}`;
-
-        await sharedDb.university.create({
-          data: {
-            ...uni,
-            walletAddress,
-            status: 'PENDING_APPROVAL',
-            superAdminPubkey: env.SOLANA_SUPER_ADMIN_PUBKEY,
-          },
-        });
-
-        console.log(`  ✅ Created university: ${uni.name}`);
-      } else {
-        console.log(`  ⏭️  University already exists: ${uni.name}`);
-      }
-    }
-  }
-
   console.log('\n✅ Seed completed successfully!');
   console.log('\n📋 Credentials:');
   console.log(`   Email: ${superAdminEmail}`);

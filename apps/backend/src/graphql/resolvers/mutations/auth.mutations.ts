@@ -158,6 +158,38 @@ export const authMutations = {
       });
     }
 
+    // Check university approval status (only for university admins, not super admins)
+    if (admin.university && !admin.isSuperAdmin) {
+      const { status, rejectedReason } = admin.university;
+
+      switch (status) {
+        case 'PENDING_APPROVAL':
+          throw new GraphQLError('Your university is pending approval. Please wait for administrator verification.', {
+            extensions: { code: 'FORBIDDEN' },
+          });
+        case 'REJECTED':
+          throw new GraphQLError(
+            rejectedReason
+              ? `Your university registration was rejected. Reason: ${rejectedReason}`
+              : 'Your university registration was rejected. Please contact support.',
+            {
+              extensions: { code: 'FORBIDDEN' },
+            }
+          );
+        case 'SUSPENDED':
+          throw new GraphQLError('Your university account has been suspended. Please contact support.', {
+            extensions: { code: 'FORBIDDEN' },
+          });
+        case 'APPROVED':
+          // Allow login
+          break;
+        default:
+          throw new GraphQLError('Invalid university status. Please contact support.', {
+            extensions: { code: 'FORBIDDEN' },
+          });
+      }
+    }
+
     // Reset failed login attempts and update last login
     await sharedDb.admin.update({
       where: { id: admin.id },
@@ -205,6 +237,38 @@ export const authMutations = {
         throw new GraphQLError('Invalid or expired refresh token', {
           extensions: { code: 'UNAUTHENTICATED' },
         });
+      }
+
+      // Check university approval status (only for university admins, not super admins)
+      if (admin.university && !admin.isSuperAdmin) {
+        const { status, rejectedReason } = admin.university;
+
+        switch (status) {
+          case 'PENDING_APPROVAL':
+            throw new GraphQLError('Your university is pending approval. Please wait for administrator verification.', {
+              extensions: { code: 'FORBIDDEN' },
+            });
+          case 'REJECTED':
+            throw new GraphQLError(
+              rejectedReason
+                ? `Your university registration was rejected. Reason: ${rejectedReason}`
+                : 'Your university registration was rejected. Please contact support.',
+              {
+                extensions: { code: 'FORBIDDEN' },
+              }
+            );
+          case 'SUSPENDED':
+            throw new GraphQLError('Your university account has been suspended. Please contact support.', {
+              extensions: { code: 'FORBIDDEN' },
+            });
+          case 'APPROVED':
+            // Allow token refresh
+            break;
+          default:
+            throw new GraphQLError('Invalid university status. Please contact support.', {
+              extensions: { code: 'FORBIDDEN' },
+            });
+        }
       }
 
       // Generate new tokens

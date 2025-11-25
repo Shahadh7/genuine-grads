@@ -55,16 +55,6 @@ const Navbar = () => {
       >
         Dashboard
       </Button>
-      {session?.role === 'super_admin' && (
-        <Link href="/admin/universities/register">
-          <Button
-            size="sm"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shadow-lg shadow-primary/25"
-          >
-            Register University
-          </Button>
-        </Link>
-      )}
       <Button
         size="sm"
         variant="outline"
@@ -151,18 +141,6 @@ const Navbar = () => {
                 >
                   Dashboard
                 </Button>
-                {session.role === 'super_admin' && (
-                  <Button
-                    variant="ghost"
-                    className="w-full justify-start"
-                    onClick={() => {
-                      router.push('/admin/universities/register');
-                      setMobileMenuOpen(false);
-                    }}
-                  >
-                    Register University
-                  </Button>
-                )}
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-destructive"

@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { mockCertificates } from '@/lib/certificates';
+import { useToast } from '@/hooks/useToast';
+import { graphqlClient } from '@/lib/graphql-client';
 import { 
   ArrowLeft, 
   Search, 
@@ -27,32 +28,107 @@ interface Props {
 
 export default function RevokeCertificatePage(): React.JSX.Element {
   const router = useRouter();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState<any>('');
   const [selectedCertificate, setSelectedCertificate] = useState<any>(null);
   const [reason, setReason] = useState<any>('');
-  const [loading, setLoading] = useState<any>(false);
+  const [adminPassword, setAdminPassword] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [searching, setSearching] = useState<boolean>(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
-  const handleSearch = () => {
-    const cert = mockCertificates.find((c: any) => 
-      c.id.toLowerCase() === searchTerm.toLowerCase() ||
-      c.studentNIC.toLowerCase() === searchTerm.toLowerCase()
-    );
-    setSelectedCertificate(cert || null);
+  const handleSearch = async () => {
+    const term = String(searchTerm).trim();
+    if (!term) {
+      setSearchError('Enter a certificate number, mint address, or student identifier to search.');
+      setSelectedCertificate(null);
+      return;
+    }
+
+    setSearching(true);
+    setSearchError(null);
+    setSelectedCertificate(null);
+
+    try {
+      const response = await graphqlClient.getCertificates({ search: term, limit: 1 });
+
+      if (response.errors?.length) {
+        throw new Error(response.errors[0]?.message ?? 'Search failed');
+      }
+
+      const certificate = response.data?.certificates?.[0] ?? null;
+      if (!certificate) {
+        setSearchError('No certificates matched your search criteria.');
+        return;
+      }
+
+      setSelectedCertificate(certificate);
+    } catch (err: any) {
+      setSearchError(err?.message ?? 'Failed to search certificates. Please try again.');
+    } finally {
+      setSearching(false);
+    }
   };
 
   const handleRevoke = async () => {
-    if (!selectedCertificate || !reason.trim()) return;
-    
-    setLoading(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setLoading(false);
-    router.push('/university/certificates');
+    if (!selectedCertificate) {
+      toast({
+        title: 'Select a certificate',
+        description: 'Search for a certificate before attempting to revoke it.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!reason.trim()) {
+      toast({
+        title: 'Reason required',
+        description: 'Provide a detailed reason for revoking this certificate.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!adminPassword.trim()) {
+      toast({
+        title: 'Administrator password required',
+        description: 'Enter your password to authorize the revocation.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await graphqlClient.revokeCertificate({
+        certificateId: selectedCertificate.id,
+        reason: reason.trim(),
+        adminPassword: adminPassword,
+      });
+
+      if (response.errors?.length) {
+        throw new Error(response.errors[0]?.message ?? 'Failed to revoke certificate');
+      }
+
+      toast({
+        title: 'Certificate revoked',
+        description: `Certificate ${selectedCertificate.certificateNumber ?? selectedCertificate.id} has been marked as revoked.`,
+      });
+
+      router.push('/university/certificates');
+    } catch (err: any) {
+      toast({
+        title: 'Revocation failed',
+        description: err?.message ?? 'Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString?: string | null) => {
+    if (!dateString) return 'Unknown';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -87,22 +163,31 @@ export default function RevokeCertificatePage(): React.JSX.Element {
         <CardContent className="space-y-4">
           <div className="flex gap-4">
             <div className="flex-1">
-              <Label htmlFor="search">Certificate ID or Student NIC</Label>
+              <Label htmlFor="search">Certificate Number, Student, or Mint Address</Label>
               <Input
                 id="search"
-                placeholder="Enter certificate ID or student NIC"
+                placeholder="Enter certificate number, student email, or mint address"
                 value={searchTerm}
                 onChange={(e: any) => setSearchTerm(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
             </div>
             <div className="flex items-end">
-              <Button onClick={handleSearch} className="flex items-center gap-2">
-                <Search className="h-4 w-4" />
-                Search
+              <Button onClick={handleSearch} className="flex items-center gap-2" disabled={searching}>
+                {searching ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <Search className="h-4 w-4" />
+                )}
+                {searching ? 'Searching...' : 'Search'}
               </Button>
             </div>
           </div>
+          {searchError && (
+            <p className="text-sm text-destructive">
+              {searchError}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -122,23 +207,35 @@ export default function RevokeCertificatePage(): React.JSX.Element {
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    <span><strong>Name:</strong> {selectedCertificate.studentName}</span>
+                    <span><strong>Name:</strong> {selectedCertificate.student?.fullName ?? 'Unknown'}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono"><strong>NIC:</strong> {selectedCertificate.studentNIC}</span>
+                    <span className="font-mono"><strong>Student #:</strong> {selectedCertificate.student?.studentNumber ?? 'N/A'}</span>
                   </div>
+                  {selectedCertificate.student?.walletAddress && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono">
+                        <strong>Wallet:</strong> {formatWalletAddress(selectedCertificate.student.walletAddress)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
               
               <div>
                 <h4 className="font-medium mb-3">Certificate Information</h4>
                 <div className="space-y-2 text-sm">
-                  <div><strong>Title:</strong> {selectedCertificate.title}</div>
-                  <div><strong>Program:</strong> {selectedCertificate.program}</div>
-                  <div><strong>GPA:</strong> {selectedCertificate.gpa}</div>
+                  <div><strong>Certificate #:</strong> {selectedCertificate.certificateNumber ?? selectedCertificate.id}</div>
+                  <div><strong>Badge Title:</strong> {selectedCertificate.badgeTitle}</div>
+                  {selectedCertificate.degreeType && (
+                    <div><strong>Degree Type:</strong> {selectedCertificate.degreeType}</div>
+                  )}
+                  {selectedCertificate.description && (
+                    <div><strong>Description:</strong> {selectedCertificate.description}</div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span><strong>Issue Date:</strong> {formatDate(selectedCertificate.issueDate)}</span>
+                    <span><strong>Issue Date:</strong> {formatDate(selectedCertificate.issuedAt)}</span>
                   </div>
                 </div>
               </div>
@@ -147,22 +244,26 @@ export default function RevokeCertificatePage(): React.JSX.Element {
             <div>
               <h4 className="font-medium mb-3">Certificate ID</h4>
               <div className="bg-muted p-3 rounded-lg">
-                <code className="text-sm font-mono break-all">{selectedCertificate.certificateId}</code>
+                <code className="text-sm font-mono break-all">{selectedCertificate.id}</code>
               </div>
             </div>
 
-            {selectedCertificate.badges.length > 0 && (
-              <div>
-                <h4 className="font-medium mb-3">Attached Badges</h4>
-                <div className="flex flex-wrap gap-2">
-                  {selectedCertificate.badges.map((badge: any, index: any) => (
-                    <Badge key={index} variant="secondary">
-                      {badge}
-                    </Badge>
-                  ))}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-1">
+                <h4 className="font-medium">Status</h4>
+                <Badge variant={selectedCertificate.revoked ? 'destructive' : 'secondary'}>
+                  {selectedCertificate.status}
+                </Badge>
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-medium">Mint Address</h4>
+                <div className="bg-muted p-3 rounded-lg">
+                  <code className="text-sm font-mono break-all">
+                    {selectedCertificate.mintAddress ?? 'Not minted'}
+                  </code>
                 </div>
               </div>
-            )}
+            </div>
 
             <div className="bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-lg">
               <div className="flex items-start gap-3">
@@ -191,6 +292,18 @@ export default function RevokeCertificatePage(): React.JSX.Element {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="adminPassword">Administrator Password *</Label>
+              <Input
+                id="adminPassword"
+                type="password"
+                placeholder="Confirm your password to authorize the action"
+                value={adminPassword}
+                onChange={(e: any) => setAdminPassword(e.target.value)}
+                required
+              />
+            </div>
+
             <div className="flex gap-4">
               <Button 
                 variant="outline" 
@@ -198,6 +311,7 @@ export default function RevokeCertificatePage(): React.JSX.Element {
                   setSelectedCertificate(null);
                   setReason('');
                   setSearchTerm('');
+                  setAdminPassword('');
                 }}
               >
                 Cancel
@@ -205,7 +319,7 @@ export default function RevokeCertificatePage(): React.JSX.Element {
               <Button 
                 variant="destructive"
                 onClick={handleRevoke}
-                disabled={!reason.trim() || loading}
+                disabled={!reason.trim() || !adminPassword.trim() || loading}
                 className="flex items-center gap-2"
               >
                 {loading ? (
@@ -239,4 +353,5 @@ export default function RevokeCertificatePage(): React.JSX.Element {
       )}
     </div>
   );
+} 
 } 

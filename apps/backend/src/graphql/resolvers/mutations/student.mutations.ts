@@ -171,6 +171,17 @@ interface UpdateStudentInput {
   graduationYear?: number;
 }
 
+interface EnrollStudentInCourseInput {
+  studentId: string;
+  course: StudentCourseInput;
+  batchYear: number;
+  semester?: string | null;
+  status?: string | null;
+  gpa?: number | null;
+  grade?: string | null;
+  achievements?: StudentAchievementInput[] | null;
+}
+
 export const studentMutations = {
   /**
    * Register a new student in university database
@@ -465,6 +476,209 @@ export const studentMutations = {
     );
 
     return studentWithRelations ?? student;
+  },
+
+  /**
+   * Enroll an existing student in an additional course
+   * Allows students to have multiple enrollments for different courses
+   */
+  async enrollStudentInCourse(
+    _: any,
+    { input }: { input: EnrollStudentInCourseInput },
+    context: GraphQLContext
+  ) {
+    requireUniversityAdmin(context);
+    const universityDb = requireUniversityDb(context);
+
+    const {
+      studentId,
+      course,
+      batchYear,
+      semester,
+      status,
+      gpa,
+      grade,
+      achievements,
+    } = input;
+
+    // Validate student exists
+    const student = await universityDb.student.findUnique({
+      where: { id: studentId },
+    });
+
+    if (!student) {
+      throw new GraphQLError('Student not found', {
+        extensions: { code: 'NOT_FOUND' },
+      });
+    }
+
+    // Validate course details
+    const courseCodeRaw = course.code?.trim();
+    const courseName = course.name?.trim();
+    const courseDegreeType = course.degreeType?.trim();
+    const courseDepartment = course.department?.trim();
+
+    if (!courseCodeRaw || !courseName || !courseDegreeType || !courseDepartment) {
+      throw new GraphQLError('Course code, name, degree type, and department are required', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    if (!Number.isInteger(batchYear)) {
+      throw new GraphQLError('Batch year must be an integer value', {
+        extensions: { code: 'BAD_USER_INPUT', field: 'batchYear' },
+      });
+    }
+
+    // Process enrollment in transaction
+    const enrollmentRecord = await universityDb.$transaction(async (tx: any) => {
+      // Resolve achievements
+      const achievementPayloads = await resolveStudentAchievementInputs(tx, achievements);
+
+      // Create or update course
+      const normalizedCourseCode = normalizeCourseCode(courseCodeRaw.length > 0 ? courseCodeRaw : courseName);
+      const courseCreateData: any = {
+        code: normalizedCourseCode,
+        name: courseName,
+        department: courseDepartment,
+        level: courseDegreeType,
+        isActive: true,
+      };
+      const courseUpdateData: any = {
+        name: courseName,
+        department: courseDepartment,
+        level: courseDegreeType,
+        isActive: true,
+      };
+
+      if (course.description?.trim()) {
+        const desc = course.description.trim();
+        courseCreateData.description = desc;
+        courseUpdateData.description = desc;
+      }
+
+      if (typeof course.credits === 'number') {
+        courseCreateData.credits = course.credits;
+        courseUpdateData.credits = course.credits;
+      }
+
+      if (course.semester?.trim()) {
+        const semesterValue = course.semester.trim();
+        courseCreateData.semester = semesterValue;
+        courseUpdateData.semester = semesterValue;
+      }
+
+      const courseRecord = await tx.course.upsert({
+        where: { code: normalizedCourseCode },
+        create: courseCreateData,
+        update: courseUpdateData,
+      });
+
+      // Check for duplicate enrollment
+      const existingEnrollment = await tx.enrollment.findFirst({
+        where: {
+          studentId: student.id,
+          courseId: courseRecord.id,
+          batchYear,
+        },
+      });
+
+      if (existingEnrollment) {
+        throw new GraphQLError(
+          `Student is already enrolled in ${courseName} for batch year ${batchYear}`,
+          {
+            extensions: {
+              code: 'DUPLICATE_ENROLLMENT',
+              enrollmentId: existingEnrollment.id,
+            },
+          }
+        );
+      }
+
+      // Create enrollment
+      const statusValue = status?.trim().toUpperCase() ?? 'ACTIVE';
+      const semesterValue = semester?.trim() || null;
+
+      const newEnrollment = await tx.enrollment.create({
+        data: {
+          studentId: student.id,
+          courseId: courseRecord.id,
+          batchYear,
+          semester: semesterValue,
+          status: statusValue,
+          gpa: typeof gpa === 'number' ? gpa : null,
+          grade: grade?.trim() || null,
+        },
+      });
+
+      // Add achievements if provided
+      if (achievementPayloads.length > 0) {
+        const studentAchievementData = achievementPayloads.map(({ achievementId, notes, awardedAt }) => {
+          const entry: Record<string, any> = {
+            studentId: student.id,
+            achievementId,
+          };
+
+          if (notes) {
+            entry.notes = notes;
+          }
+
+          if (awardedAt) {
+            entry.awardedAt = awardedAt;
+          }
+
+          return entry;
+        });
+
+        if (studentAchievementData.length > 0) {
+          await tx.studentAchievement.createMany({
+            data: studentAchievementData,
+            skipDuplicates: true,
+          });
+        }
+
+        const enrollmentAchievementData = achievementPayloads.map(
+          ({ title, description: achievementDescription, category, awardedAt }) => ({
+            enrollmentId: newEnrollment.id,
+            badgeTitle: title,
+            description: achievementDescription ?? null,
+            badgeType: category ?? null,
+            semester: semesterValue,
+            achievementDate: awardedAt ?? null,
+          })
+        );
+
+        if (enrollmentAchievementData.length > 0) {
+          await tx.achievement.createMany({
+            data: enrollmentAchievementData,
+          });
+        }
+      }
+
+      return newEnrollment;
+    });
+
+    // Fetch enrollment with relations
+    const enrollmentWithRelations = await universityDb.enrollment.findUnique({
+      where: { id: enrollmentRecord.id },
+      include: {
+        course: true,
+        student: true,
+        achievements: true,
+      },
+    });
+
+    logger.info(
+      {
+        enrollmentId: enrollmentRecord.id,
+        studentId: student.id,
+        courseCode: courseCodeRaw,
+        batchYear,
+      },
+      'Student enrolled in additional course'
+    );
+
+    return enrollmentWithRelations ?? enrollmentRecord;
   },
 
   /**
