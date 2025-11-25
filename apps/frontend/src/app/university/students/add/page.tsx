@@ -22,6 +22,7 @@ import { ArrowLeft, Save, UserPlus, GraduationCap, Info, Trophy, Plus, X } from 
 import Link from 'next/link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/useToast';
+import { validateNIC } from '@/lib/validators';
 
 interface AchievementOption {
   id: string;
@@ -58,10 +59,7 @@ export default function AddStudentPage(): React.JSX.Element {
     courseName: '',
     courseDescription: '',
     courseCredits: '',
-    courseSemester: '',
     degreeType: '',
-    enrollmentSemester: '',
-    enrollmentStatus: 'ACTIVE',
     enrollmentGpa: '',
     enrollmentGrade: '',
   });
@@ -153,12 +151,24 @@ export default function AddStudentPage(): React.JSX.Element {
       [field]: value,
     }));
 
+    // Clear existing error for this field
     if (errors[field]) {
       setErrors((prev) => {
         const next = { ...prev };
         delete next[field];
         return next;
       });
+    }
+
+    // Real-time NIC validation
+    if (field === 'nationalId' && value.trim()) {
+      const nicValidation = validateNIC(value.trim());
+      if (!nicValidation.isValid) {
+        setErrors((prev) => ({
+          ...prev,
+          nationalId: nicValidation.error || 'Invalid NIC format',
+        }));
+      }
     }
   };
 
@@ -260,6 +270,18 @@ export default function AddStudentPage(): React.JSX.Element {
     setError(null);
     setLoading(true);
 
+    // Validate NIC before submission
+    const nicValidation = validateNIC(formData.nationalId.trim());
+    if (!nicValidation.isValid) {
+      setErrors((prev) => ({
+        ...prev,
+        nationalId: nicValidation.error || 'Invalid NIC format',
+      }));
+      setError('Please fix the validation errors before submitting');
+      setLoading(false);
+      return;
+    }
+
     try {
       const response = await graphqlClient.registerStudent({
         email: formData.email.trim(),
@@ -276,13 +298,10 @@ export default function AddStudentPage(): React.JSX.Element {
             name: formData.courseName.trim(),
             description: formData.courseDescription.trim() || undefined,
             credits: formData.courseCredits ? Number(formData.courseCredits) : undefined,
-            semester: formData.courseSemester.trim() || undefined,
             department: formData.department.trim(),
             degreeType: formData.degreeType.trim(),
           },
           batchYear: Number(formData.enrollmentYear),
-          semester: formData.enrollmentSemester.trim() || undefined,
-          status: formData.enrollmentStatus.trim() || undefined,
           gpa: formData.enrollmentGpa ? Number(formData.enrollmentGpa) : undefined,
           grade: formData.enrollmentGrade.trim() || undefined,
         },
@@ -328,6 +347,8 @@ export default function AddStudentPage(): React.JSX.Element {
     formData.fullName.trim().length > 0 &&
     formData.studentNumber.trim().length > 0 &&
     formData.nationalId.trim().length > 0 &&
+    validateNIC(formData.nationalId.trim()).isValid &&
+    !errors.nationalId &&
     formData.email.trim().length > 0 &&
     formData.program.trim().length > 0 &&
     formData.department.trim().length > 0 &&
@@ -431,12 +452,26 @@ export default function AddStudentPage(): React.JSX.Element {
                   </Label>
                   <Input
                     id="nationalId"
-                    placeholder="Enter NIC or national identification number"
+                    placeholder="e.g., 852365478V or 200145602345"
                     value={formData.nationalId}
                     onChange={(e: any) => handleInputChange('nationalId', e.target.value)}
-                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                    className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                      errors.nationalId ? 'border-destructive focus:border-destructive' : ''
+                    }`}
                     required
                   />
+                  {errors.nationalId && (
+                    <p className="text-sm text-destructive flex items-center gap-1">
+                      <Info className="h-3 w-3" />
+                      {errors.nationalId}
+                    </p>
+                  )}
+                  {!errors.nationalId && formData.nationalId.trim() && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Info className="h-3 w-3" />
+                      Old format: 9 digits + V/X (e.g., 852365478V) | New format: 12 digits (e.g., 200145602345)
+                    </p>
+                  )}
                 </div>
 
                 {/* Email */}
@@ -545,7 +580,7 @@ export default function AddStudentPage(): React.JSX.Element {
                   />
                 </div>
               </div>
-              <div className="grid gap-6 md:grid-cols-3">
+              <div className="grid gap-6 md:grid-cols-2">
                 <div className="space-y-3">
                   <Label htmlFor="courseCredits" className="text-sm font-medium">
                     Course Credits
@@ -559,18 +594,6 @@ export default function AddStudentPage(): React.JSX.Element {
                     placeholder="e.g. 120"
                     value={formData.courseCredits}
                     onChange={(e: any) => handleInputChange('courseCredits', e.target.value)}
-                    className="h-11 bg-background/50 border-muted focus:border-primary"
-                  />
-                </div>
-                <div className="space-y-3">
-                  <Label htmlFor="courseSemester" className="text-sm font-medium">
-                    Course Semester
-                  </Label>
-                  <Input
-                    id="courseSemester"
-                    placeholder="e.g. Fall 2025"
-                    value={formData.courseSemester}
-                    onChange={(e: any) => handleInputChange('courseSemester', e.target.value)}
                     className="h-11 bg-background/50 border-muted focus:border-primary"
                   />
                 </div>
@@ -622,39 +645,6 @@ export default function AddStudentPage(): React.JSX.Element {
                     />
                   </div>
                 </div>
-
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-3">
-                <Label htmlFor="enrollmentStatus" className="text-sm font-medium">
-                  Enrollment Status
-                </Label>
-                <Select
-                  value={formData.enrollmentStatus}
-                  onValueChange={(value) => handleInputChange('enrollmentStatus', value)}
-                >
-                  <SelectTrigger className="h-11 bg-background/50 border-muted focus:border-primary">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="COMPLETED">Completed</SelectItem>
-                    <SelectItem value="DROPPED">Dropped</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-3">
-                <Label htmlFor="enrollmentSemester" className="text-sm font-medium">
-                  Current Semester
-                </Label>
-                <Input
-                  id="enrollmentSemester"
-                  placeholder="e.g. Semester 7"
-                  value={formData.enrollmentSemester}
-                  onChange={(e: any) => handleInputChange('enrollmentSemester', e.target.value)}
-                  className="h-11 bg-background/50 border-muted focus:border-primary"
-                />
-              </div>
-            </div>
 
             <div className="grid gap-6 md:grid-cols-2">
               <div className="space-y-3">

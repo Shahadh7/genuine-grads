@@ -20,6 +20,13 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { graphqlClient } from '@/lib/graphql-client';
 import { useToast } from '@/hooks/useToast';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -36,7 +43,14 @@ import {
   Settings,
   Shield,
   Loader2,
-  Coins
+  Coins,
+  User,
+  GraduationCap,
+  Hash,
+  Wallet,
+  ExternalLink,
+  Copy,
+  CheckCircle2
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -78,6 +92,9 @@ export default function CertificatesPage(): React.JSX.Element {
   const [mintingCertId, setMintingCertId] = useState<string | null>(null);
   const [universityWallet, setUniversityWallet] = useState<string | null>(null);
   const [refreshingList, setRefreshingList] = useState(false);
+  const [selectedCertificate, setSelectedCertificate] = useState<CertificateRecord | null>(null);
+  const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -121,6 +138,28 @@ export default function CertificatesPage(): React.JSX.Element {
       month: 'short',
       day: 'numeric'
     });
+  };
+
+  const handleViewDetails = (cert: CertificateRecord) => {
+    setSelectedCertificate(cert);
+    setViewDetailsOpen(true);
+  };
+
+  const handleCopyToClipboard = async (text: string, fieldName: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedField(fieldName);
+      toast.success({
+        title: 'Copied!',
+        description: `${fieldName} copied to clipboard.`,
+      });
+      setTimeout(() => setCopiedField(null), 2000);
+    } catch (err) {
+      toast.error({
+        title: 'Failed to copy',
+        description: 'Unable to copy to clipboard.',
+      });
+    }
   };
 
   const handleMintCertificate = async (certificateId: string) => {
@@ -320,7 +359,10 @@ export default function CertificatesPage(): React.JSX.Element {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem className="flex items-center gap-2">
+            <DropdownMenuItem
+              className="flex items-center gap-2"
+              onClick={() => handleViewDetails(cert)}
+            >
               <Eye className="h-4 w-4" />
               <span>View Details</span>
             </DropdownMenuItem>
@@ -482,6 +524,220 @@ export default function CertificatesPage(): React.JSX.Element {
           )}
         </CardContent>
       </Card>
+
+      {/* Certificate Details Dialog */}
+      <Dialog open={viewDetailsOpen} onOpenChange={setViewDetailsOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <GraduationCap className="h-5 w-5" />
+              Certificate Details
+            </DialogTitle>
+            <DialogDescription>
+              Comprehensive information about this certificate
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedCertificate && (
+            <div className="space-y-6 mt-4">
+              {/* Certificate Information */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  Certificate Information
+                </h3>
+                <div className="grid gap-4">
+                  <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                    <span className="text-sm font-medium">Title:</span>
+                    <span className="text-sm">{selectedCertificate.badgeTitle}</span>
+                  </div>
+
+                  {selectedCertificate.certificateNumber && (
+                    <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                      <span className="text-sm font-medium">Number:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-mono">{selectedCertificate.certificateNumber}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleCopyToClipboard(selectedCertificate.certificateNumber!, 'Certificate Number')}
+                        >
+                          {copiedField === 'Certificate Number' ? (
+                            <CheckCircle2 className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <Copy className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                    <span className="text-sm font-medium">Status:</span>
+                    <Badge
+                      variant={
+                        selectedCertificate.status === 'MINTED'
+                          ? 'default'
+                          : selectedCertificate.status === 'FAILED'
+                          ? 'destructive'
+                          : 'secondary'
+                      }
+                    >
+                      {selectedCertificate.status === 'MINTED' ? 'Issued' : selectedCertificate.status === 'FAILED' ? 'Failed' : 'Pending'}
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                    <span className="text-sm font-medium">Issue Date:</span>
+                    <span className="text-sm">{formatDate(selectedCertificate.issuedAt)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Student Information */}
+              {selectedCertificate.student && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    Student Information
+                  </h3>
+                  <div className="grid gap-4">
+                    <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                      <span className="text-sm font-medium">Full Name:</span>
+                      <span className="text-sm">{selectedCertificate.student.fullName ?? '—'}</span>
+                    </div>
+
+                    <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                      <span className="text-sm font-medium">Email:</span>
+                      <span className="text-sm">{selectedCertificate.student.email ?? '—'}</span>
+                    </div>
+
+                    {selectedCertificate.student.studentNumber && (
+                      <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                        <span className="text-sm font-medium">Student ID:</span>
+                        <span className="text-sm font-mono">{selectedCertificate.student.studentNumber}</span>
+                      </div>
+                    )}
+
+                    {selectedCertificate.student.program && (
+                      <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                        <span className="text-sm font-medium">Program:</span>
+                        <span className="text-sm">{selectedCertificate.student.program}</span>
+                      </div>
+                    )}
+
+                    {selectedCertificate.student.department && (
+                      <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                        <span className="text-sm font-medium">Department:</span>
+                        <span className="text-sm">{selectedCertificate.student.department}</span>
+                      </div>
+                    )}
+
+                    {selectedCertificate.student.walletAddress && (
+                      <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                        <span className="text-sm font-medium flex items-center gap-1">
+                          <Wallet className="h-3 w-3" />
+                          Wallet:
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono break-all">
+                            {selectedCertificate.student.walletAddress}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => handleCopyToClipboard(selectedCertificate.student!.walletAddress!, 'Wallet Address')}
+                          >
+                            {copiedField === 'Wallet Address' ? (
+                              <CheckCircle2 className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Blockchain Information */}
+              {selectedCertificate.status === 'MINTED' && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                    <Hash className="h-4 w-4" />
+                    Blockchain Information
+                  </h3>
+                  <div className="grid gap-4">
+                    {selectedCertificate.mintAddress && (
+                      <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                        <span className="text-sm font-medium">Mint Address:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono break-all">
+                            {selectedCertificate.mintAddress}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => handleCopyToClipboard(selectedCertificate.mintAddress!, 'Mint Address')}
+                          >
+                            {copiedField === 'Mint Address' ? (
+                              <CheckCircle2 className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => window.open(`https://explorer.solana.com/address/${selectedCertificate.mintAddress}?cluster=devnet`, '_blank')}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedCertificate.transactionSignature && (
+                      <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                        <span className="text-sm font-medium">Transaction:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono break-all">
+                            {selectedCertificate.transactionSignature}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => handleCopyToClipboard(selectedCertificate.transactionSignature!, 'Transaction Signature')}
+                          >
+                            {copiedField === 'Transaction Signature' ? (
+                              <CheckCircle2 className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => window.open(`https://explorer.solana.com/tx/${selectedCertificate.transactionSignature}?cluster=devnet`, '_blank')}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

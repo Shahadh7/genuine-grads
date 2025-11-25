@@ -419,8 +419,6 @@ export const certificateMutations = {
       enrollment: {
         id: enrollmentRecord.id,
         batchYear: enrollmentRecord.batchYear,
-        status: enrollmentRecord.status,
-        semester: enrollmentRecord.semester,
         gpa: enrollmentRecord.gpa,
         grade: enrollmentRecord.grade,
       },

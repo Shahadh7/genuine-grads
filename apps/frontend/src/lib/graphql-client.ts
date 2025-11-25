@@ -652,13 +652,10 @@ class GraphQLClient {
         name: string;
         description?: string;
         credits?: number;
-        semester?: string;
         department: string;
         degreeType: string;
       };
       batchYear: number;
-      semester?: string;
-      status?: string;
       gpa?: number;
       grade?: string;
     };
@@ -685,8 +682,6 @@ class GraphQLClient {
           enrollments {
             id
             batchYear
-            semester
-            status
             gpa
             grade
             course {
@@ -696,7 +691,6 @@ class GraphQLClient {
               level
               department
               credits
-              semester
             }
           }
           achievements {
@@ -724,13 +718,10 @@ class GraphQLClient {
       name: string;
       description?: string;
       credits?: number;
-      semester?: string;
       department: string;
       degreeType: string;
     };
     batchYear: number;
-    semester?: string;
-    status?: string;
     gpa?: number;
     grade?: string;
     achievements?: Array<{
@@ -747,8 +738,6 @@ class GraphQLClient {
         enrollStudentInCourse(input: $input) {
           id
           batchYear
-          semester
-          status
           gpa
           grade
           student {
@@ -794,10 +783,7 @@ class GraphQLClient {
       courseName: string;
       courseDescription?: string | null;
       courseCredits?: number | null;
-      courseSemester?: string | null;
       degreeType: string;
-      enrollmentSemester?: string | null;
-      enrollmentStatus?: string | null;
       enrollmentGpa?: number | null;
       enrollmentGrade?: string | null;
       achievements?: string[] | null;
@@ -906,8 +892,6 @@ class GraphQLClient {
           enrollments {
             id
             batchYear
-            semester
-            status
             gpa
             grade
             achievements {

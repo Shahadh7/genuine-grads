@@ -4,6 +4,7 @@ import { sharedDb } from '../../../db/shared.client.js';
 import { hashNIC, encrypt } from '../../../utils/crypto.js';
 import { GraphQLContext, requireUniversityAdmin, requireUniversityDb } from '../../context.js';
 import { logger } from '../../../utils/logger.js';
+import { validateNIC } from '../../../utils/nic-validator.js';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -228,7 +229,15 @@ export const studentMutations = {
       });
     }
 
-    const { course, batchYear, semester, status, gpa, grade } = primaryEnrollment;
+    // Validate NIC format
+    const nicValidation = validateNIC(sanitizedNationalId);
+    if (!nicValidation.isValid) {
+      throw new GraphQLError(nicValidation.error || 'Invalid NIC format', {
+        extensions: { code: 'BAD_USER_INPUT', field: 'nationalId' },
+      });
+    }
+
+    const { course, batchYear, gpa, grade } = primaryEnrollment;
     const courseCodeRaw = course.code?.trim();
     const courseName = course.name?.trim();
     const courseDegreeType = course.degreeType?.trim();
@@ -362,12 +371,6 @@ export const studentMutations = {
         courseUpdateData.credits = course.credits;
       }
 
-      if (course.semester?.trim()) {
-        const semesterValue = course.semester.trim();
-        courseCreateData.semester = semesterValue;
-        courseUpdateData.semester = semesterValue;
-      }
-
       const courseRecord = await tx.course.upsert({
         where: { code: normalizedCourseCode },
         create: courseCreateData,
@@ -387,16 +390,11 @@ export const studentMutations = {
         },
       });
 
-      const statusValue = status?.trim().toUpperCase() ?? 'ACTIVE';
-      const semesterValue = semester?.trim() || null;
-
       const enrollmentRecord = await tx.enrollment.create({
         data: {
           studentId: studentRecord.id,
           courseId: courseRecord.id,
           batchYear,
-          semester: semesterValue,
-          status: statusValue,
           gpa: typeof gpa === 'number' ? gpa : null,
           grade: grade?.trim() || null,
         },
@@ -433,7 +431,7 @@ export const studentMutations = {
             badgeTitle: title,
             description: achievementDescription ?? null,
             badgeType: category ?? null,
-            semester: semesterValue,
+            semester: null,
             achievementDate: awardedAt ?? null,
           })
         );
@@ -494,8 +492,6 @@ export const studentMutations = {
       studentId,
       course,
       batchYear,
-      semester,
-      status,
       gpa,
       grade,
       achievements,
@@ -562,12 +558,6 @@ export const studentMutations = {
         courseUpdateData.credits = course.credits;
       }
 
-      if (course.semester?.trim()) {
-        const semesterValue = course.semester.trim();
-        courseCreateData.semester = semesterValue;
-        courseUpdateData.semester = semesterValue;
-      }
-
       const courseRecord = await tx.course.upsert({
         where: { code: normalizedCourseCode },
         create: courseCreateData,
@@ -596,16 +586,11 @@ export const studentMutations = {
       }
 
       // Create enrollment
-      const statusValue = status?.trim().toUpperCase() ?? 'ACTIVE';
-      const semesterValue = semester?.trim() || null;
-
       const newEnrollment = await tx.enrollment.create({
         data: {
           studentId: student.id,
           courseId: courseRecord.id,
           batchYear,
-          semester: semesterValue,
-          status: statusValue,
           gpa: typeof gpa === 'number' ? gpa : null,
           grade: grade?.trim() || null,
         },
@@ -643,7 +628,7 @@ export const studentMutations = {
             badgeTitle: title,
             description: achievementDescription ?? null,
             badgeType: category ?? null,
-            semester: semesterValue,
+            semester: null,
             achievementDate: awardedAt ?? null,
           })
         );
@@ -756,10 +741,7 @@ export const studentMutations = {
       const courseName = row.courseName?.trim() ?? '';
       const courseDescription = row.courseDescription?.trim() ?? null;
       const courseCredits = typeof row.courseCredits === 'number' ? row.courseCredits : null;
-      const courseSemester = row.courseSemester?.trim() ?? null;
       const degreeType = row.degreeType?.trim() ?? '';
-      const enrollmentSemester = row.enrollmentSemester?.trim() ?? null;
-      const enrollmentStatus = row.enrollmentStatus?.trim() ?? null;
       const enrollmentGpa = typeof row.enrollmentGpa === 'number' ? row.enrollmentGpa : null;
       const enrollmentGrade = row.enrollmentGrade?.trim() ?? null;
       const walletAddressInput = row.walletAddress?.trim() ?? '';
@@ -802,6 +784,13 @@ export const studentMutations = {
 
       if (!nationalId) {
         addFailure('National ID is required', 'nationalId');
+        continue;
+      }
+
+      // Validate NIC format
+      const nicValidation = validateNIC(nationalId);
+      if (!nicValidation.isValid) {
+        addFailure(nicValidation.error || 'Invalid NIC format', 'nationalId');
         continue;
       }
 
@@ -966,11 +955,6 @@ export const studentMutations = {
             courseUpdateData.credits = courseCredits;
           }
 
-          if (courseSemester) {
-            courseCreateData.semester = courseSemester;
-            courseUpdateData.semester = courseSemester;
-          }
-
           const courseRecord = await tx.course.upsert({
             where: { code: normalizedCourseCode },
             create: courseCreateData,
@@ -990,16 +974,11 @@ export const studentMutations = {
           },
         });
 
-          const statusValue = enrollmentStatus?.toUpperCase() ?? 'ACTIVE';
-          const semesterValue = enrollmentSemester ?? null;
-
           const enrollmentRecord = await tx.enrollment.create({
             data: {
               studentId: studentRecord.id,
               courseId: courseRecord.id,
               batchYear: enrollmentYear,
-              semester: semesterValue,
-              status: statusValue,
               gpa: enrollmentGpa,
               grade: enrollmentGrade,
             },
@@ -1036,7 +1015,7 @@ export const studentMutations = {
                 badgeTitle: title,
                 description: achievementDescription ?? null,
                 badgeType: category ?? null,
-                semester: semesterValue,
+                semester: null,
                 achievementDate: awardedAt ?? null,
               })
             );

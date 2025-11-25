@@ -50,12 +50,9 @@ export default function EnrollStudentPage() {
     courseName: '',
     courseDescription: '',
     courseCredits: '',
-    courseSemester: '',
     courseDepartment: '',
     degreeType: 'Bachelor',
     batchYear: new Date().getFullYear(),
-    semester: '',
-    status: 'ACTIVE',
     gpa: '',
     grade: '',
   });
@@ -111,13 +108,10 @@ export default function EnrollStudentPage() {
           name: formData.courseName,
           description: formData.courseDescription || undefined,
           credits: formData.courseCredits ? parseInt(formData.courseCredits) : undefined,
-          semester: formData.courseSemester || undefined,
           department: formData.courseDepartment,
           degreeType: formData.degreeType,
         },
         batchYear: formData.batchYear,
-        semester: formData.semester || undefined,
-        status: formData.status || undefined,
         gpa: formData.gpa ? parseFloat(formData.gpa) : undefined,
         grade: formData.grade || undefined,
       };
@@ -140,12 +134,9 @@ export default function EnrollStudentPage() {
         courseName: '',
         courseDescription: '',
         courseCredits: '',
-        courseSemester: '',
         courseDepartment: '',
         degreeType: 'Bachelor',
         batchYear: new Date().getFullYear(),
-        semester: '',
-        status: 'ACTIVE',
         gpa: '',
         grade: '',
       });
@@ -361,29 +352,16 @@ export default function EnrollStudentPage() {
               <div className="pt-4 border-t">
                 <h3 className="font-medium mb-4">Enrollment Details</h3>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="batchYear">Batch Year</Label>
-                    <Input
-                      id="batchYear"
-                      type="number"
-                      value={formData.batchYear}
-                      onChange={(e) => setFormData({ ...formData, batchYear: parseInt(e.target.value) })}
-                      disabled={!selectedStudent || loading}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="semester">Semester</Label>
-                    <Input
-                      id="semester"
-                      value={formData.semester}
-                      onChange={(e) => setFormData({ ...formData, semester: e.target.value })}
-                      placeholder="e.g., Fall 2024"
-                      disabled={!selectedStudent || loading}
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="batchYear">Batch Year</Label>
+                  <Input
+                    id="batchYear"
+                    type="number"
+                    value={formData.batchYear}
+                    onChange={(e) => setFormData({ ...formData, batchYear: parseInt(e.target.value) })}
+                    disabled={!selectedStudent || loading}
+                    required
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mt-4">
@@ -410,24 +388,6 @@ export default function EnrollStudentPage() {
                       disabled={!selectedStudent || loading}
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2 mt-4">
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => setFormData({ ...formData, status: value })}
-                    disabled={!selectedStudent || loading}
-                  >
-                    <SelectTrigger id="status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="COMPLETED">Completed</SelectItem>
-                      <SelectItem value="DROPPED">Dropped</SelectItem>
-                    </SelectContent>
-                  </Select>
                 </div>
               </div>
 

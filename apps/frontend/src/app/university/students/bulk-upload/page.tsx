@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { graphqlClient } from '@/lib/graphql-client';
+import { validateNIC } from '@/lib/validators';
 
 interface Props {
   // Add props here
@@ -89,10 +90,7 @@ export default function BulkUploadPage(): React.JSX.Element {
           courseName: row.courseName || row.course_name || '',
           courseDescription: row.courseDescription || row.course_description || '',
           courseCredits: row.courseCredits || row.course_credits || '',
-          courseSemester: row.courseSemester || row.course_semester || '',
           degreeType: row.degreeType || row.degree_type || '',
-          enrollmentSemester: row.enrollmentSemester || row.enrollment_semester || '',
-          enrollmentStatus: row.enrollmentStatus || row.enrollment_status || '',
           enrollmentGpa: row.enrollmentGpa || row.enrollment_gpa || '',
           enrollmentGrade: row.enrollmentGrade || row.enrollment_grade || '',
           achievements: parseAchievements(row.achievements || row.achievement || ''),
@@ -111,6 +109,11 @@ export default function BulkUploadPage(): React.JSX.Element {
         }
         if (!row.nationalId) {
           validationErrors.push({ row: row.rowNumber, field: 'nationalId', message: 'National ID is required' });
+        } else {
+          const nicValidation = validateNIC(row.nationalId);
+          if (!nicValidation.isValid) {
+            validationErrors.push({ row: row.rowNumber, field: 'nationalId', message: nicValidation.error || 'Invalid NIC format' });
+          }
         }
         if (!row.email) {
           validationErrors.push({ row: row.rowNumber, field: 'email', message: 'Email is required' });
@@ -187,10 +190,7 @@ export default function BulkUploadPage(): React.JSX.Element {
           courseName: row.courseName,
           courseDescription: row.courseDescription || null,
           courseCredits: row.courseCredits ? Number(row.courseCredits) : null,
-          courseSemester: row.courseSemester || null,
           degreeType: row.degreeType,
-          enrollmentSemester: row.enrollmentSemester || null,
-          enrollmentStatus: row.enrollmentStatus || null,
           enrollmentGpa: row.enrollmentGpa ? Number(row.enrollmentGpa) : null,
           enrollmentGrade: row.enrollmentGrade || null,
           achievements: Array.isArray(row.achievements) && row.achievements.length > 0 ? row.achievements : [],
@@ -234,10 +234,10 @@ export default function BulkUploadPage(): React.JSX.Element {
   };
 
   const downloadTemplate = () => {
-    const template = `fullName,studentNumber,nationalId,email,program,department,enrollmentYear,walletAddress,courseCode,courseName,courseDescription,degreeType,courseCredits,courseSemester,enrollmentStatus,enrollmentSemester,enrollmentGpa,enrollmentGrade,achievements
-John Doe,STU-2025-001,NIC123456789V,john.doe@student.edu,Bachelor of Computer Science,Engineering,2021,9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM,CSC-410,Advanced Distributed Systems,"Core final-year module covering Solana + Web3 concepts.",Bachelor,120,Fall 2024,ACTIVE,Semester 7,3.85,"First Class","Dean's List 2023|Hackathon Winner"
-Jane Smith,STU-2025-002,NIC987654321V,jane.smith@student.edu,Master of Business Administration,Business School,2020,7T3Y7LqjjswXf3bcE8Hu2nQqzHmv8b5e4pNnMxD2qR4B,MBA-502,Strategic Leadership,"Capstone course with board simulation.",Master,60,Spring 2024,COMPLETED,Semester 4,3.78,"Distinction","Valedictorian|Leadership Award"
-Arjun Perera,STU-2025-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Engineering,Technology,2022,8fycQkYbKd8B1u4sQpgo1sr5Yk8XkmGS2o8sDQibV1Uo,ENG-305,Robotics & Automation,"Robotics practicum with industry placement.",Bachelor,90,Summer 2024,ACTIVE,Semester 5,3.65,"Merit","Hackathon Champion; Research Fellowship 2024"`;
+    const template = `fullName,studentNumber,nationalId,email,program,department,enrollmentYear,walletAddress,courseCode,courseName,courseDescription,degreeType,courseCredits,enrollmentGpa,enrollmentGrade,achievements
+John Doe,STU-2025-001,NIC123456789V,john.doe@student.edu,Bachelor of Computer Science,Engineering,2021,9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM,CSC-410,Advanced Distributed Systems,"Core final-year module covering Solana + Web3 concepts.",Bachelor,120,3.85,"First Class","Dean's List 2023|Hackathon Winner"
+Jane Smith,STU-2025-002,NIC987654321V,jane.smith@student.edu,Master of Business Administration,Business School,2020,7T3Y7LqjjswXf3bcE8Hu2nQqzHmv8b5e4pNnMxD2qR4B,MBA-502,Strategic Leadership,"Capstone course with board simulation.",Master,60,3.78,"Distinction","Valedictorian|Leadership Award"
+Arjun Perera,STU-2025-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Engineering,Technology,2022,8fycQkYbKd8B1u4sQpgo1sr5Yk8XkmGS2o8sDQibV1Uo,ENG-305,Robotics & Automation,"Robotics practicum with industry placement.",Bachelor,90,3.65,"Merit","Hackathon Champion; Research Fellowship 2024"`;
     
     const blob = new Blob([template], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -299,7 +299,7 @@ Arjun Perera,STU-2025-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Eng
                   </div>
                   <h3 className="text-xl font-semibold mb-3">Choose a CSV file</h3>
                   <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                    Include columns: <strong>fullName</strong>, <strong>studentNumber</strong>, <strong>nationalId</strong>, <strong>email</strong>, <strong>program</strong>, <strong>department</strong>, <strong>enrollmentYear</strong>, <strong>walletAddress</strong>, <strong>courseCode</strong>, <strong>courseName</strong>, <strong>degreeType</strong>, and optional columns for <strong>courseCredits</strong>, <strong>courseSemester</strong>, <strong>enrollmentStatus</strong>, <strong>enrollmentSemester</strong>, <strong>enrollmentGpa</strong>, <strong>enrollmentGrade</strong>, plus <strong>achievements</strong> (separate multiple entries with <code>;</code> or <code>|</code>).
+                    Include columns: <strong>fullName</strong>, <strong>studentNumber</strong>, <strong>nationalId</strong>, <strong>email</strong>, <strong>program</strong>, <strong>department</strong>, <strong>enrollmentYear</strong>, <strong>walletAddress</strong>, <strong>courseCode</strong>, <strong>courseName</strong>, <strong>degreeType</strong>, and optional columns for <strong>courseCredits</strong>, <strong>courseDescription</strong>, <strong>enrollmentGpa</strong>, <strong>enrollmentGrade</strong>, plus <strong>achievements</strong> (separate multiple entries with <code>;</code> or <code>|</code>).
                   </p>
                   <input
                     type="file"

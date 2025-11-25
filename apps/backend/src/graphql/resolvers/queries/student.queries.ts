@@ -81,9 +81,7 @@ export const studentQueries = {
       where: {
         isActive: true,
         certificates: {
-          none: {
-            status: 'MINTED',
-          },
+          none: {},
         },
       },
       orderBy: {

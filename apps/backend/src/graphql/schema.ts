@@ -205,8 +205,6 @@ export const typeDefs = gql`
     gpa: Float
     grade: String
     batchYear: Int!
-    semester: String
-    status: String!
     achievements: [Achievement!]!
   }
   
@@ -591,7 +589,6 @@ type StudentAchievement {
     name: String!
     description: String
     credits: Int
-    semester: String
     department: String!
     degreeType: String!
   }
@@ -599,8 +596,6 @@ type StudentAchievement {
   input StudentEnrollmentInput {
     course: StudentCourseInput!
     batchYear: Int!
-    semester: String
-    status: String
     gpa: Float
     grade: String
   }
@@ -631,8 +626,6 @@ type StudentAchievement {
     studentId: ID!
     course: StudentCourseInput!
     batchYear: Int!
-    semester: String
-    status: String
     gpa: Float
     grade: String
     achievements: [StudentAchievementInput!]
@@ -666,13 +659,11 @@ input StudentAchievementInput {
     studentId: ID!
     courseId: ID!
     batchYear: Int!
-    semester: String
   }
   
   input UpdateEnrollmentInput {
     gpa: Float
     grade: String
-    status: String
   }
   
   input CreateAchievementInput {
@@ -749,10 +740,7 @@ input StudentAchievementInput {
     courseName: String!
     courseDescription: String
     courseCredits: Int
-    courseSemester: String
     degreeType: String!
-    enrollmentSemester: String
-    enrollmentStatus: String
     enrollmentGpa: Float
     enrollmentGrade: String
     achievements: [String!]

@@ -557,7 +557,7 @@ export default function IssueCertificatePage(): React.JSX.Element {
               Back to Certificates
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold tracking-tight">Single Student Issuance</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Issue Certificate</h1>
         </div>
         <Button variant="outline" onClick={loadData} className="flex items-center gap-2">
           <RefreshCw className="h-4 w-4" />
@@ -636,7 +636,7 @@ export default function IssueCertificatePage(): React.JSX.Element {
                     <div className="space-y-2 rounded-lg border border-muted p-3">
                       <div className="flex items-center justify-between">
                         <span className="font-medium">{activeStudent.enrollments[0].course?.name ?? 'Course'}</span>
-                        <Badge variant="outline">{activeStudent.enrollments[0].status}</Badge>
+                        <Badge variant="outline">Batch {activeStudent.enrollments[0].batchYear}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {courseDescription || 'No course description provided.'}
@@ -649,10 +649,6 @@ export default function IssueCertificatePage(): React.JSX.Element {
                         <div>
                           <span className="text-muted-foreground block">GPA</span>
                           <span className="font-medium">{activeStudent.enrollments[0].gpa ?? '—'}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block">Semester</span>
-                          <span className="font-medium">{activeStudent.enrollments[0].semester ?? '—'}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground block">Grade</span>
