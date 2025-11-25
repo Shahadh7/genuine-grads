@@ -9,6 +9,7 @@ import { resolvers } from './graphql/resolvers/index.js';
 import { createContext, GraphQLContext } from './graphql/context.js';
 import { env } from './env.js';
 import { logger } from './utils/logger.js';
+import uploadRoutes from './routes/upload.routes.js';
 
 /**
  * Create and configure the Apollo Server with Express
@@ -82,6 +83,9 @@ export async function createApolloServer() {
 
   // Apply JSON parsing middleware
   app.use(express.json({ limit: '10mb' }));
+
+  // Upload routes
+  app.use('/api/upload', uploadRoutes);
 
   // GraphQL endpoint
   app.use(

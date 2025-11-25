@@ -446,6 +446,9 @@ type StudentAchievement {
       certificateNumber: String
       mintAddress: String
     ): CertificateVerification!
+
+    # Get super admin wallet address for validation
+    getSuperAdminWallet: String!
   }
 
   # ============================================

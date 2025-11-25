@@ -50,13 +50,16 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
     password: '',
     confirmPassword: ''
   });
-  
+
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [loading, setLoading] = useState(false);
   const [signingTransaction, setSigningTransaction] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [registeredUniversity, setRegisteredUniversity] = useState<any>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // Validate form fields
   const validateForm = () => {
@@ -129,7 +132,7 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    
+
     // Clear error when user types
     if (errors[field]) {
       setErrors(prev => {
@@ -140,9 +143,79 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
     }
   };
 
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setLogoFile(null);
+      setLogoPreview(null);
+      return;
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setErrors(prev => ({
+        ...prev,
+        logoUrl: 'Only image files (JPEG, PNG, GIF, WEBP) are allowed'
+      }));
+      setLogoFile(null);
+      setLogoPreview(null);
+      return;
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors(prev => ({
+        ...prev,
+        logoUrl: 'File size must be less than 5MB'
+      }));
+      setLogoFile(null);
+      setLogoPreview(null);
+      return;
+    }
+
+    // Clear previous errors
+    if (errors.logoUrl) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors.logoUrl;
+        return newErrors;
+      });
+    }
+
+    // Set file and create preview
+    setLogoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setLogoPreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadLogoToIPFS = async (file: File): Promise<string> => {
+    const uploadFormData = new FormData();
+    uploadFormData.append('logo', file);
+
+    // Derive backend URL from GraphQL URL
+    const graphqlUrl = process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:4000/graphql';
+    const backendUrl = graphqlUrl.replace('/graphql', '');
+    const response = await fetch(`${backendUrl}/api/upload/logo`, {
+      method: 'POST',
+      body: uploadFormData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Failed to upload logo');
+    }
+
+    return data.url;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -156,9 +229,38 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
         return;
       }
 
+      // Step 1: Upload logo to IPFS if a file was selected
+      let logoUrl = formData.logoUrl;
+      if (logoFile) {
+        try {
+          setUploadingLogo(true);
+          toast.success({
+            title: 'Uploading logo',
+            description: 'Uploading your logo to IPFS...',
+          });
+          logoUrl = await uploadLogoToIPFS(logoFile);
+          setUploadingLogo(false);
+          toast.success({
+            title: 'Logo uploaded',
+            description: 'Your logo has been uploaded to IPFS successfully',
+          });
+        } catch (error: any) {
+          console.error('Logo upload error:', error);
+          setUploadingLogo(false);
+          setErrors({
+            logoUrl: error.message || 'Failed to upload logo. Please try again.'
+          });
+          toast.error({
+            title: 'Logo upload failed',
+            description: error.message || 'Failed to upload logo',
+          });
+          return;
+        }
+      }
+
       setSigningTransaction(true);
 
-      // Step 1: Invoke Solana program from the client
+      // Step 2: Invoke Solana program from the client
       const { signature, universityPda, confirmationSource } = await registerUniversityOnChain({
         wallet,
         connection,
@@ -186,12 +288,12 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
         });
       }
 
-      // Step 2: Persist to backend after on-chain success
+      // Step 3: Persist to backend after on-chain success
       const response = await graphqlClient.registerUniversity({
         name: formData.universityName,
         domain: formData.domain,
         country: formData.country,
-        logoUrl: formData.logoUrl || undefined,
+        logoUrl: logoUrl || undefined,
         websiteUrl: formData.websiteUrl || undefined,
         walletAddress: publicKey.toString(),
         adminEmail: formData.email,
@@ -325,16 +427,39 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
                 )}
               </div>
 
-              {/* Logo URL */}
+              {/* Logo Upload */}
               <div className="space-y-2">
-                <Label htmlFor="logoUrl">Logo URL</Label>
+                <Label htmlFor="logoFile">University Logo</Label>
                 <Input
-                  id="logoUrl"
-                  placeholder="https://www.example.edu/logo.png"
-                  value={formData.logoUrl}
-                  onChange={(e) => handleInputChange('logoUrl', e.target.value)}
+                  id="logoFile"
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  onChange={handleLogoChange}
                   disabled={loading}
+                  className={errors.logoUrl ? 'border-red-500' : ''}
                 />
+                {logoFile && logoPreview && (
+                  <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg border">
+                    <img
+                      src={logoPreview}
+                      alt="Logo preview"
+                      className="h-16 w-16 object-contain rounded"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{logoFile.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(logoFile.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                )}
+                {errors.logoUrl && (
+                  <p className="text-sm text-red-500">{errors.logoUrl}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Select your university logo (JPEG, PNG, GIF, WEBP - Max 5MB). It will be uploaded to IPFS when you submit.
+                </p>
               </div>
             </div>
 
@@ -489,10 +614,15 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
               </Button>
               <Button
                 type="submit"
-                disabled={loading || signingTransaction}
+                disabled={loading || signingTransaction || uploadingLogo}
                 className="flex-1"
               >
-                {loading ? (
+                {uploadingLogo ? (
+                  <div className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Uploading Logo to IPFS...
+                  </div>
+                ) : loading ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                     Submitting Application...

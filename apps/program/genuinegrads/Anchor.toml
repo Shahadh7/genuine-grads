@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-genuinegrads = "43abf6xsEJEHrgoKmFGRwVJx7CgpjdyCsPNpquvky8cr"
+genuinegrads = "CbGKtgvvAeJbMBpSJEMCuwJTwXCjzuHnSGoiSSMQ6WuS"
 
 [registry]
 url = "https://api.apr.dev"

@@ -222,14 +222,6 @@ export default function LoginPage(): React.JSX.Element {
                   </Button>
                 </p>
               </div>
-
-              {/* Demo Info */}
-              <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-dashed">
-                <p className="text-sm font-medium text-center mb-2">Demo Credentials</p>
-                <p className="text-xs text-muted-foreground text-center">
-                  Use the credentials provided by your university administrator
-                </p>
-              </div>
             </form>
           </CardContent>
         </Card>

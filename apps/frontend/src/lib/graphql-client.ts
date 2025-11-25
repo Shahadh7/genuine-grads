@@ -1050,6 +1050,18 @@ class GraphQLClient {
     }>(query, params);
   }
 
+  async getSuperAdminWallet() {
+    const query = `
+      query GetSuperAdminWallet {
+        getSuperAdminWallet
+      }
+    `;
+
+    return this.request<{
+      getSuperAdminWallet: string;
+    }>(query);
+  }
+
   async getCertificateTemplates() {
     const query = `
       query CertificateTemplates {

@@ -3,6 +3,7 @@ import { GraphQLContext } from '../../context.js';
 import { sharedDb } from '../../../db/shared.client.js';
 import { getUniversityDb } from '../../../db/university.client.js';
 import { logger } from '../../../utils/logger.js';
+import { env } from '../../../env.js';
 
 interface VerifyInput {
   certificateNumber?: string;
@@ -112,6 +113,26 @@ export const publicQueries = {
         logger.warn(
           { certificateNumber, mintAddress },
           'Certificate not found in MintActivityLog'
+        );
+        return {
+          isValid: false,
+          status: 'INVALID',
+          certificate: null,
+          revocationInfo: {
+            isRevoked: false,
+            revokedAt: null,
+            reason: null,
+          },
+          blockchainProof: null,
+          verificationTimestamp: new Date(),
+        };
+      }
+
+      // Check if mint is still pending - treat as not found
+      if (mintLog.status === 'PENDING') {
+        logger.info(
+          { certificateNumber, mintAddress, status: mintLog.status },
+          'Certificate mint is still pending - treating as not found'
         );
         return {
           isValid: false,
@@ -260,6 +281,13 @@ export const publicQueries = {
         extensions: { code: 'INTERNAL_SERVER_ERROR' },
       });
     }
+  },
+
+  /**
+   * PUBLIC: Get super admin wallet address for validation
+   */
+  async getSuperAdminWallet() {
+    return env.SOLANA_SUPER_ADMIN_PUBKEY;
   },
 };
 

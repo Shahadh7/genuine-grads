@@ -42,6 +42,7 @@ export default function ApproveUniversityPage() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
+  const [superAdminWallet, setSuperAdminWallet] = useState<string | null>(null);
 
   // Transaction dialog state
   const [showTxDialog, setShowTxDialog] = useState(false);
@@ -53,6 +54,7 @@ export default function ApproveUniversityPage() {
   useEffect(() => {
     if (guardLoading) return;
     loadUniversity();
+    loadSuperAdminWallet();
   }, [universityId, guardLoading]);
 
   const loadUniversity = async () => {
@@ -79,12 +81,30 @@ export default function ApproveUniversityPage() {
     }
   };
 
+  const loadSuperAdminWallet = async () => {
+    try {
+      const response = await graphqlClient.getSuperAdminWallet();
+      if (response.data?.getSuperAdminWallet) {
+        setSuperAdminWallet(response.data.getSuperAdminWallet);
+      }
+    } catch (err: any) {
+      console.error('Failed to load super admin wallet:', err);
+    }
+  };
+
   const handleApprove = async () => {
     if (!connected || !publicKey) {
       setError('Please connect your wallet to approve universities');
       return;
     }
 
+    // Validate that the connected wallet is the super admin wallet
+    if (superAdminWallet && publicKey.toString() !== superAdminWallet) {
+      setError(`Wrong wallet connected. Please connect the super admin wallet: ${superAdminWallet.slice(0, 4)}...${superAdminWallet.slice(-4)}`);
+      return;
+    }
+
+    setError('');
     setShowTxDialog(true);
   };
 
@@ -385,11 +405,25 @@ export default function ApproveUniversityPage() {
             </Alert>
           )}
 
+          {canApprove && connected && superAdminWallet && publicKey && publicKey.toString() !== superAdminWallet && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-semibold">Wrong wallet connected</p>
+                  <p className="text-sm">You connected: {publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)}</p>
+                  <p className="text-sm">Expected super admin wallet: {superAdminWallet.slice(0, 4)}...{superAdminWallet.slice(-4)}</p>
+                  <p className="text-sm mt-2">Please switch to the correct super admin wallet in your wallet app.</p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Approve Section */}
           <div className="space-y-3">
             <Button
               onClick={handleApprove}
-              disabled={!canApprove || !connected || processing}
+              disabled={!canApprove || !connected || processing || (superAdminWallet && publicKey ? publicKey.toString() !== superAdminWallet : false)}
               className="w-full bg-green-600 hover:bg-green-700"
               size="lg"
             >

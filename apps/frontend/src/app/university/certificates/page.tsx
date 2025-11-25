@@ -76,12 +76,20 @@ export default function CertificatesPage(): React.JSX.Element {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [mintingCertId, setMintingCertId] = useState<string | null>(null);
+  const [universityWallet, setUniversityWallet] = useState<string | null>(null);
+  const [refreshingList, setRefreshingList] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       setError(null);
       try {
+        // Load university data to get wallet address
+        const universityResponse = await graphqlClient.getMyUniversity();
+        if (universityResponse.data?.myUniversity?.walletAddress) {
+          setUniversityWallet(universityResponse.data.myUniversity.walletAddress);
+        }
+
         const certificatesResponse = await graphqlClient.getCertificates();
         const certs = (certificatesResponse.data?.certificates ?? []) as CertificateRecord[];
         setCertificates(certs);
@@ -102,7 +110,7 @@ export default function CertificatesPage(): React.JSX.Element {
         setLoading(false);
       }
     };
-    
+
     loadData();
   }, []);
 
@@ -120,6 +128,15 @@ export default function CertificatesPage(): React.JSX.Element {
       toast.error({
         title: 'Wallet not connected',
         description: 'Please connect your wallet to mint certificates.',
+      });
+      return;
+    }
+
+    // Validate that the connected wallet is the university wallet
+    if (universityWallet && publicKey.toString() !== universityWallet) {
+      toast.error({
+        title: 'Wrong wallet connected',
+        description: `Please connect your university wallet: ${universityWallet.slice(0, 4)}...${universityWallet.slice(-4)}`,
       });
       return;
     }
@@ -178,10 +195,17 @@ export default function CertificatesPage(): React.JSX.Element {
         description: 'The certificate has been successfully minted on-chain as a cNFT.',
       });
 
-      // Reload certificates
-      const certificatesResponse = await graphqlClient.getCertificates();
-      const certs = (certificatesResponse.data?.certificates ?? []) as CertificateRecord[];
-      setCertificates(certs);
+      // Reload certificates with loading indicator
+      setRefreshingList(true);
+      try {
+        const certificatesResponse = await graphqlClient.getCertificates();
+        const certs = (certificatesResponse.data?.certificates ?? []) as CertificateRecord[];
+        setCertificates(certs);
+      } catch (refreshError) {
+        console.error('Failed to refresh certificates list:', refreshError);
+      } finally {
+        setRefreshingList(false);
+      }
     } catch (err: any) {
       console.error('[Certificates] mint failed', err);
       toast.error({
@@ -417,7 +441,15 @@ export default function CertificatesPage(): React.JSX.Element {
       {/* Certificates Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Certificates ({filteredCertificates.length})</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle>Certificates ({filteredCertificates.length})</CardTitle>
+            {refreshingList && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Refreshing list...</span>
+              </div>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -431,8 +463,8 @@ export default function CertificatesPage(): React.JSX.Element {
                 columns={columns}
                 itemsPerPage={10}
                 emptyMessage={
-                  searchTerm || statusFilter !== 'all' || programFilter !== 'all' 
-                    ? 'No certificates found matching your filters.' 
+                  searchTerm || statusFilter !== 'all' || programFilter !== 'all'
+                    ? 'No certificates found matching your filters.'
                     : 'No certificates available.'
                 }
                 showPagination={true}

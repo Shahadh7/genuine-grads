@@ -40,6 +40,7 @@ export default function SuspendUniversityPage() {
   const [university, setUniversity] = useState<any>(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
+  const [superAdminWallet, setSuperAdminWallet] = useState<string | null>(null);
 
   // Transaction dialog state
   const [showTxDialog, setShowTxDialog] = useState(false);
@@ -51,6 +52,7 @@ export default function SuspendUniversityPage() {
   useEffect(() => {
     if (guardLoading) return;
     loadUniversity();
+    loadSuperAdminWallet();
   }, [universityId, guardLoading]);
 
   const loadUniversity = async () => {
@@ -58,7 +60,7 @@ export default function SuspendUniversityPage() {
       setLoading(true);
       const response = await graphqlClient.getAllUniversities();
       const uni = response.data?.allUniversities?.find((u: any) => u.id === universityId);
-      
+
       if (uni) {
         setUniversity(uni);
       } else {
@@ -72,6 +74,17 @@ export default function SuspendUniversityPage() {
     }
   };
 
+  const loadSuperAdminWallet = async () => {
+    try {
+      const response = await graphqlClient.getSuperAdminWallet();
+      if (response.data?.getSuperAdminWallet) {
+        setSuperAdminWallet(response.data.getSuperAdminWallet);
+      }
+    } catch (err: any) {
+      console.error('Failed to load super admin wallet:', err);
+    }
+  };
+
   const handleSuspend = () => {
     if (!reason.trim()) {
       setError('Please provide a reason for suspension');
@@ -80,6 +93,12 @@ export default function SuspendUniversityPage() {
 
     if (!connected || !publicKey) {
       setError('Please connect the super admin wallet before suspending a university');
+      return;
+    }
+
+    // Validate that the connected wallet is the super admin wallet
+    if (superAdminWallet && publicKey.toString() !== superAdminWallet) {
+      setError(`Wrong wallet connected. Please connect the super admin wallet: ${superAdminWallet.slice(0, 4)}...${superAdminWallet.slice(-4)}`);
       return;
     }
 
@@ -283,6 +302,20 @@ export default function SuspendUniversityPage() {
             </Alert>
           )}
 
+          {connected && superAdminWallet && publicKey && publicKey.toString() !== superAdminWallet && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-semibold">Wrong wallet connected</p>
+                  <p className="text-sm">You connected: {publicKey.toString().slice(0, 4)}...{publicKey.toString().slice(-4)}</p>
+                  <p className="text-sm">Expected super admin wallet: {superAdminWallet.slice(0, 4)}...{superAdminWallet.slice(-4)}</p>
+                  <p className="text-sm mt-2">Please switch to the correct super admin wallet in your wallet app.</p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="space-y-3">
             <Label htmlFor="suspension-reason">
               Reason for Suspension <span className="text-red-500">*</span>
@@ -309,7 +342,7 @@ export default function SuspendUniversityPage() {
             </Button>
             <Button
               onClick={handleSuspend}
-              disabled={!reason.trim() || txLoading || !connected}
+              disabled={!reason.trim() || txLoading || !connected || (superAdminWallet && publicKey ? publicKey.toString() !== superAdminWallet : false)}
               variant="destructive"
               className="flex-1"
             >
