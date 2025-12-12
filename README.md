@@ -2,33 +2,21 @@
 
 A secure, decentralized platform for issuing and verifying academic certificates using Solana blockchain technology with compressed NFTs.
 
-## 🎯 Overview
+## Overview
 
 GenuineGrads enables universities to issue tamper-proof digital certificates as compressed NFTs on the Solana blockchain. Students receive verifiable credentials in their Solana wallets that can be instantly verified by employers and institutions worldwide.
 
 ### Key Features
 
-- 🔐 **Secure**: No private keys stored; wallet-based transaction signing
-- 💰 **Cost-Effective**: Compressed NFTs via Bubblegum (~$0.0001 per certificate)
-- ⚡ **Fast**: Solana's high throughput for instant verification
-- 🎨 **Customizable**: Built-in certificate designer
-- 📱 **Accessible**: QR code verification
-- 🌍 **Decentralized**: IPFS metadata storage
+- **Secure**: No private keys stored; wallet-based transaction signing
+- **Cost-Effective**: Compressed NFTs via Bubblegum (~$0.0001 per certificate)
+- **Fast**: Solana's high throughput for instant verification
+- **Customizable**: Built-in certificate designer
+- **Accessible**: QR code verification
+- **Decentralized**: IPFS metadata storage
 
-## 🏗️ Architecture
 
-```
-┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│   Frontend    │───▶│   Backend     │───▶│    Solana     │
-│   (Next.js)   │    │  (GraphQL)    │    │    Program    │
-│               │    │               │    │               │
-│ • Wallet      │    │ • TX Prep     │    │ • cNFTs       │
-│ • Signing     │    │ • IPFS        │    │ • Bubblegum   │
-│ • UI/UX       │    │ • Database    │    │ • MPL Core    │
-└───────────────┘    └───────────────┘    └───────────────┘
-```
-
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -41,13 +29,10 @@ GenuineGrads enables universities to issue tamper-proof digital certificates as 
 
 ```bash
 # Clone repository
-git clone https://github.com/your-org/genuinegrads.git
+git clone https://github.com/shahadh7/genuinegrads.git
 cd genuinegrads
 
-# Run automated setup
-./SETUP.sh
-
-# Or manual setup:
+# Packages installation
 cd apps/backend && yarn install
 cd apps/frontend && npm install
 ```
@@ -88,17 +73,8 @@ npm run dev
 
 Open http://localhost:3000
 
-## 📚 Documentation
 
-| Document | Description |
-|----------|-------------|
-| [QUICKSTART.md](./QUICKSTART.md) | 5-minute quick start guide |
-| [INTEGRATION_GUIDE.md](./INTEGRATION_GUIDE.md) | Complete integration documentation |
-| [INTEGRATION_SUMMARY.md](./INTEGRATION_SUMMARY.md) | What was built and how it works |
-| [API_EXAMPLES.md](./apps/backend/docs/API_EXAMPLES.md) | GraphQL API examples |
-| [DEPLOYMENT.md](./apps/backend/docs/DEPLOYMENT.md) | Production deployment guide |
-
-## 🎓 Usage
+## Usage
 
 ### For Super Admins
 
@@ -130,7 +106,7 @@ Open http://localhost:3000
 2. View blockchain-verified credentials
 3. Check revocation status
 
-## 🔐 Security
+## Security
 
 - **No Private Keys Stored**: All signing done in browser via wallet
 - **Wallet-Based Auth**: Users control their own keys
@@ -138,9 +114,9 @@ Open http://localhost:3000
 - **Tamper-Proof**: Immutable blockchain records
 - **Privacy**: Optional ZKP for selective disclosure
 
-## 🌐 Solana Program
+## Solana Program
 
-- **Program ID**: `J66NdjPnpQWkm3Pj3AihkU4XFjLaV9RF5vz2RUEwKSZF`
+- **Program ID**: `CbGKtgvvAeJbMBpSJEMCuwJTwXCjzuHnSGoiSSMQ6WuS`
 - **Network**: Devnet (MVP), Mainnet-ready
 - **Technology**: 
   - Anchor framework
@@ -159,7 +135,7 @@ Open http://localhost:3000
 | `create_core_collection_v2_cpi` | Create collection |
 | `mint_certificate_v2` | Mint certificate NFT |
 
-## 💻 Tech Stack
+## Tech Stack
 
 ### Backend
 - Node.js with TypeScript
@@ -183,21 +159,7 @@ Open http://localhost:3000
 - MPL Core (Collections)
 - IPFS (Metadata)
 
-## 📊 Performance
-
-### Transaction Costs (Mainnet estimates)
-- Initialize: ~0.001 SOL
-- Register University: ~0.002 SOL
-- Create Tree (14-depth): ~0.15 SOL
-- Create Collection: ~0.005 SOL
-- **Mint Certificate: ~0.0001 SOL** 💰
-
-### Capacity
-- Small tree (depth 14): 16,384 certificates
-- Large tree (depth 20): 1,048,576 certificates
-- Unlimited trees per university
-
-## 🧪 Testing
+## Testing
 
 ```bash
 # Backend tests
@@ -207,53 +169,27 @@ yarn test
 # Frontend tests
 cd apps/frontend
 npm test
-
-# E2E testing
-1. Start both servers
-2. Login as super admin
-3. Register & approve university
-4. Create tree & collection
-5. Mint test certificate
-6. Verify on Solana Explorer
 ```
 
-## 🤝 Contributing
+## License
 
-Contributions welcome! Please read [CONTRIBUTING.md](./CONTRIBUTING.md) first.
+This project is released under an **Academic & Institutional License**.
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+Usage of this repository is governed by the terms defined in the
+[`LICENSE.md`](./LICENSE.md) file.
 
-## 📝 License
+© University of Moratuwa. All rights reserved.
 
-This project is licensed under the MIT License - see [LICENSE](./LICENSE) file.
+## Roadmap
 
-## 🙏 Acknowledgments
-
-- Solana Foundation
-- Metaplex Foundation
-- Helius Labs
-- Anchor Framework Team
-
-## 📧 Support
-
-- **Issues**: GitHub Issues
-- **Discussions**: GitHub Discussions
-- **Email**: support@genuinegrads.com
-- **Discord**: [Join our community](#)
-
-## 🗺️ Roadmap
-
-### MVP (Current) ✅
+### MVP (Current) 
 - [x] University registration
 - [x] Certificate issuance
 - [x] Compressed NFTs
 - [x] Wallet integration
 - [x] IPFS metadata
 - [x] Certificate designer
+- [x] Certificate verification with certificate number/ leaf ID
 
 ### Phase 2 (Q2 2025)
 - [ ] Student portal
@@ -261,15 +197,14 @@ This project is licensed under the MIT License - see [LICENSE](./LICENSE) file.
 - [ ] Batch minting optimization
 - [ ] Advanced templates
 - [ ] Analytics dashboard
+- [ ] Certificate verification with QR code.
 
 ### Phase 3 (Q3 2025)
 - [ ] ZKP integration
 - [ ] Multi-chain support
-- [ ] API marketplace
-- [ ] White-label solution
-- [ ] Enterprise features
+- [ ] Multi-sig supportSSS
 
-## 🎯 Use Cases
+## Use Cases
 
 - **Universities**: Issue tamper-proof degrees and certificates
 - **Employers**: Instantly verify candidate credentials
@@ -277,7 +212,7 @@ This project is licensed under the MIT License - see [LICENSE](./LICENSE) file.
 - **Training Providers**: Issue course completion certificates
 - **Professional Bodies**: Issue membership credentials
 
-## 🌟 Benefits
+## Benefits
 
 ### For Universities
 - Reduce administrative overhead
@@ -298,6 +233,29 @@ This project is licensed under the MIT License - see [LICENSE](./LICENSE) file.
 - Streamlined onboarding
 
 ---
+
+## Intellectual Property Rights (IPR)
+
+This project was developed as a **Final Year Undergraduate Project** at the  
+**University of Moratuwa, Sri Lanka**.
+
+All intellectual property rights related to this project, including but not limited to
+source code, system design, documentation, research outcomes, and derived artifacts,
+are governed by the **University of Moratuwa Intellectual Property Policy**.
+
+According to the policy:
+- Intellectual Property created using University resources or under University supervision
+  is owned by the **University of Moratuwa**, unless otherwise stated.
+- The author(s) retain recognition as the creator(s) of the work.
+- Commercial use, redistribution, or licensing of this project **requires formal approval**
+  from the University of Moratuwa.
+
+This repository is made available **strictly for academic, evaluation, and demonstration purposes**.
+
+Official Policy Reference:  
+**University of Moratuwa – Intellectual Property Policy (Approved 06.01.2010)**
+
+
 
 **Built with ❤️ for the future of education**
 
