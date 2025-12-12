@@ -209,6 +209,34 @@ export const publicQueries = {
         'Certificate found and verified'
       );
 
+      // Parse metadata to extract achievements
+      let achievements: string[] = [];
+      if (certificate.metadataJson) {
+        try {
+          const metadata = typeof certificate.metadataJson === 'string'
+            ? JSON.parse(certificate.metadataJson)
+            : certificate.metadataJson;
+
+          // Extract achievements from metadata properties or achievementIds array
+          if (metadata.properties?.achievements) {
+            achievements = metadata.properties.achievements;
+          } else if (certificate.achievementIds && certificate.achievementIds.length > 0) {
+            // If achievements are stored in achievementIds, fetch their titles
+            const achievementRecords = await universityDb.achievement.findMany({
+              where: {
+                id: { in: certificate.achievementIds },
+              },
+              select: {
+                badgeTitle: true,
+              },
+            });
+            achievements = achievementRecords.map(a => a.badgeTitle);
+          }
+        } catch (error) {
+          logger.warn({ error, certificateId: certificate.id }, 'Failed to parse metadataJson for achievements');
+        }
+      }
+
       // Check if revoked (double check at university level)
       if (certificate.revoked) {
         return {
@@ -224,6 +252,7 @@ export const publicQueries = {
             },
             studentName: certificate.student.fullName,
             degreeType: certificate.degreeType,
+            achievements,
           },
           revocationInfo: {
             isRevoked: true,
@@ -243,7 +272,6 @@ export const publicQueries = {
 
       // Step 4: Verify on-chain (TODO: integrate with Helius NFT API)
       // const onChainValid = await verifyNFTOnChain(certificate.mintAddress);
-      const onChainValid = true; // Placeholder
 
       // Certificate is valid!
       return {
@@ -259,6 +287,7 @@ export const publicQueries = {
           },
           studentName: certificate.student.fullName,
           degreeType: certificate.degreeType,
+          achievements,
         },
         revocationInfo: {
           isRevoked: false,

@@ -12,6 +12,7 @@ export interface CertificatePublicInfo {
   degreeType?: string | null;
   studentName?: string | null;
   university: UniversityPublicInfo;
+  achievements?: string[] | null;
 }
 
 export interface RevocationInfo {

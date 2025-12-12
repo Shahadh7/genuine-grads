@@ -1000,6 +1000,7 @@ class GraphQLClient {
             issueDate
             degreeType
             studentName
+            achievements
             university {
               name
               logoUrl

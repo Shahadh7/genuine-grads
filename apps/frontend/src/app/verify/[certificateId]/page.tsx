@@ -378,6 +378,41 @@ export default function CertificatePage(): React.JSX.Element {
                   </CardContent>
                 </Card>
 
+                {/* Achievements Section */}
+                {certificate?.achievements && certificate.achievements.length > 0 && (
+                  <Card className="border-0 shadow-xl bg-gradient-to-br from-card to-muted/5">
+                    <CardHeader className="border-b bg-muted/30">
+                      <CardTitle className="flex items-center gap-3 text-xl">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Award className="h-6 w-6 text-primary" />
+                        </div>
+                        Achievements & Honors
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-6">
+                      <div className="flex flex-wrap gap-3">
+                        {certificate.achievements.map((achievement, index) => (
+                          <div
+                            key={index}
+                            className="group relative inline-flex items-center gap-2.5 px-5 py-3 rounded-full bg-primary/5 border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/10 hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-default"
+                            title={achievement}
+                          >
+                            <div className="relative flex items-center gap-2.5">
+                              <div className="flex-shrink-0 p-1.5 bg-primary rounded-full shadow-sm">
+                                <Award className="h-3.5 w-3.5 text-primary-foreground" />
+                              </div>
+                              <span className="text-sm font-semibold text-foreground whitespace-nowrap">
+                                {achievement}
+                              </span>
+                            </div>
+                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full shadow-sm opacity-75"></div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Revocation Details */}
                 {isRevoked && (
                   <Card className="border-2 border-red-300/50 shadow-xl bg-gradient-to-br from-red-500/5 to-red-600/10">

@@ -299,6 +299,7 @@ type StudentAchievement {
     university: UniversityPublicInfo!
     studentName: String
     degreeType: String
+    achievements: [String!]
   }
   
   type UniversityPublicInfo {
