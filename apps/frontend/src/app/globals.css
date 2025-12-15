@@ -126,45 +126,57 @@ body {
   .text-balance {
     text-wrap: balance;
   }
-  
+
+  /* Grid pattern background */
+  .bg-grid-pattern {
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .dark .bg-grid-pattern {
+    background-image: linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  }
+
   /* Custom gold accent utilities */
   .text-gold {
     color: #D97706;
   }
-  
+
   .bg-gold {
     background-color: #D97706;
   }
-  
+
   .border-gold {
     border-color: #D97706;
   }
-  
+
   .hover\:text-gold:hover {
     color: #D97706;
   }
-  
+
   .hover\:bg-gold:hover {
     background-color: #D97706;
   }
-  
+
   /* Dark mode specific gold utilities */
   .dark .text-gold {
     color: #F59E0B;
   }
-  
+
   .dark .bg-gold {
     background-color: #F59E0B;
   }
-  
+
   .dark .border-gold {
     border-color: #F59E0B;
   }
-  
+
   .dark .hover\:text-gold:hover {
     color: #F59E0B;
   }
-  
+
   .dark .hover\:bg-gold:hover {
     background-color: #F59E0B;
   }
