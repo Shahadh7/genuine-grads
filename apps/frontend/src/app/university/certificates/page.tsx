@@ -27,6 +27,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { BulkMintDialog } from '@/components/certificates/BulkMintDialog';
 import { graphqlClient } from '@/lib/graphql-client';
 import { useToast } from '@/hooks/useToast';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -95,6 +97,10 @@ export default function CertificatesPage(): React.JSX.Element {
   const [selectedCertificate, setSelectedCertificate] = useState<CertificateRecord | null>(null);
   const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Bulk minting state
+  const [selectedCertIds, setSelectedCertIds] = useState<Set<string>>(new Set());
+  const [bulkMintDialogOpen, setBulkMintDialogOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -281,7 +287,80 @@ export default function CertificatesPage(): React.JSX.Element {
     return matchesSearch && matchesStatus && matchesProgram;
   });
 
+  // Bulk selection handlers
+  const pendingCertificates = filteredCertificates.filter((cert) => cert.status === 'PENDING');
+  const selectableCertIds = new Set(pendingCertificates.map((cert) => cert.id));
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedCertIds(new Set(selectableCertIds));
+    } else {
+      setSelectedCertIds(new Set());
+    }
+  };
+
+  const handleSelectCertificate = (certId: string, checked: boolean) => {
+    const newSelected = new Set(selectedCertIds);
+    if (checked) {
+      newSelected.add(certId);
+    } else {
+      newSelected.delete(certId);
+    }
+    setSelectedCertIds(newSelected);
+  };
+
+  const handleBulkMint = () => {
+    if (selectedCertIds.size === 0) {
+      toast.error({
+        title: 'No certificates selected',
+        description: 'Please select at least one certificate to mint',
+      });
+      return;
+    }
+    setBulkMintDialogOpen(true);
+  };
+
+  const handleBulkMintComplete = async () => {
+    setSelectedCertIds(new Set());
+    setBulkMintDialogOpen(false);
+    // Refresh the certificates list
+    try {
+      const certificatesResponse = await graphqlClient.getCertificates();
+      const certs = (certificatesResponse.data?.certificates ?? []) as CertificateRecord[];
+      setCertificates(certs);
+      toast.success({
+        title: 'Bulk minting complete',
+        description: `Successfully processed ${selectedCertIds.size} certificates`,
+      });
+    } catch (error) {
+      console.error('Failed to refresh certificates:', error);
+    }
+  };
+
+  const allPendingSelected =
+    pendingCertificates.length > 0 &&
+    pendingCertificates.every((cert) => selectedCertIds.has(cert.id));
+
   const columns = [
+    {
+      key: 'select',
+      header: (
+        <Checkbox
+          checked={allPendingSelected}
+          onCheckedChange={handleSelectAll}
+          disabled={pendingCertificates.length === 0}
+        />
+      ),
+      render: (cert: CertificateRecord) => {
+        if (cert.status !== 'PENDING') return null;
+        return (
+          <Checkbox
+            checked={selectedCertIds.has(cert.id)}
+            onCheckedChange={(checked) => handleSelectCertificate(cert.id, checked as boolean)}
+          />
+        );
+      },
+    },
     {
       key: 'student',
       header: 'Student',
@@ -479,6 +558,38 @@ export default function CertificatesPage(): React.JSX.Element {
           </div>
         </CardContent>
       </Card>
+
+      {/* Bulk Actions Bar */}
+      {selectedCertIds.size > 0 && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium">
+                  {selectedCertIds.size} certificate{selectedCertIds.size > 1 ? 's' : ''} selected
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedCertIds(new Set())}
+                >
+                  Clear Selection
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleBulkMint}
+                  disabled={!publicKey}
+                  className="flex items-center gap-2"
+                >
+                  <Coins className="h-4 w-4" />
+                  Issue Selected ({selectedCertIds.size})
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Certificates Table */}
       <Card>
@@ -738,6 +849,14 @@ export default function CertificatesPage(): React.JSX.Element {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Mint Dialog */}
+      <BulkMintDialog
+        open={bulkMintDialogOpen}
+        onClose={() => setBulkMintDialogOpen(false)}
+        certificateIds={Array.from(selectedCertIds)}
+        onComplete={handleBulkMintComplete}
+      />
     </div>
   );
 } 

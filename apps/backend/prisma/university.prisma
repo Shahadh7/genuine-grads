@@ -14,39 +14,40 @@ datasource db {
 
 // Students enrolled in this university
 model Student {
-  id              String        @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Identifiers
-  walletAddress   String?       @unique // Solana wallet address
-  email           String        @unique
-  nicHash         String        @unique // SHA-256 hash (links to GlobalStudentIndex)
-  
+  walletAddress String? @unique // Solana wallet address
+  email         String  @unique
+  nicHash       String  @unique // SHA-256 hash (links to GlobalStudentIndex)
+
   // Personal info
-  fullName        String
-  studentNumber   String        @unique // University-specific ID
-  program         String?       // e.g., "Computer Science"
-  department      String?       // e.g., "Engineering"
-  enrollmentYear  Int?
-  graduationYear  Int?
-  
+  fullName       String
+  studentNumber  String  @unique // University-specific ID
+  program        String? // e.g., "Computer Science"
+  department     String? // e.g., "Engineering"
+  enrollmentYear Int?
+  graduationYear Int?
+
   // Profile
-  profilePicUrl   String?
-  phoneNumber     String?
-  address         String?
-  
+  profilePicUrl String?
+  phoneNumber   String?
+  address       String?
+
   // Status
-  isActive        Boolean       @default(true)
-  
+  isActive Boolean @default(true)
+
   // Relationships
-  enrollments     Enrollment[]
-  certificates    Certificate[]
-  achievements    StudentAchievement[]
-  zkpRequests     ZKPProofRequest[]
-  
+  enrollments      Enrollment[]
+  certificates     Certificate[]
+  achievements     StudentAchievement[]
+  zkpRequests      ZKPProofRequest[]
+  verificationLogs VerificationLog[]
+
   // Metadata
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([walletAddress])
   @@index([email])
   @@index([nicHash])
@@ -56,26 +57,26 @@ model Student {
 
 // Courses offered by the university
 model Course {
-  id              String        @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Course info
-  name            String
-  code            String        @unique
-  description     String?       @db.Text
-  credits         Int?
+  name        String
+  code        String  @unique
+  description String? @db.Text
+  credits     Int?
 
   // Department
-  department      String?
-  level           String?       // "Undergraduate", "Graduate"
-  
+  department String?
+  level      String? // "Undergraduate", "Graduate"
+
   // Relationships
-  enrollments     Enrollment[]
-  
+  enrollments Enrollment[]
+
   // Metadata
-  isActive        Boolean       @default(true)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([code])
   @@index([department])
   @@map("courses")
@@ -83,29 +84,29 @@ model Course {
 
 // Student course enrollments
 model Enrollment {
-  id              String        @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Relations
-  studentId       String
-  student         Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
-  courseId        String
-  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
   // Academic details
-  gpa             Float?
-  grade           String?       // "A", "B+", etc.
-  batchYear       Int
-  completedAt     DateTime?
-  
+  gpa         Float?
+  grade       String? // "A", "B+", etc.
+  batchYear   Int
+  completedAt DateTime?
+
   // Relationships
-  achievements    Achievement[]
-  certificates    Certificate[]
-  
+  achievements Achievement[]
+  certificates Certificate[]
+
   // Metadata
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([studentId, courseId, batchYear])
   @@index([studentId])
   @@index([courseId])
@@ -115,34 +116,34 @@ model Enrollment {
 
 // Student achievements (badges, honors, awards)
 model Achievement {
-  id                  String        @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Relations
-  enrollmentId        String?
-  enrollment          Enrollment?   @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  
+  enrollmentId String?
+  enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
   // Achievement details
-  badgeTitle          String
-  description         String?       @db.Text
-  badgeType           String?       // "ACADEMIC", "EXTRACURRICULAR", "RESEARCH", "LEADERSHIP"
-  semester            String?
-  achievementDate     DateTime?
-  
+  badgeTitle      String
+  description     String?   @db.Text
+  badgeType       String? // "ACADEMIC", "EXTRACURRICULAR", "RESEARCH", "LEADERSHIP"
+  semester        String?
+  achievementDate DateTime?
+
   // ZKP support for privacy-preserving proofs
-  zkpCommitmentHash   String?       // Hash commitment for ZK proofs
-  zkpPublicInputs     String?       @db.Text // JSON of public inputs
-  proofGenerated      Boolean       @default(false)
-  
+  zkpCommitmentHash String? // Hash commitment for ZK proofs
+  zkpPublicInputs   String? @db.Text // JSON of public inputs
+  proofGenerated    Boolean @default(false)
+
   // Icon/image
-  iconUrl             String?
-  
+  iconUrl String?
+
   // Relationships
-  zkpRequests         ZKPProofRequest[]
-  
+  zkpRequests ZKPProofRequest[]
+
   // Metadata
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([enrollmentId])
   @@index([badgeType])
   @@map("achievements")
@@ -150,15 +151,15 @@ model Achievement {
 
 // Achievement catalog entries that can be linked to students
 model AchievementCatalog {
-  id          String               @id @default(cuid())
+  id          String   @id @default(cuid())
   title       String
   description String?
   category    String?
-  isActive    Boolean              @default(true) @map("is_active")
-  createdAt   DateTime             @default(now()) @map("created_at")
-  updatedAt   DateTime             @updatedAt @map("updated_at")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  students    StudentAchievement[]
+  students StudentAchievement[]
 
   @@unique([title])
   @@map("achievement_catalog")
@@ -166,14 +167,14 @@ model AchievementCatalog {
 
 // Join table linking students to catalog achievements
 model StudentAchievement {
-  id             String             @id @default(cuid())
-  studentId      String             @map("student_id")
-  achievementId  String             @map("achievement_id")
-  awardedAt      DateTime           @default(now()) @map("awarded_at")
-  notes          String?
+  id            String   @id @default(cuid())
+  studentId     String   @map("student_id")
+  achievementId String   @map("achievement_id")
+  awardedAt     DateTime @default(now()) @map("awarded_at")
+  notes         String?
 
-  student        Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  achievement    AchievementCatalog @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  student     Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  achievement AchievementCatalog @relation(fields: [achievementId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, achievementId])
   @@index([achievementId])
@@ -182,51 +183,54 @@ model StudentAchievement {
 
 // Issued certificates (references to cNFTs on Solana)
 model Certificate {
-  id                  String        @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Relations
-  studentId           String
-  student             Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
-  enrollmentId        String?
-  enrollment          Enrollment?   @relation(fields: [enrollmentId], references: [id])
-  
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  enrollmentId String?
+  enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id])
+
   // Certificate details
-  certificateNumber   String        @unique
-  badgeTitle          String
-  description         String?       @db.Text
-  degreeType          String?       // "Bachelor", "Master", "PhD", "Diploma", "Certificate"
-  
+  certificateNumber String  @unique
+  badgeTitle        String
+  description       String? @db.Text
+  degreeType        String? // "Bachelor", "Master", "PhD", "Diploma", "Certificate"
+
   // Blockchain references
-  mintAddress         String        @unique // Compressed NFT asset ID on Solana
-  merkleTreeAddress   String?       // Bubblegum Merkle tree address
-  leafIndex           BigInt?       // Position in Merkle tree
-  ipfsMetadataUri     String        // IPFS URI for metadata
-  transactionSignature String?      @unique
-  
+  mintAddress          String  @unique // Compressed NFT asset ID on Solana
+  merkleTreeAddress    String? // Bubblegum Merkle tree address
+  leafIndex            BigInt? // Position in Merkle tree
+  ipfsMetadataUri      String // IPFS URI for metadata
+  transactionSignature String? @unique
+
   // Certificate metadata (flexible JSON)
-  metadataJson        String        @db.Text // Full certificate metadata
-  
+  metadataJson String @db.Text // Full certificate metadata
+
   // Achievements included in this certificate
-  achievementIds      String[]      // Array of achievement IDs
-  
+  achievementIds String[] // Array of achievement IDs
+
   // Status
-  status              String        @default("PENDING") // PENDING, MINTED, FAILED
-  issuedAt            DateTime      @default(now())
-  expiryDate          DateTime?
-  
+  status     String    @default("PENDING") // PENDING, MINTED, FAILED
+  issuedAt   DateTime  @default(now())
+  expiryDate DateTime?
+
   // Revocation (also tracked in shared DB)
-  revoked             Boolean       @default(false)
-  revokedAt           DateTime?
-  revocationReason    String?
-  
+  revoked          Boolean   @default(false)
+  revokedAt        DateTime?
+  revocationReason String?
+
   // Issued by
-  issuedByAdminId     String?
-  
+  issuedByAdminId String?
+
+  // Relationships
+  verificationLogs VerificationLog[]
+
   // Metadata
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([studentId])
   @@index([mintAddress])
   @@index([certificateNumber])
@@ -237,44 +241,44 @@ model Certificate {
 
 // ZKP proof requests for selective disclosure
 model ZKPProofRequest {
-  id                String        @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Relations
-  studentId         String
-  student           Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
-  achievementId     String?
-  achievement       Achievement?  @relation(fields: [achievementId], references: [id])
-  
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  achievementId String?
+  achievement   Achievement? @relation(fields: [achievementId], references: [id])
+
   // Proof details
-  claimType         String        // e.g., "GPA_ABOVE_3_5", "DEGREE_OBTAINED", "HAS_BADGE"
-  claimData         String?       @db.Text // JSON of claim parameters
-  
+  claimType String // e.g., "GPA_ABOVE_3_5", "DEGREE_OBTAINED", "HAS_BADGE"
+  claimData String? @db.Text // JSON of claim parameters
+
   // ZK proof data (generated by student)
-  proofJson         String?       @db.Text // Full ZK proof
-  publicInputs      String?       @db.Text // Public inputs for verification
-  
+  proofJson    String? @db.Text // Full ZK proof
+  publicInputs String? @db.Text // Public inputs for verification
+
   // Verification
-  verified          Boolean       @default(false)
-  verifiedAt        DateTime?
-  verificationResult String?      @db.Text
-  
+  verified           Boolean   @default(false)
+  verifiedAt         DateTime?
+  verificationResult String?   @db.Text
+
   // Requester info (employer, etc.)
-  requesterEmail    String?
-  requesterCompany  String?
-  purpose           String?       // Why this proof is needed
-  
+  requesterEmail   String?
+  requesterCompany String?
+  purpose          String? // Why this proof is needed
+
   // Expiry
-  expiresAt         DateTime
-  
+  expiresAt DateTime
+
   // Share link (optional)
-  shareToken        String?       @unique
-  shareUrl          String?
-  
+  shareToken String? @unique
+  shareUrl   String?
+
   // Metadata
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([studentId])
   @@index([achievementId])
   @@index([verified])
@@ -285,72 +289,109 @@ model ZKPProofRequest {
 
 // Certificate templates for standardized issuance
 model CertificateTemplate {
-  id                String        @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Template info
-  name              String        // e.g., "Bachelor of Science"
-  degreeType        String        // "Bachelor", "Master", "PhD", "Diploma"
-  description       String?       @db.Text
-  
+  name        String // e.g., "Bachelor of Science"
+  degreeType  String // "Bachelor", "Master", "PhD", "Diploma"
+  description String? @db.Text
+
   // Template fields (JSON schema)
-  templateFields    String        @db.Text // JSON: { "gpa": "number", "honors": "string", etc }
-  
+  templateFields String @db.Text // JSON: { "gpa": "number", "honors": "string", etc }
+
   // Design
-  designTemplate    String?       @db.Text // SVG or design specification
-  backgroundImage   String?       // URL to background image
-  
+  designTemplate  String? @db.Text // SVG or design specification
+  backgroundImage String? // URL to background image
+
   // Status
-  isActive          Boolean       @default(true)
-  
+  isActive Boolean @default(true)
+
   // Usage stats
-  timesUsed         Int           @default(0)
-  
+  timesUsed Int @default(0)
+
   // Metadata
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([degreeType])
   @@index([isActive])
   @@map("certificate_templates")
 }
 
-// Batch certificate issuance jobs
+// Batch certificate issuance jobs (client-side signing)
 model BatchIssuanceJob {
-  id                String        @id @default(cuid())
-  
+  id           String @id @default(cuid())
+  universityId String
+
   // Job details
-  jobId             String        @unique // For queue tracking
   batchName         String?
-  totalStudents     Int
-  
+  totalCertificates Int
+
   // Progress
-  status            String        @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, PAUSED
-  processedCount    Int           @default(0)
-  successCount      Int           @default(0)
-  failedCount       Int           @default(0)
-  
-  // Student IDs in this batch
-  studentIds        String[]
-  
-  // Configuration
-  templateId        String?
-  certificateData   String?       @db.Text // JSON of common certificate data
-  
-  // Results
-  resultsJson       String?       @db.Text // JSON array of results
-  errorLog          String?       @db.Text
-  
+  status         String @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED, CANCELLED
+  processedCount Int    @default(0)
+  successCount   Int    @default(0)
+  failedCount    Int    @default(0)
+
+  // Certificate IDs in this batch
+  certificateIds String[] // Array of certificate IDs to mint
+
+  // Results tracking
+  successfulMints String[] @default([]) // Certificate IDs that succeeded
+  failedMints     String?  @db.Text // JSON: [{certId, error, attempts, timestamp}]
+
+  // Detailed results
+  resultsJson String? @db.Text // JSON array of all results with signatures
+
   // Timestamps
-  createdAt         DateTime      @default(now())
-  startedAt         DateTime?
-  completedAt       DateTime?
-  
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
   // Created by
-  createdByAdminId  String?
-  
-  @@index([jobId])
+  createdByAdminId String?
+
+  @@index([universityId])
   @@index([status])
   @@index([createdAt])
   @@map("batch_issuance_jobs")
 }
 
+// Verification logs - tracks when certificates are verified
+model VerificationLog {
+  id String @id @default(cuid())
+
+  // Relations
+  studentId String
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  certificateId String
+  certificate   Certificate @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+
+  // Verification details
+  verifiedAt         DateTime @default(now())
+  verificationType   String   @default("PUBLIC") // PUBLIC, ZKP, API
+  verificationStatus String   @default("SUCCESS") // SUCCESS, FAILED
+
+  // Verifier information (if available)
+  verifierIpAddress String?
+  verifierLocation  String? // Country/City derived from IP
+  verifierUserAgent String? @db.Text // Browser/device info
+
+  // Additional context
+  certificateNumber String // Denormalized for quick access
+  mintAddress       String // Denormalized for quick access
+
+  // Error tracking (if verification failed)
+  errorMessage String? @db.Text
+
+  // Metadata
+  createdAt DateTime @default(now())
+
+  @@index([studentId])
+  @@index([certificateId])
+  @@index([verifiedAt])
+  @@index([verificationStatus])
+  @@index([mintAddress])
+  @@map("verification_logs")
+}

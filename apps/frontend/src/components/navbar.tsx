@@ -69,6 +69,24 @@ const Navbar = () => {
 
   const renderUnauthenticatedLinks = () => (
     <>
+      <Link href="/verify">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-foreground/80 hover:text-foreground hover:bg-accent/50"
+        >
+          Verify
+        </Button>
+      </Link>
+      <Link href="/student-login">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-foreground/80 hover:text-foreground hover:bg-accent/50"
+        >
+          Student Portal
+        </Button>
+      </Link>
       <Link href="/login">
         <Button
           variant="ghost"
@@ -155,11 +173,31 @@ const Navbar = () => {
                   variant="ghost"
                   className="w-full justify-start"
                   onClick={() => {
+                    router.push('/verify');
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Verify Certificate
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    router.push('/student-login');
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  Student Portal
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => {
                     router.push('/login');
                     setMobileMenuOpen(false);
                   }}
                 >
-                  Login
+                  Admin Login
                 </Button>
                 <Button
                   variant="ghost"

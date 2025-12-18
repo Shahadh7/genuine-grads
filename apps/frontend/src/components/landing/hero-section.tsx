@@ -63,6 +63,18 @@ const HeroSection = () => {
                   </Button>
                 </Link>
               </div>
+
+              {/* Student Login Link */}
+              <div className="pt-6">
+                <Link
+                  href="/student-login"
+                  className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors group"
+                >
+                  <Sparkles className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />
+                  <span className="font-medium">Student? Access your certificates here</span>
+                  <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </Link>
+              </div>
             </div>
 
             {/* Quick Stats */}

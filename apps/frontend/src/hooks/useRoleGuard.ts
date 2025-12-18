@@ -34,7 +34,9 @@ export const useRoleGuard = (allowedRoles: UserRole[]): RoleGuardResult => {
       if (!currentSession) {
         setSession(null);
         setLoading(false);
-        router.replace('/login');
+        // Redirect to role-specific login page
+        const loginPath = allowedRolesSet.has('student') ? '/student-login' : '/login';
+        router.replace(loginPath);
         return;
       }
 
@@ -57,7 +59,9 @@ export const useRoleGuard = (allowedRoles: UserRole[]): RoleGuardResult => {
       if (!detail) {
         setSession(null);
         setLoading(false);
-        router.replace('/login');
+        // Redirect to role-specific login page
+        const loginPath = allowedRolesSet.has('student') ? '/student-login' : '/login';
+        router.replace(loginPath);
         return;
       }
 

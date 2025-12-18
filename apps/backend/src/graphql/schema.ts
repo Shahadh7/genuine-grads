@@ -32,7 +32,7 @@ export const typeDefs = gql`
     PROCESSING
     COMPLETED
     FAILED
-    PAUSED
+    CANCELLED
   }
 
   # ============================================
@@ -101,6 +101,12 @@ export const typeDefs = gql`
     refreshToken: String!
   }
 
+  type StudentAuthPayload {
+    student: Student!
+    accessToken: String!
+    refreshToken: String!
+  }
+
   # ============================================
   # STUDENT TYPES
   # ============================================
@@ -156,16 +162,16 @@ export const typeDefs = gql`
     degreeType: String
     mintAddress: String!
     merkleTreeAddress: String
-    ipfsMetadataUri: String!
+    ipfsMetadataUri: String # Nullable - some certificates may not have IPFS metadata yet
     transactionSignature: String
     status: CertificateStatus!
     issuedAt: DateTime!
     revoked: Boolean!
     revokedAt: DateTime
     revocationReason: String
-    
+
     # Relations
-    student: Student!
+    student: Student # Nullable - when fetched from MintActivityLog
     enrollment: Enrollment
     metadata: JSON
     achievementIds: [String!]!
@@ -182,6 +188,26 @@ export const typeDefs = gql`
     isActive: Boolean!
     timesUsed: Int!
     createdAt: DateTime!
+  }
+
+  type VerificationLog {
+    id: ID!
+    verifiedAt: DateTime!
+    verificationType: String!
+    verificationStatus: String!
+    verifierIpAddress: String
+    verifierLocation: String
+    verifierUserAgent: String
+    certificateNumber: String!
+    mintAddress: String!
+    errorMessage: String
+    certificate: Certificate!
+  }
+
+  type VerificationLogStats {
+    total: Int!
+    successful: Int!
+    failed: Int!
   }
 
   # ============================================
@@ -265,19 +291,61 @@ type StudentAchievement {
   # ============================================
   # BATCH ISSUANCE TYPES
   # ============================================
-  
+
   type BatchIssuanceJob {
     id: ID!
-    jobId: String!
+    universityId: String!
     batchName: String
-    totalStudents: Int!
-    status: BatchJobStatus!
+    totalCertificates: Int!
+    status: String!
     processedCount: Int!
     successCount: Int!
     failedCount: Int!
+    certificateIds: [String!]!
+    successfulMints: [String!]!
+    failedMints: [FailedMint!]
     resultsJson: JSON
     createdAt: DateTime!
+    startedAt: DateTime
     completedAt: DateTime
+    createdByAdminId: String
+  }
+
+  type FailedMint {
+    certId: String!
+    error: String!
+    attempts: Int
+    timestamp: String!
+  }
+
+  type BatchMintingPreparation {
+    batchId: ID!
+    totalCertificates: Int!
+    estimatedTimeMinutes: Int!
+    certificates: [BatchCertificateInfo!]!
+  }
+
+  type BatchCertificateInfo {
+    certificateId: ID!
+    certificateNumber: String!
+    studentName: String!
+    studentWallet: String!
+    badgeTitle: String!
+  }
+
+  type BatchProgressUpdate {
+    batchId: ID!
+    status: String!
+    processedCount: Int!
+    successCount: Int!
+    failedCount: Int!
+    totalCertificates: Int!
+  }
+
+  type FixPendingCertificatesResult {
+    success: Boolean!
+    message: String!
+    fixed: Int!
   }
 
   # ============================================
@@ -378,7 +446,14 @@ type StudentAchievement {
   type Query {
     # ========== AUTHENTICATION ==========
     me: Admin
-    
+
+    # ========== STUDENT ==========
+    meStudent: Student @auth(requires: STUDENT)
+    myCertificates: [Certificate!]! @auth(requires: STUDENT)
+    myAchievements: [StudentAchievement!]! @auth(requires: STUDENT)
+    myVerificationLogs(limit: Int, offset: Int): [VerificationLog!]! @auth(requires: STUDENT)
+    myVerificationLogStats: VerificationLogStats! @auth(requires: STUDENT)
+
     # ========== SUPER ADMIN ==========
     pendingUniversities: [University!]! @auth(requires: SUPER_ADMIN)
     allUniversities(status: UniversityStatus): [University!]! @auth(requires: SUPER_ADMIN)
@@ -460,7 +535,10 @@ type StudentAchievement {
     login(input: LoginInput!): AuthPayload!
     refreshToken(refreshToken: String!): AuthPayload!
     logout: Boolean!
-    
+
+    # ========== STUDENT AUTHENTICATION ==========
+    studentLoginWithWallet(walletAddress: String!): StudentAuthPayload!
+
     # ========== PUBLIC ==========
     registerUniversity(input: RegisterUniversityInput!): University!
     
@@ -501,7 +579,14 @@ type StudentAchievement {
     # Certificate Issuance
     issueCertificate(input: IssueCertificateInput!): Certificate! @auth(requires: ADMIN)
     bulkIssueCertificates(input: BulkIssueInput!): BatchIssuanceJob! @auth(requires: ADMIN)
-    
+
+    # Batch Certificate Minting (Client-side signing)
+    prepareBatchMinting(certificateIds: [ID!]!): BatchMintingPreparation! @auth(requires: ADMIN)
+    updateBatchProgress(batchId: ID!, certificateId: ID!, success: Boolean!, signature: String, error: String): BatchProgressUpdate! @auth(requires: ADMIN)
+    getBatchJob(batchId: ID!): BatchIssuanceJob @auth(requires: ADMIN)
+    cancelBatchJob(batchId: ID!): BatchIssuanceJob! @auth(requires: ADMIN)
+    fixPendingCertificates: FixPendingCertificatesResult! @auth(requires: ADMIN)
+
     # Certificate Revocation
     revokeCertificate(input: RevokeCertificateInput!): Certificate! @auth(requires: ADMIN)
 
@@ -773,6 +858,7 @@ input StudentAchievementInput {
   enum Role {
     SUPER_ADMIN
     ADMIN
+    STUDENT
   }
   
   directive @auth(requires: Role!) on FIELD_DEFINITION

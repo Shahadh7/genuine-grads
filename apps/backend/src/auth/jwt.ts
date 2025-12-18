@@ -3,9 +3,9 @@ import { env } from '../env.js';
 import { logger } from '../utils/logger.js';
 
 export interface JWTPayload {
-  sub: string; // Admin ID
-  type: 'admin' | 'super_admin';
-  universityId?: string; // For university admins
+  sub: string; // Admin ID or Student ID
+  type: 'admin' | 'super_admin' | 'student';
+  universityId?: string; // For university admins and students
   email: string;
   iat?: number;
   exp?: number;

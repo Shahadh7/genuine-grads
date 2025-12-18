@@ -15,6 +15,12 @@ export interface GraphQLContext {
     isSuperAdmin: boolean;
     universityId?: string;
   };
+  student?: {
+    id: string;
+    email: string;
+    universityId?: string; // Optional - students are not tied to a single university
+    walletAddress?: string;
+  };
   universityDb?: UniversityPrismaClient;
 }
 
@@ -32,35 +38,60 @@ export async function createContext({ req, res }: { req: Request; res: Response 
       const payload = verifyAccessToken(token);
       context.auth = payload;
 
-      // Fetch admin details from database
-      const admin = await sharedDb.admin.findUnique({
-        where: { id: payload.sub },
-        select: {
-          id: true,
-          email: true,
-          isSuperAdmin: true,
-          universityId: true,
-          isActive: true,
-        },
-      });
+      // Handle student authentication
+      if (payload.type === 'student') {
+        // For students, verify they exist in GlobalStudentIndex
+        // Students are not tied to a single university - they can have certificates from multiple universities
+        const walletAddress = payload.email; // email field contains wallet address for students
+        const globalStudent = await sharedDb.globalStudentIndex.findUnique({
+          where: { walletAddress },
+          select: {
+            id: true,
+            walletAddress: true,
+            createdByUniversityId: true,
+          },
+        });
 
-      if (admin && admin.isActive) {
-        context.admin = {
-          id: admin.id,
-          email: admin.email,
-          isSuperAdmin: admin.isSuperAdmin,
-          universityId: admin.universityId || undefined,
-        };
+        if (globalStudent) {
+          // Set student context with wallet address as identifier
+          context.student = {
+            id: globalStudent.id, // GlobalStudentIndex ID
+            email: walletAddress, // Use wallet as "email" for consistency
+            universityId: undefined, // Students are not tied to a single university
+            walletAddress: walletAddress,
+          };
+        }
+      } else {
+        // Fetch admin details from database
+        const admin = await sharedDb.admin.findUnique({
+          where: { id: payload.sub },
+          select: {
+            id: true,
+            email: true,
+            isSuperAdmin: true,
+            universityId: true,
+            isActive: true,
+          },
+        });
 
-        // If university admin, get university database connection
-        if (admin.universityId) {
-          const university = await sharedDb.university.findUnique({
-            where: { id: admin.universityId },
-            select: { databaseUrl: true },
-          });
+        if (admin && admin.isActive) {
+          context.admin = {
+            id: admin.id,
+            email: admin.email,
+            isSuperAdmin: admin.isSuperAdmin,
+            universityId: admin.universityId || undefined,
+          };
 
-          if (university?.databaseUrl) {
-            context.universityDb = getUniversityDb(university.databaseUrl);
+          // If university admin, get university database connection
+          if (admin.universityId) {
+            const university = await sharedDb.university.findUnique({
+              where: { id: admin.universityId },
+              select: { databaseUrl: true },
+            });
+
+            if (university?.databaseUrl) {
+              context.universityDb = getUniversityDb(university.databaseUrl);
+            }
           }
         }
       }
@@ -113,5 +144,16 @@ export function requireUniversityDb(context: GraphQLContext): UniversityPrismaCl
     throw new Error('University database not available');
   }
   return context.universityDb;
+}
+
+/**
+ * Check if user is a student and return student info
+ * Note: Students are not tied to a single university, so we don't check for universityDb
+ */
+export function requireStudent(context: GraphQLContext): NonNullable<GraphQLContext['student']> {
+  if (!context.auth || !context.student) {
+    throw new Error('Not authenticated as student');
+  }
+  return context.student;
 }
 

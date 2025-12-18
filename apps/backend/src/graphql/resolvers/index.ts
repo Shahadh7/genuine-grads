@@ -5,6 +5,7 @@ import { studentQueries } from './queries/student.queries.js';
 import { certificateQueries } from './queries/certificate.queries.js';
 import { publicQueries } from './queries/public.queries.js';
 import { authMutations } from './mutations/auth.mutations.js';
+import { studentAuthMutations } from './mutations/student-auth.mutations.js';
 import { universityMutations } from './mutations/university.mutations.js';
 import { studentMutations } from './mutations/student.mutations.js';
 import { certificateMutations } from './mutations/certificate.mutations.js';
@@ -38,16 +39,17 @@ export const resolvers: Record<string, any> = {
   Mutation: {
     // Auth
     ...authMutations,
-    
+    ...studentAuthMutations,
+
     // University
     ...universityMutations,
-    
+
     // Students
     ...studentMutations,
-    
+
     // Certificates
     ...certificateMutations,
-    
+
     // Solana transactions (integrated into university/certificate mutations)
     ...solanaMutations,
   },
@@ -106,7 +108,12 @@ export const resolvers: Record<string, any> = {
 
   Certificate: {
     metadata: (parent: any) => {
-      // Parse metadataJson if it's a string
+      // If metadata is already provided (from myCertificates query), use it
+      if (parent.metadata !== undefined) {
+        return parent.metadata;
+      }
+
+      // Otherwise, parse metadataJson if it's a string
       if (typeof parent.metadataJson === 'string') {
         try {
           return JSON.parse(parent.metadataJson);

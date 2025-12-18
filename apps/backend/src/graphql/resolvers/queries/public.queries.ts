@@ -209,6 +209,47 @@ export const publicQueries = {
         'Certificate found and verified'
       );
 
+      // Log verification attempt in the database
+      // Check if there's a recent log entry (within last 5 seconds) to prevent duplicates
+      try {
+        const fiveSecondsAgo = new Date(Date.now() - 5000);
+        const recentLog = await universityDb.verificationLog.findFirst({
+          where: {
+            certificateId: certificate.id,
+            verifierIpAddress: context.req.ip || 'unknown',
+            verifiedAt: {
+              gte: fiveSecondsAgo,
+            },
+          },
+          orderBy: {
+            verifiedAt: 'desc',
+          },
+        });
+
+        if (!recentLog) {
+          await universityDb.verificationLog.create({
+            data: {
+              studentId: certificate.studentId,
+              certificateId: certificate.id,
+              verifiedAt: new Date(),
+              verificationType: 'PUBLIC',
+              verificationStatus: certificate.revoked ? 'FAILED' : 'SUCCESS',
+              verifierIpAddress: context.req.ip || 'unknown',
+              verifierUserAgent: context.req.headers['user-agent'] || null,
+              certificateNumber: certificate.certificateNumber,
+              mintAddress: certificate.mintAddress,
+              errorMessage: certificate.revoked ? `Certificate revoked: ${certificate.revocationReason}` : null,
+            },
+          });
+          logger.info({ certificateId: certificate.id }, 'Verification log created');
+        } else {
+          logger.info({ certificateId: certificate.id }, 'Skipped duplicate verification log (recent entry exists)');
+        }
+      } catch (logError) {
+        // Don't fail verification if logging fails
+        logger.error({ error: logError, certificateId: certificate.id }, 'Failed to create verification log');
+      }
+
       // Parse metadata to extract achievements
       let achievements: string[] = [];
       if (certificate.metadataJson) {

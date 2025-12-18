@@ -1452,6 +1452,201 @@ class GraphQLClient {
 
     return this.request<{ mintCertificate: any }>(mutation, params);
   }
+
+  // ============================================
+  // STUDENT AUTHENTICATION
+  // ============================================
+
+  async studentLoginWithWallet(walletAddress: string) {
+    const mutation = `
+      mutation StudentLoginWithWallet($walletAddress: String!) {
+        studentLoginWithWallet(walletAddress: $walletAddress) {
+          student {
+            id
+            email
+            fullName
+            studentNumber
+            walletAddress
+            program
+            department
+            enrollmentYear
+            graduationYear
+            profilePicUrl
+            isActive
+          }
+          accessToken
+          refreshToken
+        }
+      }
+    `;
+
+    return this.request<{
+      studentLoginWithWallet: {
+        student: any;
+        accessToken: string;
+        refreshToken: string;
+      };
+    }>(mutation, { walletAddress });
+  }
+
+  async meStudent() {
+    const query = `
+      query MeStudent {
+        meStudent {
+          id
+          email
+          fullName
+          studentNumber
+          walletAddress
+          program
+          department
+          enrollmentYear
+          graduationYear
+          profilePicUrl
+          isActive
+          certificates {
+            id
+            certificateNumber
+            badgeTitle
+            description
+            degreeType
+            mintAddress
+            status
+            issuedAt
+            revoked
+          }
+          enrollments {
+            id
+            gpa
+            grade
+            batchYear
+            course {
+              id
+              name
+              code
+              department
+            }
+          }
+          achievements {
+            id
+            awardedAt
+            notes
+            achievement {
+              id
+              title
+              description
+              category
+            }
+          }
+        }
+      }
+    `;
+
+    return this.request<{ meStudent: any }>(query);
+  }
+
+  async myCertificates() {
+    const query = `
+      query MyCertificates {
+        myCertificates {
+          id
+          certificateNumber
+          badgeTitle
+          description
+          degreeType
+          mintAddress
+          merkleTreeAddress
+          ipfsMetadataUri
+          transactionSignature
+          status
+          issuedAt
+          revoked
+          revokedAt
+          revocationReason
+          metadata
+          achievementIds
+          student {
+            id
+            fullName
+            email
+          }
+          enrollment {
+            id
+            course {
+              name
+              code
+            }
+          }
+        }
+      }
+    `;
+
+    return this.request<{ myCertificates: any[] }>(query);
+  }
+
+  async myAchievements() {
+    const query = `
+      query MyAchievements {
+        myAchievements {
+          id
+          awardedAt
+          notes
+          achievement {
+            id
+            title
+            description
+            category
+            isActive
+          }
+        }
+      }
+    `;
+
+    return this.request<{ myAchievements: any[] }>(query);
+  }
+
+  async myVerificationLogs(limit: number = 50, offset: number = 0) {
+    const query = `
+      query MyVerificationLogs($limit: Int, $offset: Int) {
+        myVerificationLogs(limit: $limit, offset: $offset) {
+          id
+          verifiedAt
+          verificationType
+          verificationStatus
+          verifierIpAddress
+          verifierLocation
+          verifierUserAgent
+          certificateNumber
+          mintAddress
+          errorMessage
+          certificate {
+            id
+            certificateNumber
+            badgeTitle
+            mintAddress
+            status
+            issuedAt
+          }
+        }
+      }
+    `;
+
+    return this.request<{ myVerificationLogs: any[] }>(query, { limit, offset });
+  }
+
+  async myVerificationLogStats() {
+    const query = `
+      query MyVerificationLogStats {
+        myVerificationLogStats {
+          total
+          successful
+          failed
+        }
+      }
+    `;
+
+    return this.request<{ myVerificationLogStats: { total: number; successful: number; failed: number } }>(query);
+  }
 }
 
 export const graphqlClient = new GraphQLClient(GRAPHQL_ENDPOINT);

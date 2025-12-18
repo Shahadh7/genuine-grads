@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -41,10 +41,16 @@ export default function CertificatePage(): React.JSX.Element {
   const [copied, setCopied] = useState<string | null>(null)
   const [certificateImageUrl, setCertificateImageUrl] = useState<string | null>(null)
   const [loadingImage, setLoadingImage] = useState<boolean>(false)
+  const hasLoadedRef = useRef<boolean>(false)
   const isLikelyMintAddress = (value: string) => /^[1-9A-HJ-NP-Za-km-z]{32,}$/.test(String(value))
 
   useEffect(() => {
     const loadCertificate = async () => {
+      // Prevent duplicate calls - only load once per certificateId
+      if (hasLoadedRef.current || !certificateId) return
+
+      hasLoadedRef.current = true
+
       try {
         setLoading(true)
         setError(null)
@@ -58,14 +64,13 @@ export default function CertificatePage(): React.JSX.Element {
         setVerification(result)
       } catch (err: any) {
         setError(err?.message || 'Failed to verify certificate')
+        hasLoadedRef.current = false // Allow retry on error
       } finally {
         setLoading(false)
       }
     }
 
-    if (certificateId) {
-      loadCertificate()
-    }
+    loadCertificate()
   }, [certificateId])
 
   const formatDate = (dateString?: string | null) => {

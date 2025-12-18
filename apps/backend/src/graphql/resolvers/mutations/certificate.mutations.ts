@@ -656,5 +656,296 @@ export const certificateMutations = {
       });
     }
   },
+
+  /**
+   * Prepare batch minting - prepares transactions for multiple certificates
+   * Returns unsigned transactions for client-side wallet signing
+   */
+  async prepareBatchMinting(
+    _: any,
+    { certificateIds }: { certificateIds: string[] },
+    context: GraphQLContext
+  ) {
+    requireUniversityAdmin(context);
+    const universityDb = requireUniversityDb(context);
+
+    if (!certificateIds || certificateIds.length === 0) {
+      throw new GraphQLError('No certificates provided', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    logger.info(
+      {
+        certificateIds,
+        count: certificateIds.length,
+      },
+      'Preparing batch minting'
+    );
+
+    // Fetch all certificates with student data
+    const certificates = await universityDb.certificate.findMany({
+      where: {
+        id: { in: certificateIds },
+        status: 'PENDING', // Only allow minting of pending certificates
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            walletAddress: true,
+          },
+        },
+      },
+    });
+
+    if (certificates.length === 0) {
+      throw new GraphQLError('No pending certificates found', {
+        extensions: { code: 'BAD_USER_INPUT' },
+      });
+    }
+
+    // Check for missing wallet addresses
+    const missingWallets = certificates.filter((cert) => !cert.student.walletAddress);
+    if (missingWallets.length > 0) {
+      throw new GraphQLError(
+        `${missingWallets.length} student(s) do not have wallet addresses: ${missingWallets
+          .map((c) => c.student.fullName)
+          .join(', ')}`,
+        {
+          extensions: { code: 'BAD_USER_INPUT' },
+        }
+      );
+    }
+
+    // Create batch job record
+    const batchJob = await universityDb.batchIssuanceJob.create({
+      data: {
+        universityId: context.admin!.universityId!,
+        batchName: `Batch ${new Date().toISOString()}`,
+        totalCertificates: certificates.length,
+        certificateIds: certificates.map((c) => c.id),
+        status: 'PENDING',
+        createdByAdminId: context.admin!.id,
+      },
+    });
+
+    // Prepare response with certificate details (transactions will be prepared one-by-one on frontend)
+    const batchData = {
+      batchId: batchJob.id,
+      totalCertificates: certificates.length,
+      estimatedTimeMinutes: Math.ceil((certificates.length * 5) / 60), // ~5 seconds per cert
+      certificates: certificates.map((cert) => ({
+        certificateId: cert.id,
+        certificateNumber: cert.certificateNumber,
+        studentName: cert.student.fullName,
+        studentWallet: cert.student.walletAddress!,
+        badgeTitle: cert.badgeTitle,
+      })),
+    };
+
+    logger.info(
+      {
+        batchId: batchJob.id,
+        certificateCount: certificates.length,
+      },
+      'Batch minting prepared'
+    );
+
+    return batchData;
+  },
+
+  /**
+   * Update batch job progress
+   * Called by frontend after each certificate is processed
+   */
+  async updateBatchProgress(
+    _: any,
+    {
+      batchId,
+      certificateId,
+      success,
+      signature,
+      error,
+    }: {
+      batchId: string;
+      certificateId: string;
+      success: boolean;
+      signature?: string;
+      error?: string;
+    },
+    context: GraphQLContext
+  ) {
+    requireUniversityAdmin(context);
+    const universityDb = requireUniversityDb(context);
+
+    // Fetch batch job
+    const batchJob = await universityDb.batchIssuanceJob.findUnique({
+      where: { id: batchId },
+    });
+
+    if (!batchJob) {
+      throw new GraphQLError('Batch job not found', {
+        extensions: { code: 'NOT_FOUND' },
+      });
+    }
+
+    // Update batch job progress
+    const updates: any = {
+      processedCount: { increment: 1 },
+    };
+
+    if (success) {
+      updates.successCount = { increment: 1 };
+      updates.successfulMints = {
+        push: certificateId,
+      };
+    } else {
+      updates.failedCount = { increment: 1 };
+
+      // Parse existing failed mints
+      const failedMints = batchJob.failedMints ? JSON.parse(batchJob.failedMints) : [];
+      failedMints.push({
+        certId: certificateId,
+        error: error || 'Unknown error',
+        timestamp: new Date().toISOString(),
+      });
+
+      updates.failedMints = JSON.stringify(failedMints);
+    }
+
+    // Update status based on progress
+    if (batchJob.processedCount + 1 >= batchJob.totalCertificates) {
+      updates.status = 'COMPLETED';
+      updates.completedAt = new Date();
+    } else if (batchJob.status === 'PENDING') {
+      updates.status = 'PROCESSING';
+      updates.startedAt = new Date();
+    }
+
+    const updatedBatch = await universityDb.batchIssuanceJob.update({
+      where: { id: batchId },
+      data: updates,
+    });
+
+    logger.info(
+      {
+        batchId,
+        certificateId,
+        success,
+        signature,
+        progress: `${updatedBatch.processedCount}/${updatedBatch.totalCertificates}`,
+      },
+      'Batch progress updated'
+    );
+
+    return {
+      batchId: updatedBatch.id,
+      status: updatedBatch.status,
+      processedCount: updatedBatch.processedCount,
+      successCount: updatedBatch.successCount,
+      failedCount: updatedBatch.failedCount,
+      totalCertificates: updatedBatch.totalCertificates,
+    };
+  },
+
+  /**
+   * Get batch job status
+   */
+  async getBatchJob(_: any, { batchId }: { batchId: string }, context: GraphQLContext) {
+    requireUniversityAdmin(context);
+    const universityDb = requireUniversityDb(context);
+
+    const batchJob = await universityDb.batchIssuanceJob.findUnique({
+      where: { id: batchId },
+    });
+
+    if (!batchJob) {
+      throw new GraphQLError('Batch job not found', {
+        extensions: { code: 'NOT_FOUND' },
+      });
+    }
+
+    return {
+      ...batchJob,
+      failedMints: batchJob.failedMints ? JSON.parse(batchJob.failedMints) : [],
+    };
+  },
+
+  /**
+   * Cancel batch job
+   */
+  async cancelBatchJob(_: any, { batchId }: { batchId: string }, context: GraphQLContext) {
+    requireUniversityAdmin(context);
+    const universityDb = requireUniversityDb(context);
+
+    const updatedBatch = await universityDb.batchIssuanceJob.update({
+      where: { id: batchId },
+      data: {
+        status: 'CANCELLED',
+        completedAt: new Date(),
+      },
+    });
+
+    logger.info({ batchId }, 'Batch job cancelled');
+
+    return updatedBatch;
+  },
+
+  /**
+   * Fix certificates that were minted on-chain but confirmation failed
+   * Updates PENDING certificates that have transaction signatures to MINTED status
+   */
+  async fixPendingCertificates(_: any, __: any, context: GraphQLContext) {
+    requireUniversityAdmin(context);
+    const universityDb = requireUniversityDb(context);
+
+    // Find certificates with signatures but PENDING status
+    const pendingCerts = await universityDb.certificate.findMany({
+      where: {
+        status: 'PENDING',
+        transactionSignature: {
+          not: null,
+        },
+      },
+    });
+
+    if (pendingCerts.length === 0) {
+      return {
+        success: true,
+        message: 'No certificates need fixing',
+        fixed: 0,
+      };
+    }
+
+    // Update all to MINTED
+    const result = await universityDb.certificate.updateMany({
+      where: {
+        status: 'PENDING',
+        transactionSignature: {
+          not: null,
+        },
+      },
+      data: {
+        status: 'MINTED',
+      },
+    });
+
+    logger.info(
+      {
+        count: result.count,
+        universityId: context.admin!.universityId,
+      },
+      'Fixed pending certificates'
+    );
+
+    return {
+      success: true,
+      message: `Successfully updated ${result.count} certificate(s) to MINTED status`,
+      fixed: result.count,
+    };
+  },
 };
 

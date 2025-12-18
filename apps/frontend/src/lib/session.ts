@@ -110,11 +110,22 @@ export const createSessionFromAdmin = (admin: any): UserSession => {
   };
 };
 
+export const createSessionFromStudent = (student: any): UserSession => {
+  return {
+    id: student.id,
+    email: student.email,
+    fullName: student.fullName,
+    role: 'student',
+    walletAddress: student.walletAddress,
+  };
+};
+
 export const validateSession = async (): Promise<UserSession | null> => {
   if (typeof window === 'undefined') return null;
 
   const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
   const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+  const existingSession = getSession();
 
   const clearAndReturn = () => {
     clearSession();
@@ -125,36 +136,60 @@ export const validateSession = async (): Promise<UserSession | null> => {
     return clearAndReturn();
   }
 
-  try {
-    const response = await graphqlClient.me();
+  // Check if it's a student session by looking at stored session role
+  const isStudentSession = existingSession?.role === 'student';
 
-    if (response.data?.me) {
-      const session = createSessionFromAdmin(response.data.me);
-      storeSession(session);
-      return session;
+  try {
+    if (isStudentSession) {
+      // Validate student session
+      const response = await graphqlClient.meStudent();
+
+      if (response.data?.meStudent) {
+        const session = createSessionFromStudent(response.data.meStudent);
+        storeSession(session);
+        return session;
+      }
+      // Student session validation failed
+      return clearAndReturn();
+    } else {
+      // Validate admin session
+      const response = await graphqlClient.me();
+
+      if (response.data?.me) {
+        const session = createSessionFromAdmin(response.data.me);
+        storeSession(session);
+        return session;
+      }
     }
   } catch (error) {
     console.error('Session validation failed:', error);
+    // If student session validation fails, clear and return
+    if (isStudentSession) {
+      return clearAndReturn();
+    }
   }
 
   if (!refreshToken) {
     return clearAndReturn();
   }
 
-  try {
-    const refreshResponse = await graphqlClient.refreshAccessToken();
-    if (refreshResponse.data?.refreshToken) {
-      const admin = refreshResponse.data.refreshToken.admin;
-      const session = createSessionFromAdmin(admin);
-      storeSession(session);
-      return session;
-    }
+  // Only try refresh for admin sessions (students don't have refresh tokens)
+  if (!isStudentSession) {
+    try {
+      const refreshResponse = await graphqlClient.refreshAccessToken();
+      if (refreshResponse.data?.refreshToken) {
+        const admin = refreshResponse.data.refreshToken.admin;
+        const session = createSessionFromAdmin(admin);
+        storeSession(session);
+        return session;
+      }
 
-    if (refreshResponse.errors) {
-      console.error('Token refresh errors:', refreshResponse.errors);
+      if (refreshResponse.errors) {
+        console.error('Token refresh errors:', refreshResponse.errors);
+      }
+    } catch (refreshError) {
+      console.error('Token refresh failed:', refreshError);
     }
-  } catch (refreshError) {
-    console.error('Token refresh failed:', refreshError);
   }
 
   return clearAndReturn();

@@ -1277,8 +1277,17 @@ async function confirmTransaction(
         logger.info({ universityId: metadata.universityId }, 'Updated university with collection addresses');
       } else if (operationType === 'mint_certificate') {
         // Update certificate status in university database
+        // First, get university ID from context or fetch certificate
+        let universityId = metadata.universityId || context.admin?.universityId;
+
+        if (!universityId) {
+          throw new GraphQLError('University ID not found in metadata or context', {
+            extensions: { code: 'BAD_USER_INPUT' },
+          });
+        }
+
         const university = await sharedDb.university.findUnique({
-          where: { id: metadata.universityId },
+          where: { id: universityId },
         });
 
         if (university?.databaseUrl) {

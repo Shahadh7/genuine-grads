@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import SolanaWalletProvider from "@/components/wallet/wallet-provider"
 import LayoutWrapper from "@/components/layout-wrapper"
 import { ToastProvider } from "@/components/ui/toast-provider"
+import { NavigationLoader } from "@/components/navigation/NavigationLoader"
 import { Metadata } from "next"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -66,6 +67,7 @@ export default function RootLayout({ children }: RootLayoutProps): React.React.J
         >
           <SolanaWalletProvider>
             <ToastProvider>
+              <NavigationLoader />
               <LayoutWrapper>
                 {children}
               </LayoutWrapper>

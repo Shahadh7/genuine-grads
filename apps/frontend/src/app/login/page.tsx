@@ -226,6 +226,35 @@ export default function LoginPage(): React.JSX.Element {
           </CardContent>
         </Card>
 
+        {/* Student Login */}
+        <div className="mt-6">
+          <Card className="border-border/50 bg-muted/30 shadow-md">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 rounded-lg">
+                    <GraduationCap className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">Student?</p>
+                    <p className="text-sm text-muted-foreground">Login with your wallet</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-primary/50 text-primary hover:bg-primary hover:text-primary-foreground"
+                  onClick={() => router.push('/student-login')}
+                  disabled={loading}
+                >
+                  Student Login
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Back to Home */}
         <div className="text-center mt-6">
           <Button

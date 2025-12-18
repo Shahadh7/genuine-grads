@@ -3,15 +3,16 @@ import React from "react"
 
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import { useWallet } from '@solana/wallet-adapter-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
-import { 
-  GraduationCap, 
-  Award, 
-  Trophy, 
-  Shield, 
-  User, 
+import {
+  GraduationCap,
+  Award,
+  Trophy,
+  Shield,
+  User,
   LogOut,
   Menu,
   X,
@@ -64,12 +65,13 @@ interface Props {
   // Add props here
 }
 
-export default function StudentLayout({children}): React.React.JSX.Element {
+export default function StudentLayout({children}): React.JSX.Element {
   const [sidebarOpen, setSidebarOpen] = useState<any>(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<any>(false);
   const router = useRouter();
   const pathname = usePathname();
   const { session, loading } = useRoleGuard(['student']);
+  const { disconnect } = useWallet();
 
   const handleLogout = async () => {
     try {
@@ -77,8 +79,12 @@ export default function StudentLayout({children}): React.React.JSX.Element {
     } catch (error) {
       console.warn('Student logout failed, clearing session locally.', error);
     } finally {
+      // Disconnect wallet to prevent auto-login
+      if (disconnect) {
+        await disconnect();
+      }
       clearSession();
-      router.push('/login');
+      router.push('/student-login');
     }
   };
 
