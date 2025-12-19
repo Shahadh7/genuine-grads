@@ -11,153 +11,199 @@ import {
   ArrowRight,
   Sparkles,
   TrendingUp,
-  Blocks
+  Blocks,
+  Wallet,
+  Globe,
+  CheckCircle2,
+  Award,
+  Fingerprint
 } from "lucide-react"
 import Link from "next/link"
 
 const HeroSection = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden py-20">
-      {/* Animated background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+    <section className="relative min-h-screen flex items-center overflow-hidden">
+      {/* Ultra-modern Background */}
+      <div className="absolute inset-0">
+        {/* Gradient mesh background */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-background"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent"></div>
+
+        {/* Animated grid */}
+        <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]"></div>
+
+        {/* Floating geometric shapes */}
+        <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-primary/5 rotate-45 rounded-3xl blur-3xl animate-float"></div>
+        <div className="absolute bottom-1/3 left-1/3 w-80 h-80 bg-primary/5 rotate-12 rounded-full blur-3xl animate-float" style={{animationDelay: '2s'}}></div>
       </div>
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid lg:grid-cols-2 gap-8 items-center max-w-7xl mx-auto">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-20">
+        <div className="grid lg:grid-cols-2 gap-16 items-center max-w-7xl mx-auto">
 
-          {/* Left Column - Content */}
-          <div className="space-y-8 animate-fade-in">
-            <div>
-              <Badge variant="outline" className="mb-6 border-primary/40 bg-primary/10 text-primary px-4 py-2 backdrop-blur-sm">
-                <Blocks className="w-4 h-4 mr-2 inline" />
-                Powered by Solana Blockchain
-              </Badge>
+          {/* LEFT: Content */}
+          <div className="space-y-8 lg:pr-8">
+            {/* Floating badge */}
+            <div className="inline-flex animate-scale-in">
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-primary via-primary/80 to-primary/60 rounded-full blur opacity-25 group-hover:opacity-40 transition duration-500"></div>
+                <div className="relative flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary/20 via-primary/15 to-primary/10 border border-primary/30 rounded-full backdrop-blur-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="relative">
+                      <Blocks className="w-4 h-4 text-primary" />
+                      <div className="absolute inset-0 bg-primary/50 blur-sm animate-pulse"></div>
+                    </div>
+                    <span className="text-sm font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                      Solana
+                    </span>
+                  </div>
+                  <div className="w-1 h-1 rounded-full bg-primary/60 animate-pulse"></div>
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
+                      ZK Proofs
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight mb-6 leading-tight">
-                <span className="block mb-2">Academic</span>
-                <span className="block mb-2">Credentials</span>
-                <span className="bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
-                  On-Chain
+            {/* Massive headline */}
+            <div className="space-y-4 animate-fade-in" style={{animationDelay: '0.1s'}}>
+              <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black tracking-tight leading-none">
+                <span className="block text-foreground">Your</span>
+                <span className="block text-foreground">Credentials.</span>
+                <span className="block bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent bg-300 animate-gradient-shift">
+                  On-Chain.
                 </span>
               </h1>
 
-              <p className="text-xl text-muted-foreground mb-8 max-w-xl leading-relaxed">
-                Issue tamper-proof NFT certificates with zero-knowledge proofs.
-                Instant verification at <span className="text-primary font-semibold">$0.01</span> per certificate.
+              <p className="text-xl sm:text-2xl text-muted-foreground max-w-lg leading-relaxed font-light">
+                Issue tamper-proof NFT certificates with <span className="text-primary font-semibold">zero-knowledge proofs</span>. Verify instantly at <span className="text-primary font-semibold">$0.01</span> per certificate.
               </p>
-
-              {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/admin/universities/register">
-                  <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-7 text-lg shadow-xl shadow-primary/30 group w-full sm:w-auto">
-                    Get Started
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-                <Link href="/verify">
-                  <Button variant="outline" size="lg" className="border-2 hover:bg-accent font-semibold px-8 py-7 text-lg w-full sm:w-auto">
-                    <QrCode className="mr-2 h-5 w-5" />
-                    Verify Now
-                  </Button>
-                </Link>
-              </div>
-
-              {/* Student Login Link */}
-              <div className="pt-6">
-                <Link
-                  href="/student-login"
-                  className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors group"
-                >
-                  <Sparkles className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />
-                  <span className="font-medium">Student? Access your certificates here</span>
-                  <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-3 gap-4 pt-8 border-t border-border/50">
+            {/* CTA Group */}
+            <div className="flex flex-col sm:flex-row gap-4 animate-scale-in" style={{animationDelay: '0.2s'}}>
+              <Link href="/admin/universities/register" className="sm:w-auto">
+                <Button size="lg" className="relative group bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-7 text-lg font-bold shadow-2xl shadow-primary/40 overflow-hidden w-full sm:w-auto">
+                  <span className="relative z-10 flex items-center justify-center">
+                    Start Issuing
+                    <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-2 transition-transform" />
+                  </span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+                </Button>
+              </Link>
+
+              <Link href="/verify" className="sm:w-auto">
+                <Button variant="outline" size="lg" className="border-2 px-10 py-7 text-lg font-bold hover:bg-primary/5 hover:border-primary/50 transition-all w-full sm:w-auto">
+                  <QrCode className="mr-3 h-5 w-5" />
+                  Verify Certificate
+                </Button>
+              </Link>
+            </div>
+
+            {/* Trust metrics */}
+            <div className="grid grid-cols-3 gap-6 pt-8 border-t border-border/30 animate-fade-in" style={{animationDelay: '0.3s'}}>
               <div>
-                <div className="text-3xl font-bold text-primary mb-1">50K+</div>
-                <div className="text-sm text-muted-foreground">Certificates</div>
+                <div className="text-4xl font-black text-primary mb-1">50K+</div>
+                <div className="text-sm text-muted-foreground font-medium">Certificates</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-primary mb-1">&lt;1s</div>
-                <div className="text-sm text-muted-foreground">Verification</div>
+                <div className="text-4xl font-black text-primary mb-1">&lt;1s</div>
+                <div className="text-sm text-muted-foreground font-medium">Verification</div>
               </div>
               <div>
-                <div className="text-3xl font-bold text-primary mb-1">100+</div>
-                <div className="text-sm text-muted-foreground">Universities</div>
+                <div className="text-4xl font-black text-primary mb-1">100+</div>
+                <div className="text-sm text-muted-foreground font-medium">Universities</div>
               </div>
             </div>
           </div>
 
-          {/* Right Column - Bento Grid */}
-          <div className="grid grid-cols-2 gap-4 animate-fade-in" style={{animationDelay: '0.2s'}}>
+          {/* RIGHT: 3D Showcase Bento Grid */}
+          <div className="relative animate-scale-in" style={{animationDelay: '0.2s'}}>
+            {/* Main container with perspective */}
+            <div className="relative h-[600px] lg:h-[700px]">
 
-            {/* Large Card - Top Left */}
-            <div className="col-span-2 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent backdrop-blur-sm border border-primary/30 rounded-3xl p-8 hover:shadow-2xl hover:shadow-primary/20 transition-all duration-500 group">
-              <div className="flex items-start justify-between mb-6">
-                <div className="p-4 rounded-2xl bg-primary/20 group-hover:bg-primary/30 transition-colors">
-                  <Shield className="h-8 w-8 text-primary" />
+              {/* Large hero card - floating */}
+              <div className="absolute top-0 left-0 right-0 h-64 animate-float">
+                <div className="relative h-full bg-gradient-to-br from-primary/30 via-primary/20 to-primary/10 backdrop-blur-xl border-2 border-primary/40 rounded-[2rem] p-8 shadow-2xl shadow-primary/20 overflow-hidden group hover:scale-[1.02] transition-all duration-500">
+                  {/* Animated shimmer */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+
+                  <div className="relative z-10">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="p-4 rounded-2xl bg-primary/30 backdrop-blur-sm">
+                        <Shield className="h-10 w-10 text-white" />
+                      </div>
+                      <Badge className="bg-primary/20 border-primary/30 text-white backdrop-blur-sm px-4 py-1.5">
+                        Zero-Knowledge
+                      </Badge>
+                    </div>
+                    <h3 className="text-3xl font-black text-white mb-3">
+                      Privacy-First
+                    </h3>
+                    <p className="text-white/80 text-lg leading-relaxed">
+                      Verify credentials without exposing sensitive student data
+                    </p>
+                  </div>
                 </div>
-                <Badge variant="secondary" className="bg-primary/10 border-primary/20">ZK Proofs</Badge>
               </div>
-              <h3 className="text-3xl font-bold mb-3 group-hover:text-primary transition-colors">
-                Privacy-First
-              </h3>
-              <p className="text-muted-foreground text-lg">
-                Zero-knowledge verification without exposing sensitive data
-              </p>
-              <div className="mt-6 pt-6 border-t border-border/50 flex items-center gap-2 text-sm text-primary">
-                <TrendingUp className="h-4 w-4" />
-                <span className="font-semibold">100% Secure</span>
-              </div>
-            </div>
 
-            {/* Small Card - Bottom Left */}
-            <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-6 hover:border-primary/30 hover:shadow-xl transition-all duration-500 group">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 mb-4 inline-block group-hover:scale-110 transition-transform">
-                <Zap className="h-7 w-7 text-primary" />
-              </div>
-              <div className="text-4xl font-bold text-primary mb-2">$0.01</div>
-              <p className="text-sm text-muted-foreground">Per certificate on Solana</p>
-            </div>
+              {/* Bottom row - 3 cards */}
+              <div className="absolute bottom-0 left-0 right-0 grid grid-cols-3 gap-4">
 
-            {/* Small Card - Bottom Right */}
-            <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-6 hover:border-primary/30 hover:shadow-xl transition-all duration-500 group">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 mb-4 inline-block group-hover:scale-110 transition-transform">
-                <Lock className="h-7 w-7 text-primary" />
-              </div>
-              <div className="text-4xl font-bold text-primary mb-2">100%</div>
-              <p className="text-sm text-muted-foreground">Tamper-proof & immutable</p>
-            </div>
+                {/* Cost card */}
+                <div className="relative bg-gradient-to-br from-card via-card/95 to-card/90 backdrop-blur-md border border-border/50 rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:border-primary/30 transition-all duration-300 group overflow-hidden" style={{animationDelay: '0.3s'}}>
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-colors"></div>
+                  <div className="relative z-10">
+                    <Zap className="h-8 w-8 text-primary mb-4 animate-pulse" />
+                    <div className="text-3xl font-black text-primary mb-1">$0.01</div>
+                    <div className="text-xs text-muted-foreground font-medium">Per cert</div>
+                  </div>
+                </div>
 
-            {/* Tech Stack Badge Row */}
-            <div className="col-span-2 bg-gradient-to-r from-card/50 to-card/30 backdrop-blur-sm border border-border/50 rounded-3xl p-6">
-              <p className="text-xs text-muted-foreground mb-3 font-semibold">BUILT WITH</p>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary" className="px-3 py-1.5 bg-primary/10 border-primary/20 hover:bg-primary/20 transition-colors">
-                  Solana
-                </Badge>
-                <Badge variant="secondary" className="px-3 py-1.5 bg-primary/10 border-primary/20 hover:bg-primary/20 transition-colors">
-                  Metaplex
-                </Badge>
-                <Badge variant="secondary" className="px-3 py-1.5 bg-primary/10 border-primary/20 hover:bg-primary/20 transition-colors">
-                  Helius
-                </Badge>
-                <Badge variant="secondary" className="px-3 py-1.5 bg-primary/10 border-primary/20 hover:bg-primary/20 transition-colors">
-                  ZK Proofs
-                </Badge>
-                <Badge variant="secondary" className="px-3 py-1.5 bg-primary/10 border-primary/20 hover:bg-primary/20 transition-colors">
-                  NFTs
-                </Badge>
-              </div>
-            </div>
+                {/* Security card */}
+                <div className="relative bg-gradient-to-br from-card via-card/95 to-card/90 backdrop-blur-md border border-border/50 rounded-2xl p-6 shadow-xl hover:shadow-2xl hover:border-primary/30 transition-all duration-300 group overflow-hidden" style={{animationDelay: '0.4s'}}>
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-green-500/10 rounded-full blur-2xl group-hover:bg-green-500/20 transition-colors"></div>
+                  <div className="relative z-10">
+                    <Lock className="h-8 w-8 text-primary mb-4" />
+                    <div className="text-3xl font-black text-primary mb-1">100%</div>
+                    <div className="text-xs text-muted-foreground font-medium">Secure</div>
+                  </div>
+                </div>
 
+                {/* Blockchain card */}
+                <div className="relative bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 backdrop-blur-md border border-primary/30 rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all duration-300 group overflow-hidden" style={{animationDelay: '0.5s'}}>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-shimmer"></div>
+                  <div className="relative z-10">
+                    <Wallet className="h-8 w-8 text-primary mb-4" />
+                    <div className="text-2xl font-black text-primary mb-1">Solana</div>
+                    <div className="text-xs text-muted-foreground font-medium">Blockchain</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Middle cards - stacked badges */}
+              <div className="absolute top-80 left-0 right-0 flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <div className="flex-1 bg-card/60 backdrop-blur-sm border border-border/40 rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-card/80 transition-colors">
+                    <Award className="h-5 w-5 text-primary flex-shrink-0" />
+                    <span className="text-sm font-semibold">NFT Certificates</span>
+                  </div>
+                  <div className="flex-1 bg-card/60 backdrop-blur-sm border border-border/40 rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-card/80 transition-colors">
+                    <Globe className="h-5 w-5 text-primary flex-shrink-0" />
+                    <span className="text-sm font-semibold">Global Reach</span>
+                  </div>
+                </div>
+                <div className="bg-card/60 backdrop-blur-sm border border-border/40 rounded-xl px-4 py-3 flex items-center gap-3 hover:bg-card/80 transition-colors">
+                  <Fingerprint className="h-5 w-5 text-primary flex-shrink-0" />
+                  <span className="text-sm font-semibold">Instant Verification • Tamper-Proof • Decentralized</span>
+                </div>
+              </div>
+
+            </div>
           </div>
+
         </div>
       </div>
     </section>

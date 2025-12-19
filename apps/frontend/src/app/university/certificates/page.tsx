@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { BulkMintDialog } from '@/components/certificates/BulkMintDialog';
+import { BurnCertificateDialog } from '@/components/certificates/BurnCertificateDialog';
 import { graphqlClient } from '@/lib/graphql-client';
 import { useToast } from '@/hooks/useToast';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -52,7 +53,8 @@ import {
   Wallet,
   ExternalLink,
   Copy,
-  CheckCircle2
+  CheckCircle2,
+  Flame
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -68,6 +70,7 @@ type CertificateRecord = {
   issuedAt?: string | null;
   mintAddress?: string | null;
   transactionSignature?: string | null;
+  revoked?: boolean;
   student?: {
     id: string;
     fullName?: string | null;
@@ -97,6 +100,8 @@ export default function CertificatesPage(): React.JSX.Element {
   const [selectedCertificate, setSelectedCertificate] = useState<CertificateRecord | null>(null);
   const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [burnDialogOpen, setBurnDialogOpen] = useState(false);
+  const [certificateToBurn, setCertificateToBurn] = useState<CertificateRecord | null>(null);
 
   // Bulk minting state
   const [selectedCertIds, setSelectedCertIds] = useState<Set<string>>(new Set());
@@ -149,6 +154,22 @@ export default function CertificatesPage(): React.JSX.Element {
   const handleViewDetails = (cert: CertificateRecord) => {
     setSelectedCertificate(cert);
     setViewDetailsOpen(true);
+  };
+
+  const handleBurnCertificate = (cert: CertificateRecord) => {
+    setCertificateToBurn(cert);
+    setBurnDialogOpen(true);
+  };
+
+  const handleBurnSuccess = () => {
+    setBurnDialogOpen(false);
+    setCertificateToBurn(null);
+    // Refresh the certificates list
+    loadCertificates();
+    toast.success({
+      title: 'Certificate Burned',
+      description: 'The certificate has been permanently revoked and burned on-chain.',
+    });
   };
 
   const handleCopyToClipboard = async (text: string, fieldName: string) => {
@@ -454,10 +475,13 @@ export default function CertificatesPage(): React.JSX.Element {
                 <span>Mint Certificate</span>
               </DropdownMenuItem>
             )}
-            {cert.status === 'MINTED' && (
-              <DropdownMenuItem className="flex items-center gap-2 text-destructive focus:text-destructive">
-                <XCircle className="h-4 w-4" />
-                <span>Revoke Certificate</span>
+            {cert.status === 'MINTED' && !cert.revoked && (
+              <DropdownMenuItem
+                className="flex items-center gap-2 text-destructive focus:text-destructive"
+                onClick={() => handleBurnCertificate(cert)}
+              >
+                <Flame className="h-4 w-4" />
+                <span>Burn Certificate</span>
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -856,6 +880,14 @@ export default function CertificatesPage(): React.JSX.Element {
         onClose={() => setBulkMintDialogOpen(false)}
         certificateIds={Array.from(selectedCertIds)}
         onComplete={handleBulkMintComplete}
+      />
+
+      {/* Burn Certificate Dialog */}
+      <BurnCertificateDialog
+        certificate={certificateToBurn}
+        open={burnDialogOpen}
+        onOpenChange={setBurnDialogOpen}
+        onSuccess={handleBurnSuccess}
       />
     </div>
   );
