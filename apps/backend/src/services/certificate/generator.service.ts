@@ -1,5 +1,7 @@
 import sharp from 'sharp';
+import QRCode from 'qrcode';
 import { logger } from '../../utils/logger.js';
+import { env } from '../../env.js';
 
 export interface CertificateData {
   studentName: string;
@@ -15,6 +17,33 @@ export interface CertificateData {
 
 export interface CertificateTemplate {
   type: 'classic' | 'modern';
+}
+
+// Design template interfaces matching the certificate designer
+export interface DesignElement {
+  id: string;
+  type: 'placeholder' | 'static_text' | 'qr_placeholder' | 'image';
+  value?: string;
+  x: number;
+  y: number;
+  fontSize?: number;
+  fontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
+  textAlign?: 'left' | 'center' | 'right';
+  color?: string;
+  width?: number;
+  height?: number;
+  src?: string;
+}
+
+export interface DesignTemplate {
+  backgroundColor: string;
+  elements: DesignElement[];
+}
+
+export interface DynamicCertificateData {
+  metadata: Record<string, string | number>;
+  certificateNumber: string;
+  verificationUrl?: string;
 }
 
 /**
@@ -236,5 +265,254 @@ export async function generateCertificateBase64(
   template: CertificateTemplate = { type: 'classic' }
 ): Promise<string> {
   const pngBuffer = await generateCertificatePNG(data, template);
+  return pngBuffer.toString('base64');
+}
+
+/**
+ * Map font weight to SVG font-weight value
+ */
+function mapFontWeight(fontWeight: string | undefined): string {
+  switch (fontWeight) {
+    case 'bold':
+      return '700';
+    case 'semibold':
+      return '600';
+    case 'medium':
+      return '500';
+    case 'normal':
+    default:
+      return '400';
+  }
+}
+
+/**
+ * Calculate text anchor for SVG based on text alignment
+ */
+function getTextAnchor(textAlign: string | undefined): string {
+  switch (textAlign) {
+    case 'center':
+      return 'middle';
+    case 'right':
+      return 'end';
+    case 'left':
+    default:
+      return 'start';
+  }
+}
+
+/**
+ * Calculate X position offset based on text alignment and width
+ */
+function getAlignedX(x: number, width: number | undefined, textAlign: string | undefined): number {
+  if (!width) return x;
+  switch (textAlign) {
+    case 'center':
+      return x + width / 2;
+    case 'right':
+      return x + width;
+    case 'left':
+    default:
+      return x;
+  }
+}
+
+/**
+ * Replace placeholders in text with actual values
+ */
+function replacePlaceholders(text: string, metadata: Record<string, string | number>): string {
+  return text.replace(/\{([^}]+)\}/g, (match, key) => {
+    const value = metadata[key];
+    return value !== undefined ? String(value) : match;
+  });
+}
+
+/**
+ * Generate QR code as SVG data URI
+ */
+async function generateQRCodeSVG(url: string, size: number): Promise<string> {
+  try {
+    const qrSvg = await QRCode.toString(url, {
+      type: 'svg',
+      width: size,
+      margin: 0,
+      color: {
+        dark: '#000000',
+        light: '#ffffff',
+      },
+    });
+    return qrSvg;
+  } catch (error) {
+    logger.error({ error, url }, 'Failed to generate QR code');
+    return '';
+  }
+}
+
+/**
+ * Generate SVG from design template with dynamic data
+ */
+async function generateDynamicCertificateSVG(
+  designTemplate: DesignTemplate,
+  data: DynamicCertificateData
+): Promise<string> {
+  const { backgroundColor, elements } = designTemplate;
+  const { metadata, certificateNumber, verificationUrl } = data;
+
+  // Canvas dimensions (matching the designer)
+  const canvasWidth = 800;
+  const canvasHeight = 600;
+
+  // Build SVG elements
+  const svgElements: string[] = [];
+
+  for (const element of elements) {
+    const { type, value, x, y, fontSize, fontWeight, textAlign, color, width, height, src } = element;
+
+    if (type === 'placeholder') {
+      // Replace placeholder with actual value
+      const displayValue = value ? replacePlaceholders(value, metadata) : '';
+      const escapedValue = escapeXml(displayValue);
+      const alignedX = getAlignedX(x, width, textAlign);
+      const anchor = getTextAnchor(textAlign);
+      const weight = mapFontWeight(fontWeight);
+
+      svgElements.push(`
+        <text
+          x="${alignedX}"
+          y="${y + (fontSize || 16)}"
+          font-family="Arial, sans-serif"
+          font-size="${fontSize || 16}"
+          font-weight="${weight}"
+          fill="${color || '#374151'}"
+          text-anchor="${anchor}"
+        >${escapedValue}</text>
+      `);
+    } else if (type === 'static_text') {
+      // Static text - render as-is
+      const escapedValue = escapeXml(value || '');
+      const alignedX = getAlignedX(x, width, textAlign);
+      const anchor = getTextAnchor(textAlign);
+      const weight = mapFontWeight(fontWeight);
+
+      svgElements.push(`
+        <text
+          x="${alignedX}"
+          y="${y + (fontSize || 14)}"
+          font-family="Arial, sans-serif"
+          font-size="${fontSize || 14}"
+          font-weight="${weight}"
+          fill="${color || '#374151'}"
+          text-anchor="${anchor}"
+        >${escapedValue}</text>
+      `);
+    } else if (type === 'qr_placeholder') {
+      // Generate QR code for verification
+      const qrUrl = verificationUrl || `${env.FRONTEND_URL || 'https://genuinegrads.xyz'}/verify/${certificateNumber}`;
+      const qrSize = Math.min(width || 100, height || 100);
+      const qrSvg = await generateQRCodeSVG(qrUrl, qrSize);
+
+      if (qrSvg) {
+        // Extract the inner content of the QR SVG and position it
+        const qrContent = qrSvg
+          .replace(/<\?xml[^?]*\?>/g, '')
+          .replace(/<svg[^>]*>/g, '')
+          .replace(/<\/svg>/g, '');
+
+        svgElements.push(`
+          <g transform="translate(${x}, ${y})">
+            <rect x="0" y="0" width="${width || 100}" height="${height || 100}" fill="#ffffff"/>
+            <svg x="0" y="0" width="${width || 100}" height="${height || 100}" viewBox="0 0 ${qrSize} ${qrSize}">
+              ${qrContent}
+            </svg>
+          </g>
+        `);
+      }
+    } else if (type === 'image' && src) {
+      // Embed image (base64 or URL)
+      // For base64 images (data URIs), embed directly
+      // For URLs, we'll use xlink:href
+      const imgWidth = width || 100;
+      const imgHeight = height || 100;
+
+      if (src.startsWith('data:')) {
+        svgElements.push(`
+          <image
+            x="${x}"
+            y="${y}"
+            width="${imgWidth}"
+            height="${imgHeight}"
+            href="${src}"
+            preserveAspectRatio="xMidYMid meet"
+          />
+        `);
+      } else {
+        // External URL - encode for SVG
+        const escapedSrc = escapeXml(src);
+        svgElements.push(`
+          <image
+            x="${x}"
+            y="${y}"
+            width="${imgWidth}"
+            height="${imgHeight}"
+            href="${escapedSrc}"
+            preserveAspectRatio="xMidYMid meet"
+          />
+        `);
+      }
+    }
+  }
+
+  // Construct the full SVG
+  const svg = `
+    <svg width="${canvasWidth}" height="${canvasHeight}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+      <rect width="${canvasWidth}" height="${canvasHeight}" fill="${backgroundColor || '#ffffff'}"/>
+      ${svgElements.join('\n')}
+    </svg>
+  `;
+
+  return svg;
+}
+
+/**
+ * Generate certificate PNG from design template with dynamic data
+ * This is the main function to generate certificates from custom templates
+ */
+export async function generateCertificateFromTemplate(
+  designTemplate: DesignTemplate,
+  data: DynamicCertificateData
+): Promise<Buffer> {
+  try {
+    logger.info(
+      {
+        certificateNumber: data.certificateNumber,
+        elementCount: designTemplate.elements.length,
+      },
+      'Generating certificate from template'
+    );
+
+    // Generate SVG from template
+    const svgContent = await generateDynamicCertificateSVG(designTemplate, data);
+
+    // Convert SVG to PNG using sharp
+    const pngBuffer = await sharp(Buffer.from(svgContent))
+      .png()
+      .toBuffer();
+
+    logger.info({ size: pngBuffer.length }, 'Certificate PNG generated from template successfully');
+
+    return pngBuffer;
+  } catch (error: any) {
+    logger.error({ error: error.message, data }, 'Failed to generate certificate from template');
+    throw new Error(`Certificate generation from template failed: ${error.message}`);
+  }
+}
+
+/**
+ * Generate certificate PNG from design template as base64
+ */
+export async function generateCertificateFromTemplateBase64(
+  designTemplate: DesignTemplate,
+  data: DynamicCertificateData
+): Promise<string> {
+  const pngBuffer = await generateCertificateFromTemplate(designTemplate, data);
   return pngBuffer.toString('base64');
 }

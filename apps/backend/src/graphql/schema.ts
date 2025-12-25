@@ -93,12 +93,19 @@ export const typeDefs = gql`
     lastLoginAt: DateTime
     university: University
     createdAt: DateTime!
+    totpEnabled: Boolean!
   }
-  
+
   type AuthPayload {
-    admin: Admin!
-    accessToken: String!
-    refreshToken: String!
+    admin: Admin
+    accessToken: String
+    refreshToken: String
+    requiresTOTP: Boolean!
+  }
+
+  type TOTPSetupPayload {
+    secret: String!
+    qrCodeDataUrl: String!
   }
 
   type StudentAuthPayload {
@@ -208,6 +215,74 @@ export const typeDefs = gql`
     total: Int!
     successful: Int!
     failed: Int!
+  }
+
+  # ============================================
+  # UNIVERSITY ANALYTICS TYPES (UNIVERSITY ADMIN)
+  # ============================================
+
+  type UniversityAnalytics {
+    overview: UniversityOverview!
+    blockchainMetrics: UniversityBlockchainMetrics!
+    trends: UniversityTrends!
+    topPrograms: [ProgramMetrics!]!
+  }
+
+  type UniversityOverview {
+    totalCertificates: Int!
+    mintedCertificates: Int!
+    pendingCertificates: Int!
+    revokedCertificates: Int!
+    totalStudents: Int!
+    activeStudents: Int!
+    studentsWithWallet: Int!
+    studentsWithoutWallet: Int!
+    totalVerifications: Int!
+    successfulVerifications: Int!
+    failedVerifications: Int!
+    totalCourses: Int!
+  }
+
+  type UniversityBlockchainMetrics {
+    totalMintTransactions: Int!
+    successfulMints: Int!
+    failedMints: Int!
+    treeAddress: String
+    collectionAddress: String
+    successRate: Float!
+    recentMints: [RecentMint!]!
+  }
+
+  type RecentMint {
+    id: ID!
+    signature: String
+    studentName: String!
+    badgeTitle: String!
+    timestamp: DateTime!
+    status: String!
+  }
+
+  type UniversityTrends {
+    certificatesPerDay: [DailyCount!]!
+    verificationsPerDay: [DailyCount!]!
+    studentsPerMonth: [MonthlyCount!]!
+  }
+
+  type DailyCount {
+    date: String!
+    count: Int!
+  }
+
+  type MonthlyCount {
+    month: String!
+    count: Int!
+  }
+
+  type ProgramMetrics {
+    program: String!
+    department: String
+    studentCount: Int!
+    certificateCount: Int!
   }
 
   # ============================================
@@ -462,6 +537,7 @@ type StudentAchievement {
     # ========== UNIVERSITY ADMIN ==========
     myUniversity: University! @auth(requires: ADMIN)
     universityStats: UniversityStats! @auth(requires: ADMIN)
+    universityAnalytics(days: Int): UniversityAnalytics! @auth(requires: ADMIN)
     
     # Students
     students(
@@ -535,6 +611,11 @@ type StudentAchievement {
     login(input: LoginInput!): AuthPayload!
     refreshToken(refreshToken: String!): AuthPayload!
     logout: Boolean!
+
+    # ========== TOTP 2FA ==========
+    initiateTOTPSetup: TOTPSetupPayload! @auth(requires: ADMIN)
+    verifyAndEnableTOTP(token: String!): Boolean! @auth(requires: ADMIN)
+    disableTOTP(password: String!): Boolean! @auth(requires: ADMIN)
 
     # ========== STUDENT AUTHENTICATION ==========
     studentLoginWithWallet(walletAddress: String!): StudentAuthPayload!
@@ -628,6 +709,7 @@ type StudentAchievement {
   input LoginInput {
     email: String!
     password: String!
+    totpToken: String
   }
   
   input RegisterUniversityInput {

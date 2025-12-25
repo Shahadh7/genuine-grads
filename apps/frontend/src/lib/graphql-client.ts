@@ -81,7 +81,7 @@ class GraphQLClient {
   }
 
   // Auth mutations
-  async login(email: string, password: string) {
+  async login(email: string, password: string, totpToken?: string) {
     const query = `
       mutation Login($input: LoginInput!) {
         login(input: $input) {
@@ -91,6 +91,7 @@ class GraphQLClient {
             username
             fullName
             isSuperAdmin
+            totpEnabled
             university {
               id
               name
@@ -101,24 +102,26 @@ class GraphQLClient {
           }
           accessToken
           refreshToken
+          requiresTOTP
         }
       }
     `;
 
     const response = await this.request<{
       login: {
-        admin: any;
-        accessToken: string;
-        refreshToken: string;
+        admin: any | null;
+        accessToken: string | null;
+        refreshToken: string | null;
+        requiresTOTP: boolean;
       };
     }>(query, {
-      input: { email, password },
+      input: { email, password, totpToken },
     });
 
-    // Store tokens and user data on successful login
-    if (response.data?.login) {
+    // Store tokens and user data on successful login (not when TOTP is required)
+    if (response.data?.login && response.data.login.accessToken) {
       this.setToken(response.data.login.accessToken);
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && response.data.login.refreshToken) {
         localStorage.setItem('refreshToken', response.data.login.refreshToken);
       }
     }
@@ -135,6 +138,7 @@ class GraphQLClient {
           username
           fullName
           isSuperAdmin
+          totpEnabled
           university {
             id
             name
@@ -339,6 +343,111 @@ class GraphQLClient {
     `;
 
     return this.request<{ universityStats: any }>(query);
+  }
+
+  async getUniversityAnalytics(days: number = 30) {
+    const query = `
+      query UniversityAnalytics($days: Int) {
+        universityAnalytics(days: $days) {
+          overview {
+            totalCertificates
+            mintedCertificates
+            pendingCertificates
+            revokedCertificates
+            totalStudents
+            activeStudents
+            studentsWithWallet
+            studentsWithoutWallet
+            totalVerifications
+            successfulVerifications
+            failedVerifications
+            totalCourses
+          }
+          blockchainMetrics {
+            totalMintTransactions
+            successfulMints
+            failedMints
+            treeAddress
+            collectionAddress
+            successRate
+            recentMints {
+              id
+              signature
+              studentName
+              badgeTitle
+              timestamp
+              status
+            }
+          }
+          trends {
+            certificatesPerDay {
+              date
+              count
+            }
+            verificationsPerDay {
+              date
+              count
+            }
+            studentsPerMonth {
+              month
+              count
+            }
+          }
+          topPrograms {
+            program
+            department
+            studentCount
+            certificateCount
+          }
+        }
+      }
+    `;
+
+    return this.request<{
+      universityAnalytics: {
+        overview: {
+          totalCertificates: number;
+          mintedCertificates: number;
+          pendingCertificates: number;
+          revokedCertificates: number;
+          totalStudents: number;
+          activeStudents: number;
+          studentsWithWallet: number;
+          studentsWithoutWallet: number;
+          totalVerifications: number;
+          successfulVerifications: number;
+          failedVerifications: number;
+          totalCourses: number;
+        };
+        blockchainMetrics: {
+          totalMintTransactions: number;
+          successfulMints: number;
+          failedMints: number;
+          treeAddress: string | null;
+          collectionAddress: string | null;
+          successRate: number;
+          recentMints: Array<{
+            id: string;
+            signature: string | null;
+            studentName: string;
+            badgeTitle: string;
+            timestamp: string;
+            status: string;
+          }>;
+        };
+        trends: {
+          certificatesPerDay: Array<{ date: string; count: number }>;
+          verificationsPerDay: Array<{ date: string; count: number }>;
+          studentsPerMonth: Array<{ month: string; count: number }>;
+        };
+        topPrograms: Array<{
+          program: string;
+          department: string | null;
+          studentCount: number;
+          certificateCount: number;
+        }>;
+      };
+    }>(query, { days });
   }
 
   async getMintActivityLogs(params?: {
@@ -1646,6 +1755,48 @@ class GraphQLClient {
     `;
 
     return this.request<{ myVerificationLogStats: { total: number; successful: number; failed: number } }>(query);
+  }
+
+  // ============================================
+  // TOTP 2FA
+  // ============================================
+
+  async initiateTOTPSetup() {
+    const mutation = `
+      mutation InitiateTOTPSetup {
+        initiateTOTPSetup {
+          secret
+          qrCodeDataUrl
+        }
+      }
+    `;
+
+    return this.request<{
+      initiateTOTPSetup: {
+        secret: string;
+        qrCodeDataUrl: string;
+      };
+    }>(mutation);
+  }
+
+  async verifyAndEnableTOTP(token: string) {
+    const mutation = `
+      mutation VerifyAndEnableTOTP($token: String!) {
+        verifyAndEnableTOTP(token: $token)
+      }
+    `;
+
+    return this.request<{ verifyAndEnableTOTP: boolean }>(mutation, { token });
+  }
+
+  async disableTOTP(password: string) {
+    const mutation = `
+      mutation DisableTOTP($password: String!) {
+        disableTOTP(password: $password)
+      }
+    `;
+
+    return this.request<{ disableTOTP: boolean }>(mutation, { password });
   }
 }
 

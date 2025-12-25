@@ -515,55 +515,80 @@ async function prepareMintCertificateStepInternal(args: MintPreparationArgs): Pr
     });
   }
 
-  logger.info({ certificateId: certificate.id }, 'Starting certificate image generation');
+  let metadataUri = certificate.ipfsMetadataUri;
+  let imageUrl: string | undefined;
 
-  // Generate certificate PNG image from template
-  const certificatePNG = await generateCertificatePNG({
-    studentName: certificate.student.fullName || 'Unknown Student',
-    certificateTitle: certificate.badgeTitle,
-    universityName: university.name,
-    degreeType: certificate.degreeType || 'Certificate',
-    issueDate: new Date().toISOString().split('T')[0],
-    description: certificate.description || '',
-    certificateNumber: certificate.certificateNumber,
-    program: certificate.enrollment?.course?.name,
-    gpa: certificate.enrollment?.gpa,
-  }, { type: 'classic' });
+  // Check if certificate already has valid IPFS metadata from issuance
+  if (metadataUri && !metadataUri.includes('placeholder')) {
+    logger.info(
+      { certificateId: certificate.id, existingMetadataUri: metadataUri },
+      'Using existing IPFS metadata from certificate issuance'
+    );
 
-  logger.info({ certificateId: certificate.id, imageSize: certificatePNG.length }, 'Certificate image generated');
+    // Extract image URL from existing metadata if available
+    if (certificate.metadataJson) {
+      try {
+        const existingMetadata = typeof certificate.metadataJson === 'string'
+          ? JSON.parse(certificate.metadataJson)
+          : certificate.metadataJson;
+        imageUrl = existingMetadata.image;
+        logger.info({ certificateId: certificate.id, imageUrl }, 'Using existing certificate image');
+      } catch (e) {
+        logger.warn({ certificateId: certificate.id }, 'Failed to parse existing metadata JSON');
+      }
+    }
+  } else {
+    // No existing metadata - generate certificate image using fallback (old flow)
+    logger.info({ certificateId: certificate.id }, 'No existing IPFS metadata, generating certificate image');
 
-  // Upload certificate image to IPFS
-  const imageFileName = `certificate-${certificate.certificateNumber}.png`;
-  const imageUrl = await uploadFileToIPFS(certificatePNG, imageFileName);
+    // Generate certificate PNG image from template (fallback to hardcoded for old certificates)
+    const certificatePNG = await generateCertificatePNG({
+      studentName: certificate.student.fullName || 'Unknown Student',
+      certificateTitle: certificate.badgeTitle,
+      universityName: university.name,
+      degreeType: certificate.degreeType || 'Certificate',
+      issueDate: new Date().toISOString().split('T')[0],
+      description: certificate.description || '',
+      certificateNumber: certificate.certificateNumber,
+      program: certificate.enrollment?.course?.name,
+      gpa: certificate.enrollment?.gpa,
+    }, { type: 'classic' });
 
-  logger.info({ certificateId: certificate.id, imageUrl }, 'Certificate image uploaded to IPFS');
+    logger.info({ certificateId: certificate.id, imageSize: certificatePNG.length }, 'Certificate image generated');
 
-  // Build certificate metadata with image
-  const metadata = buildCertificateMetadata({
-    certificateName: certificate.badgeTitle,
-    description: certificate.description || '',
-    universityName: university.name,
-    studentName: certificate.student.fullName,
-    studentWallet: certificate.student.walletAddress,
-    certificateNumber: certificate.certificateNumber,
-    degreeType: certificate.degreeType || undefined,
-    program: certificate.enrollment?.course?.name,
-    imageUrl,
-  });
+    // Upload certificate image to IPFS
+    const imageFileName = `certificate-${certificate.certificateNumber}.png`;
+    imageUrl = await uploadFileToIPFS(certificatePNG, imageFileName);
 
-  // Upload metadata to IPFS
-  const metadataUri = await uploadMetadataToIPFS(metadata);
+    logger.info({ certificateId: certificate.id, imageUrl }, 'Certificate image uploaded to IPFS');
 
-  logger.info({ certificateId: certificate.id, metadataUri }, 'Certificate metadata uploaded to IPFS');
+    // Build certificate metadata with image
+    const metadata = buildCertificateMetadata({
+      certificateName: certificate.badgeTitle,
+      description: certificate.description || '',
+      universityName: university.name,
+      studentName: certificate.student.fullName,
+      studentWallet: certificate.student.walletAddress,
+      certificateNumber: certificate.certificateNumber,
+      degreeType: certificate.degreeType || undefined,
+      program: certificate.enrollment?.course?.name,
+      imageUrl,
+    });
 
-  // Update certificate record with IPFS URIs
-  await universityDb.certificate.update({
-    where: { id: certificate.id },
-    data: {
-      ipfsMetadataUri: metadataUri,
-      metadataJson: JSON.stringify(metadata),
-    },
-  });
+    // Upload metadata to IPFS
+    metadataUri = await uploadMetadataToIPFS(metadata);
+
+    logger.info({ certificateId: certificate.id, metadataUri }, 'Certificate metadata uploaded to IPFS');
+
+    // Update certificate record with IPFS URIs
+    await universityDb.certificate.update({
+      where: { id: certificate.id },
+      data: {
+        ipfsMetadataUri: metadataUri,
+        metadataJson: JSON.stringify(metadata),
+      },
+    });
+  }
 
   const superAdminPk = superAdmin;
   const universityAuthorityPk = universityAuthority;

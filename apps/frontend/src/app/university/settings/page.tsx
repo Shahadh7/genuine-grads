@@ -1,7 +1,7 @@
 'use client';
 import React from "react";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,17 +9,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/useToast';
 import { graphqlClient } from '@/lib/graphql-client';
-import { 
-  Settings, 
-  Building, 
-  Wallet, 
-  Save, 
+import TwoFactorSettings from '@/components/settings/TwoFactorSettings';
+import {
+  Settings,
+  Building,
+  Wallet,
+  Save,
   AlertTriangle,
   CheckCircle
 } from 'lucide-react';
 
 export default function SettingsPage(): React.JSX.Element {
-  const { toast } = useToast();
+  const toast = useToast();
   const [formData, setFormData] = useState({
     name: '',
     websiteUrl: '',
@@ -37,44 +38,66 @@ export default function SettingsPage(): React.JSX.Element {
   const [loadingProfile, setLoadingProfile] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [totpEnabled, setTotpEnabled] = useState<boolean>(false);
+
+  const loadProfile = useCallback(async () => {
+    setLoadingProfile(true);
+    setError(null);
+
+    try {
+      // Load university profile and admin info in parallel
+      const [universityResponse, meResponse] = await Promise.all([
+        graphqlClient.getMyUniversity(),
+        graphqlClient.me(),
+      ]);
+
+      if (universityResponse.errors?.length) {
+        throw new Error(universityResponse.errors[0]?.message ?? 'Failed to load university profile');
+      }
+
+      const university = universityResponse.data?.myUniversity;
+      if (university) {
+        setOriginalProfile(university);
+        setFormData({
+          name: university.name ?? '',
+          websiteUrl: university.websiteUrl ?? '',
+          logoUrl: university.logoUrl ?? '',
+        });
+        setStats({
+          totalStudents: university.stats?.totalStudents ?? 0,
+          activeStudents: university.stats?.activeStudents ?? 0,
+          totalCertificates: university.stats?.totalCertificates ?? 0,
+          mintedCount: university.stats?.mintedCount ?? 0,
+          pendingCount: university.stats?.pendingCount ?? 0,
+          revokedCount: university.stats?.revokedCount ?? 0,
+        });
+      }
+
+      // Get TOTP status from admin info
+      if (meResponse.data?.me) {
+        setTotpEnabled(meResponse.data.me.totpEnabled ?? false);
+      }
+    } catch (err: any) {
+      setError(err?.message ?? 'Failed to load university profile');
+    } finally {
+      setLoadingProfile(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      setLoadingProfile(true);
-      setError(null);
-
-      try {
-        const response = await graphqlClient.getMyUniversity();
-
-        if (response.errors?.length) {
-          throw new Error(response.errors[0]?.message ?? 'Failed to load university profile');
-        }
-
-        const university = response.data?.myUniversity;
-        if (university) {
-          setOriginalProfile(university);
-          setFormData({
-            name: university.name ?? '',
-            websiteUrl: university.websiteUrl ?? '',
-            logoUrl: university.logoUrl ?? '',
-          });
-          setStats({
-            totalStudents: university.stats?.totalStudents ?? 0,
-            activeStudents: university.stats?.activeStudents ?? 0,
-            totalCertificates: university.stats?.totalCertificates ?? 0,
-            mintedCount: university.stats?.mintedCount ?? 0,
-            pendingCount: university.stats?.pendingCount ?? 0,
-            revokedCount: university.stats?.revokedCount ?? 0,
-          });
-        }
-      } catch (err: any) {
-        setError(err?.message ?? 'Failed to load university profile');
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
-
     loadProfile();
+  }, [loadProfile]);
+
+  const handleTotpStatusChange = useCallback(async () => {
+    // Refresh the admin data to get updated TOTP status
+    try {
+      const response = await graphqlClient.me();
+      if (response.data?.me) {
+        setTotpEnabled(response.data.me.totpEnabled ?? false);
+      }
+    } catch (err) {
+      console.error('Failed to refresh TOTP status:', err);
+    }
   }, []);
 
   const handleInputChange = (field: 'name' | 'websiteUrl' | 'logoUrl', value: string) => {
@@ -103,7 +126,7 @@ export default function SettingsPage(): React.JSX.Element {
     }
 
     if (Object.keys(payload).length === 0) {
-      toast({
+      toast.info({
         title: 'No changes detected',
         description: 'Update a field before saving.',
       });
@@ -128,15 +151,14 @@ export default function SettingsPage(): React.JSX.Element {
         });
       }
 
-      toast({
+      toast.success({
         title: 'Profile updated',
         description: 'Your university settings have been saved successfully.',
       });
     } catch (err: any) {
-      toast({
+      toast.error({
         title: 'Failed to update profile',
         description: err?.message ?? 'Please try again later.',
-        variant: 'destructive',
       });
     } finally {
       setSaving(false);
@@ -319,13 +341,19 @@ export default function SettingsPage(): React.JSX.Element {
                 About Wallet Connection
               </h4>
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                Your connected wallet is used to mint and manage NFT certificates. 
+                Your connected wallet is used to mint and manage NFT certificates.
                 Make sure to use a secure wallet with sufficient SOL for transaction fees.
               </p>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Security - Two-Factor Authentication */}
+      <TwoFactorSettings
+        totpEnabled={totpEnabled}
+        onStatusChange={handleTotpStatusChange}
+      />
 
       {/* Statistics */}
       <Card>

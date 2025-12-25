@@ -3,6 +3,8 @@ import { sharedDb } from '../../../db/shared.client.js';
 import { GraphQLContext, requireUniversityAdmin, requireUniversityDb } from '../../context.js';
 import { generateCertificateNumber, generateJobId } from '../../../utils/ids.js';
 import { logger } from '../../../utils/logger.js';
+import { generateCertificateFromTemplate, DesignTemplate } from '../../../services/certificate/generator.service.js';
+import { uploadFileToIPFS, uploadMetadataToIPFS } from '../../../services/ipfs/pinata.service.js';
 
 interface IssueCertificateInput {
   studentId: string;
@@ -131,6 +133,16 @@ export const certificateMutations = {
 
     const payload = serializeTemplatePayload(input);
 
+    logger.info(
+      {
+        inputHasDesignTemplate: !!input.designTemplate,
+        inputDesignTemplateKeys: input.designTemplate ? Object.keys(input.designTemplate) : [],
+        payloadHasDesignTemplate: !!payload.designTemplate,
+        payloadDesignTemplateLength: payload.designTemplate?.length,
+      },
+      'Creating certificate template - payload check'
+    );
+
     const template = await universityDb.certificateTemplate.create({
       data: payload,
     });
@@ -139,6 +151,7 @@ export const certificateMutations = {
       {
         templateId: template.id,
         universityId: context.admin!.universityId,
+        savedDesignTemplateExists: !!template.designTemplate,
       },
       'Certificate template created'
     );
@@ -394,10 +407,99 @@ export const certificateMutations = {
       count + 1
     );
 
+    // Parse the design template from the certificate template
+    let designTemplate: DesignTemplate | null = null;
+
+    logger.info(
+      {
+        templateId,
+        hasDesignTemplate: !!template.designTemplate,
+        designTemplateType: typeof template.designTemplate,
+        designTemplatePreview: template.designTemplate
+          ? (typeof template.designTemplate === 'string'
+              ? template.designTemplate.substring(0, 200)
+              : JSON.stringify(template.designTemplate).substring(0, 200))
+          : null,
+      },
+      'Checking design template from database'
+    );
+
+    if (template.designTemplate) {
+      try {
+        designTemplate = typeof template.designTemplate === 'string'
+          ? JSON.parse(template.designTemplate)
+          : template.designTemplate;
+
+        logger.info(
+          {
+            templateId,
+            elementCount: designTemplate?.elements?.length ?? 0,
+            backgroundColor: designTemplate?.backgroundColor,
+          },
+          'Design template parsed successfully'
+        );
+      } catch (error) {
+        logger.warn({ templateId, error }, 'Failed to parse design template, will use fallback image');
+      }
+    } else {
+      logger.warn({ templateId }, 'No design template found for this certificate template');
+    }
+
+    let certificateImageUrl = university.logoUrl || 'https://placehold.co/600x400';
+
+    // Generate certificate image from template if design template exists
+    if (designTemplate && designTemplate.elements && designTemplate.elements.length > 0) {
+      try {
+        logger.info({ templateId, certificateNumber }, 'Generating certificate image from template');
+
+        // Build metadata map for placeholder replacement
+        const placeholderMetadata: Record<string, string | number> = {
+          student_name: student.fullName,
+          studentname: student.fullName,
+          certificate_title: badgeTitle,
+          certificatetitle: badgeTitle,
+          badge_title: badgeTitle,
+          badgetitle: badgeTitle,
+          university_name: university.name,
+          universityname: university.name,
+          graduation_date: new Date().toISOString().split('T')[0],
+          graduationdate: new Date().toISOString().split('T')[0],
+          issue_date: new Date().toISOString().split('T')[0],
+          issuedate: new Date().toISOString().split('T')[0],
+          student_id: student.studentNumber,
+          studentid: student.studentNumber,
+          gpa: enrollmentRecord.gpa ?? '',
+          grade: enrollmentRecord.grade ?? '',
+          course: metadata.course ?? metadata.coursename ?? '',
+          program: student.program ?? metadata.program ?? '',
+          department: student.department ?? '',
+          ...Object.fromEntries(
+            Object.entries(metadata).map(([key, value]) => [key.toLowerCase().replace(/[_\s-]/g, ''), String(value)])
+          ),
+          ...metadata,
+        };
+
+        // Generate certificate PNG from template
+        const certificatePngBuffer = await generateCertificateFromTemplate(designTemplate, {
+          metadata: placeholderMetadata,
+          certificateNumber,
+        });
+
+        // Upload certificate image to Pinata
+        const imageFileName = `certificate-${certificateNumber}.png`;
+        certificateImageUrl = await uploadFileToIPFS(certificatePngBuffer, imageFileName);
+
+        logger.info({ certificateNumber, imageUrl: certificateImageUrl }, 'Certificate image uploaded to IPFS');
+      } catch (imageError: any) {
+        logger.error({ error: imageError.message, certificateNumber }, 'Failed to generate/upload certificate image, using fallback');
+        // Continue with fallback image URL
+      }
+    }
+
     const certificateMetadata = {
       name: badgeTitle,
       description: description || `Certificate issued to ${student.fullName}`,
-      image: university.logoUrl || 'https://placehold.co/600x400',
+      image: certificateImageUrl,
       attributes: [
         { trait_type: 'Student Name', value: student.fullName },
         { trait_type: 'Student Number', value: student.studentNumber },
@@ -425,7 +527,16 @@ export const certificateMutations = {
     };
 
     try {
-      const ipfsUri = 'ipfs://placeholder'; // TODO: replace with actual IPFS upload
+      // Upload certificate metadata to IPFS
+      let ipfsUri: string;
+      try {
+        ipfsUri = await uploadMetadataToIPFS(certificateMetadata);
+        logger.info({ certificateNumber, ipfsUri }, 'Certificate metadata uploaded to IPFS');
+      } catch (ipfsError: any) {
+        logger.error({ error: ipfsError.message, certificateNumber }, 'Failed to upload metadata to IPFS, using placeholder');
+        ipfsUri = 'ipfs://placeholder';
+      }
+
       const mintAddress = `pending_${Date.now()}_${student.id.substring(0, 8)}`;
       const transactionSignature = `draft_${Date.now()}`;
 

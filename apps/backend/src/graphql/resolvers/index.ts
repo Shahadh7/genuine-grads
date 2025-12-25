@@ -6,6 +6,7 @@ import { certificateQueries } from './queries/certificate.queries.js';
 import { publicQueries } from './queries/public.queries.js';
 import { authMutations } from './mutations/auth.mutations.js';
 import { studentAuthMutations } from './mutations/student-auth.mutations.js';
+import { totpMutations } from './mutations/totp.mutations.js';
 import { universityMutations } from './mutations/university.mutations.js';
 import { studentMutations } from './mutations/student.mutations.js';
 import { certificateMutations } from './mutations/certificate.mutations.js';
@@ -40,6 +41,7 @@ export const resolvers: Record<string, any> = {
     // Auth
     ...authMutations,
     ...studentAuthMutations,
+    ...totpMutations,
 
     // University
     ...universityMutations,

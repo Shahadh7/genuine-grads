@@ -39,6 +39,9 @@ const envSchema = z.object({
   
   // CORS
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
+
+  // Frontend URL (for QR codes in certificates)
+  FRONTEND_URL: z.string().url().default('https://genuinegrads.xyz'),
   
   // Super Admin
   SUPER_ADMIN_EMAIL: z.string().email('SUPER_ADMIN_EMAIL must be a valid email'),

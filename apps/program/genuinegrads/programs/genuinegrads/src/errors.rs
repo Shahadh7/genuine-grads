@@ -26,4 +26,10 @@ pub enum GenuineGradsError {
     TreeMismatch,
     #[msg("Invalid Core CPI signer")]
     InvalidCoreCpiSigner,
+    #[msg("Missing remaining accounts for CPI")]
+    MissingRemainingAccounts,
+    #[msg("Missing merkle proof accounts.")]
+    MissingMerkleProof,
+    #[msg("Invalid burn reason.")]
+    InvalidBurnReason,
 }

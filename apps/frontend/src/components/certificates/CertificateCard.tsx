@@ -4,6 +4,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
   ExternalLink,
   Download,
   CheckCircle,
@@ -16,7 +23,6 @@ import {
   Hash,
   GraduationCap,
   Eye,
-  X,
   Loader2,
   QrCode,
 } from 'lucide-react';
@@ -416,101 +422,81 @@ export function CertificateCard({ certificate, onClick }: CertificateCardProps) 
       </Card>
 
       {/* Full Image Modal */}
-      {showFullImage && certificateImageUrl && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setShowFullImage(false)}
-        >
-          <div className="relative max-w-4xl w-full">
-            <button
-              onClick={() => setShowFullImage(false)}
-              className="absolute -top-12 right-0 bg-background/90 hover:bg-background p-2 rounded-full transition-colors border border-border"
-            >
-              <X className="h-6 w-6 text-foreground" />
-            </button>
+      <Dialog open={showFullImage && !!certificateImageUrl} onOpenChange={setShowFullImage}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden bg-black/90 border-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Certificate Image</DialogTitle>
+            <DialogDescription>Full view of {certificate.badgeTitle}</DialogDescription>
+          </DialogHeader>
+          <div className="p-4">
             <div className="relative w-full aspect-[1.414/1] bg-background rounded-lg shadow-2xl border border-border overflow-hidden">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={certificateImageUrl}
+                src={certificateImageUrl || ''}
                 alt={certificate.badgeTitle}
                 className="w-full h-full object-contain"
               />
             </div>
             <div className="mt-4 flex justify-center gap-3">
               <a
-                href={certificateImageUrl}
+                href={certificateImageUrl || ''}
                 download={`certificate-${certificate.certificateNumber}.png`}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg font-medium transition-colors shadow-lg"
-                onClick={(e) => e.stopPropagation()}
               >
                 <Download className="h-4 w-4" />
                 Download Certificate
               </a>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* QR Code Modal */}
-      {showQRCode && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setShowQRCode(false)}
-        >
-          <div className="relative max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-            <button
-              onClick={() => setShowQRCode(false)}
-              className="absolute -top-12 right-0 bg-background/90 hover:bg-background p-2 rounded-full transition-colors border border-border"
-            >
-              <X className="h-6 w-6 text-foreground" />
-            </button>
-            <Card className="border-0 shadow-2xl">
-              <CardContent className="p-8">
-                <div className="text-center space-y-6">
-                  <div className="flex items-center justify-center gap-3 mb-4">
-                    <QrCode className="h-8 w-8 text-purple-600" />
-                    <h3 className="text-2xl font-bold">Certificate QR Code</h3>
-                  </div>
+      <Dialog open={showQRCode} onOpenChange={setShowQRCode}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center justify-center gap-3">
+              <QrCode className="h-8 w-8 text-purple-600" />
+              <DialogTitle className="text-2xl">Certificate QR Code</DialogTitle>
+            </div>
+            <DialogDescription className="text-center">
+              Scan or share this QR code to verify the certificate
+            </DialogDescription>
+          </DialogHeader>
 
-                  <p className="text-sm text-muted-foreground">
-                    Scan or share this QR code to verify the certificate
-                  </p>
+          <div className="text-center space-y-6">
+            <div className="bg-white p-6 rounded-lg inline-block">
+              {qrCodeDataUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={qrCodeDataUrl}
+                  alt="Certificate QR Code"
+                  className="w-64 h-64"
+                />
+              )}
+            </div>
 
-                  <div className="bg-white p-6 rounded-lg inline-block">
-                    {qrCodeDataUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={qrCodeDataUrl}
-                        alt="Certificate QR Code"
-                        className="w-64 h-64"
-                      />
-                    )}
-                  </div>
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground font-mono">
+                {certificate.certificateNumber}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {typeof window !== 'undefined' && `${window.location.origin}/verify/${certificate.certificateNumber}`}
+              </p>
+            </div>
 
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground font-mono">
-                      {certificate.certificateNumber}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {typeof window !== 'undefined' && `${window.location.origin}/verify/${certificate.certificateNumber}`}
-                    </p>
-                  </div>
-
-                  <div className="flex gap-3 justify-center">
-                    <button
-                      onClick={downloadQRCode}
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white hover:bg-purple-700 rounded-lg font-medium transition-colors shadow-lg"
-                    >
-                      <Download className="h-4 w-4" />
-                      Download QR Code
-                    </button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={downloadQRCode}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white hover:bg-purple-700 rounded-lg font-medium transition-colors shadow-lg"
+              >
+                <Download className="h-4 w-4" />
+                Download QR Code
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

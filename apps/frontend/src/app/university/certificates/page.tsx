@@ -161,6 +161,16 @@ export default function CertificatesPage(): React.JSX.Element {
     setBurnDialogOpen(true);
   };
 
+  const loadCertificates = async () => {
+    try {
+      const certificatesResponse = await graphqlClient.getCertificates();
+      const certs = (certificatesResponse.data?.certificates ?? []) as CertificateRecord[];
+      setCertificates(certs);
+    } catch (error) {
+      console.error('Failed to refresh certificates:', error);
+    }
+  };
+
   const handleBurnSuccess = () => {
     setBurnDialogOpen(false);
     setCertificateToBurn(null);
@@ -447,7 +457,7 @@ export default function CertificatesPage(): React.JSX.Element {
       header: 'Actions',
       className: 'text-right',
       render: (cert: CertificateRecord) => (
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0" disabled={mintingCertId === cert.id}>
               <span className="sr-only">Open menu</span>
@@ -662,7 +672,7 @@ export default function CertificatesPage(): React.JSX.Element {
 
       {/* Certificate Details Dialog */}
       <Dialog open={viewDetailsOpen} onOpenChange={setViewDetailsOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <GraduationCap className="h-5 w-5" />
@@ -674,7 +684,7 @@ export default function CertificatesPage(): React.JSX.Element {
           </DialogHeader>
 
           {selectedCertificate && (
-            <div className="space-y-6 mt-4">
+            <div className="space-y-6 mt-4 overflow-y-auto max-h-[calc(90vh-120px)]">
               {/* Certificate Information */}
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">

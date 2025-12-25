@@ -2,6 +2,7 @@ import { GraphQLError } from 'graphql';
 import { sharedDb } from '../../../db/shared.client.js';
 import { hashPassword, verifyPassword, validatePasswordStrength } from '../../../auth/password.js';
 import { generateTokenPair, verifyRefreshToken } from '../../../auth/jwt.js';
+import { verifyTOTPToken, decryptTOTPSecret } from '../../../auth/totp.js';
 import { GraphQLContext } from '../../context.js';
 import { logger } from '../../../utils/logger.js';
 
@@ -16,6 +17,7 @@ interface RegisterInput {
 interface LoginInput {
   email: string;
   password: string;
+  totpToken?: string;
 }
 
 export const authMutations = {
@@ -97,14 +99,15 @@ export const authMutations = {
       admin,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
+      requiresTOTP: false,
     };
   },
 
   /**
-   * Login with email and password
+   * Login with email and password (and optional TOTP token)
    */
   async login(_: any, { input }: { input: LoginInput }, context: GraphQLContext) {
-    const { email, password } = input;
+    const { email, password, totpToken } = input;
 
     // Find admin by email
     const admin = await sharedDb.admin.findUnique({
@@ -156,6 +159,29 @@ export const authMutations = {
       throw new GraphQLError('Invalid email or password', {
         extensions: { code: 'UNAUTHENTICATED' },
       });
+    }
+
+    // Check if TOTP is enabled and verify token
+    if (admin.totpEnabled && admin.totpSecret) {
+      // If TOTP is enabled but no token provided, request it
+      if (!totpToken) {
+        return {
+          admin: null,
+          accessToken: null,
+          refreshToken: null,
+          requiresTOTP: true,
+        };
+      }
+
+      // Verify the TOTP token
+      const decryptedSecret = decryptTOTPSecret(admin.totpSecret);
+      const isTOTPValid = verifyTOTPToken(decryptedSecret, totpToken);
+
+      if (!isTOTPValid) {
+        throw new GraphQLError('Invalid verification code', {
+          extensions: { code: 'UNAUTHENTICATED' },
+        });
+      }
     }
 
     // Check university approval status (only for university admins, not super admins)
@@ -214,6 +240,7 @@ export const authMutations = {
       admin,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
+      requiresTOTP: false,
     };
   },
 
@@ -283,6 +310,7 @@ export const authMutations = {
         admin,
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
+        requiresTOTP: false,
       };
     } catch (error) {
       throw new GraphQLError('Invalid or expired refresh token', {

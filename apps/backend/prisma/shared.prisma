@@ -102,7 +102,12 @@ model Admin {
   lastLoginAt       DateTime?
   failedLoginAttempts Int       @default(0)
   lockedUntil       DateTime?
-  
+
+  // TOTP 2FA
+  totpSecret        String?     // Encrypted TOTP secret
+  totpEnabled       Boolean     @default(false)
+  totpVerifiedAt    DateTime?   // When TOTP was first verified
+
   // Metadata
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt

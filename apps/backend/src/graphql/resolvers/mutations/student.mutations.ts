@@ -274,17 +274,25 @@ export const studentMutations = {
     // Hash the National ID for privacy
     const nicHash = hashNIC(sanitizedNationalId);
 
-    // Check if student already exists in THIS university
-    const existingInUniversity = await universityDb.student.findFirst({
-      where: {
-        OR: [{ email: normalizedEmail }, { studentNumber: sanitizedStudentNumber }, { nicHash }],
-      },
+    // Check if student already exists in THIS university by NIC hash (primary identifier)
+    const existingStudentByNic = await universityDb.student.findUnique({
+      where: { nicHash },
     });
 
-    if (existingInUniversity) {
-      throw new GraphQLError('Student already exists in your university (duplicate email, student number, or NIC)', {
-        extensions: { code: 'BAD_USER_INPUT' },
+    // If student exists by NIC, we'll add enrollment to existing student
+    // But first check for conflicts with email/studentNumber from OTHER students
+    if (!existingStudentByNic) {
+      const conflictingStudent = await universityDb.student.findFirst({
+        where: {
+          OR: [{ email: normalizedEmail }, { studentNumber: sanitizedStudentNumber }],
+        },
       });
+
+      if (conflictingStudent) {
+        throw new GraphQLError('Another student already uses this email or student number', {
+          extensions: { code: 'BAD_USER_INPUT' },
+        });
+      }
     }
 
     // Check global student index
@@ -342,7 +350,7 @@ export const studentMutations = {
       );
     }
 
-    const { student } = await universityDb.$transaction(async (tx: any) => {
+    const { student, isExistingStudent } = await universityDb.$transaction(async (tx: any) => {
       const achievementPayloads = await resolveStudentAchievementInputs(tx, achievements);
 
       const normalizedCourseCode = normalizeCourseCode(courseCodeRaw.length > 0 ? courseCodeRaw : courseName);
@@ -377,18 +385,49 @@ export const studentMutations = {
         update: courseUpdateData,
       });
 
-      const studentRecord = await tx.student.create({
-      data: {
-          email: normalizedEmail,
-          fullName: sanitizedFullName,
-          studentNumber: sanitizedStudentNumber,
-        nicHash,
-          walletAddress: normalizedWalletAddress,
-          program: sanitizedProgram,
-          department: sanitizedDepartment,
-        enrollmentYear,
-        },
-      });
+      let studentRecord: any;
+      let existingStudent = false;
+
+      if (existingStudentByNic) {
+        // Student already exists - use existing record
+        studentRecord = existingStudentByNic;
+        existingStudent = true;
+
+        // Check if already enrolled in this course for this batch year
+        const existingEnrollment = await tx.enrollment.findFirst({
+          where: {
+            studentId: studentRecord.id,
+            courseId: courseRecord.id,
+            batchYear,
+          },
+        });
+
+        if (existingEnrollment) {
+          throw new GraphQLError(
+            `Student is already enrolled in ${courseName} for batch year ${batchYear}`,
+            {
+              extensions: {
+                code: 'DUPLICATE_ENROLLMENT',
+                enrollmentId: existingEnrollment.id,
+              },
+            }
+          );
+        }
+      } else {
+        // Create new student
+        studentRecord = await tx.student.create({
+          data: {
+            email: normalizedEmail,
+            fullName: sanitizedFullName,
+            studentNumber: sanitizedStudentNumber,
+            nicHash,
+            walletAddress: normalizedWalletAddress,
+            program: sanitizedProgram,
+            department: sanitizedDepartment,
+            enrollmentYear,
+          },
+        });
+      }
 
       const enrollmentRecord = await tx.enrollment.create({
         data: {
@@ -443,7 +482,7 @@ export const studentMutations = {
         }
       }
 
-      return { student: studentRecord };
+      return { student: studentRecord, isExistingStudent: existingStudent };
     });
 
     const studentWithRelations = await universityDb.student.findUnique({
