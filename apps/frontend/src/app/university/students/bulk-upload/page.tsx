@@ -30,6 +30,7 @@ import {
 import Link from 'next/link';
 import { graphqlClient } from '@/lib/graphql-client';
 import { validateNIC } from '@/lib/validators';
+import { useToast } from '@/hooks/useToast';
 
 interface Props {
   // Add props here
@@ -37,6 +38,7 @@ interface Props {
 
 export default function BulkUploadPage(): React.JSX.Element {
   const router = useRouter();
+  const toast = useToast();
   const [uploadedData, setUploadedData] = useState<any>(null);
   const [loading, setLoading] = useState<any>(false);
   const [errors, setErrors] = useState<any>([]);
@@ -201,7 +203,12 @@ export default function BulkUploadPage(): React.JSX.Element {
       const response = await graphqlClient.bulkImportStudents(payload);
 
       if (response.errors && response.errors.length > 0) {
-        setErrors([{ message: response.errors[0]?.message || 'Bulk import failed.' }]);
+        const errorMessage = response.errors[0]?.message || 'Bulk import failed.';
+        setErrors([{ message: errorMessage }]);
+        toast.error({
+          title: 'Import failed',
+          description: errorMessage,
+        });
         return;
       }
 
@@ -210,12 +217,33 @@ export default function BulkUploadPage(): React.JSX.Element {
       setUploadResults(result);
       setServerFailures(result?.failures ?? []);
 
-      if (result && result.successCount > 0) {
-        router.push('/university/students');
+      if (result) {
+        if (result.failureCount > 0 && result.successCount > 0) {
+          toast.warning({
+            title: 'Partial import',
+            description: `${result.successCount} students imported, ${result.failureCount} failed.`,
+          });
+        } else if (result.failureCount > 0 && result.successCount === 0) {
+          toast.error({
+            title: 'Import failed',
+            description: `All ${result.failureCount} students failed to import. Check errors below.`,
+          });
+        } else if (result.successCount > 0) {
+          toast.success({
+            title: 'Import successful',
+            description: `${result.successCount} students imported successfully.`,
+          });
+          router.push('/university/students');
+        }
       }
     } catch (error) {
       console.error('Upload failed:', error);
-      setErrors([{ message: 'Upload failed. Please try again.' }]);
+      const errorMessage = 'Upload failed. Please try again.';
+      setErrors([{ message: errorMessage }]);
+      toast.error({
+        title: 'Upload failed',
+        description: errorMessage,
+      });
     } finally {
       setLoading(false);
     }
@@ -638,10 +666,18 @@ Arjun Perera,STU-2025-003,NIC556677889V,arjun.perera@student.edu,Bachelor of Eng
                               </TableCell>
                               <TableCell>
                                 {hasErrors ? (
-                                  <Badge variant="destructive" className="flex items-center gap-1">
-                                    <XCircle className="h-3 w-3" />
-                                    Errors
-                                  </Badge>
+                                  <div className="space-y-1">
+                                    <Badge variant="destructive" className="flex items-center gap-1">
+                                      <XCircle className="h-3 w-3" />
+                                      Errors
+                                    </Badge>
+                                    {/* Show general errors (errors without a specific field) */}
+                                    {rowErrors.filter(e => !e.field).map((error, idx) => (
+                                      <div key={idx} className="text-xs text-red-600 mt-1">
+                                        {error.message}
+                                      </div>
+                                    ))}
+                                  </div>
                                 ) : (
                                   <Badge variant="default" className="flex items-center gap-1 bg-green-600 hover:bg-green-700">
                                     <CheckCircle className="h-3 w-3" />

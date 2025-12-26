@@ -930,6 +930,16 @@ class GraphQLClient {
     }>(query, { input });
   }
 
+  async deleteStudent(id: string) {
+    const query = `
+      mutation DeleteStudent($id: ID!) {
+        deleteStudent(id: $id)
+      }
+    `;
+
+    return this.request<{ deleteStudent: boolean }>(query, { id });
+  }
+
   async getAchievementCatalog(search?: string) {
     const query = `
       query AchievementCatalog($search: String) {

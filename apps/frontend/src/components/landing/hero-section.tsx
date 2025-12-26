@@ -9,33 +9,33 @@ import {
   Lock,
   QrCode,
   ArrowRight,
-  Sparkles,
-  TrendingUp,
   Blocks,
   Wallet,
   Globe,
-  CheckCircle2,
   Award,
   Fingerprint
 } from "lucide-react"
 import Link from "next/link"
+import Aurora from "@/components/backgrounds/Aurora"
 
 const HeroSection = () => {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden">
-      {/* Ultra-modern Background */}
-      <div className="absolute inset-0">
-        {/* Gradient mesh background */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-background to-background"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent"></div>
-
-        {/* Animated grid */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]"></div>
-
-        {/* Floating geometric shapes */}
-        <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-primary/5 rotate-45 rounded-3xl blur-3xl animate-float"></div>
-        <div className="absolute bottom-1/3 left-1/3 w-80 h-80 bg-primary/5 rotate-12 rounded-full blur-3xl animate-float" style={{animationDelay: '2s'}}></div>
+    <section className="relative min-h-screen flex items-center overflow-hidden bg-background">
+      {/* Aurora Background */}
+      <div className="absolute inset-0 opacity-40 dark:opacity-60">
+        <Aurora 
+          colorStops={['#F59E0B', '#D97706', '#B45309']} 
+          amplitude={1.2}
+          blend={0.6}
+          speed={0.8}
+        />
       </div>
+      
+      {/* Overlay gradient for better text readability */}
+      <div className="absolute inset-0 bg-gradient-to-b from-background/80 via-background/40 to-background/90"></div>
+      
+      {/* Subtle grid pattern overlay */}
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.015]"></div>
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-20">
         <div className="grid lg:grid-cols-2 gap-16 items-center max-w-7xl mx-auto">

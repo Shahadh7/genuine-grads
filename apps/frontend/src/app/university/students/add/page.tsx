@@ -333,11 +333,14 @@ export default function AddStudentPage(): React.JSX.Element {
       router.push('/university/students');
     } catch (error) {
       console.error('Error creating student:', error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to register student. Please try again.'
-      );
+      const errorMessage = error instanceof Error
+        ? error.message
+        : 'Failed to register student. Please try again.';
+      setError(errorMessage);
+      toast.error({
+        title: 'Registration failed',
+        description: errorMessage,
+      });
     } finally {
       setLoading(false);
     }

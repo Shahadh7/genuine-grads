@@ -26,8 +26,18 @@ import {
   Calendar,
   AlertTriangle,
   UserPlus,
+  Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/hooks/useToast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface Props {
   // Add props here
@@ -38,7 +48,11 @@ export default function StudentsPage(): React.JSX.Element {
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
+  const [studentToDelete, setStudentToDelete] = useState<any>(null);
+  const [deleting, setDeleting] = useState<boolean>(false);
   const { loading: guardLoading } = useRoleGuard(['university_admin']);
+  const toast = useToast();
 
   // Load students on component mount
   useEffect(() => {
@@ -83,6 +97,37 @@ export default function StudentsPage(): React.JSX.Element {
       (student.email || '').toLowerCase().includes(term)
     );
   });
+
+  const handleDeleteConfirm = async () => {
+    if (!studentToDelete) return;
+
+    try {
+      setDeleting(true);
+      const response = await graphqlClient.deleteStudent(studentToDelete.id);
+
+      if (response.errors?.length) {
+        throw new Error(response.errors[0].message);
+      }
+
+      // Remove student from local state
+      setStudents(prev => prev.filter(s => s.id !== studentToDelete.id));
+
+      toast.success({
+        title: 'Student deleted',
+        description: `${studentToDelete.fullName} has been removed.`,
+      });
+    } catch (error) {
+      console.error('Failed to delete student:', error);
+      toast.error({
+        title: 'Delete failed',
+        description: error instanceof Error ? error.message : 'Failed to delete student.',
+      });
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setStudentToDelete(null);
+    }
+  };
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return '—';
@@ -153,7 +198,7 @@ export default function StudentsPage(): React.JSX.Element {
       header: 'Actions',
       className: 'text-right',
       render: (student) => (
-        <DropdownMenu>
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
               <span className="sr-only">Open menu</span>
@@ -172,6 +217,17 @@ export default function StudentsPage(): React.JSX.Element {
             <DropdownMenuItem className="flex items-center gap-2">
               <Award className="h-4 w-4" />
               <span>Issue Certificate</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="flex items-center gap-2 text-destructive focus:text-destructive"
+              onSelect={(e) => {
+                e.preventDefault();
+                setStudentToDelete(student);
+                setTimeout(() => setDeleteDialogOpen(true), 0);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>Delete Student</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -276,6 +332,51 @@ export default function StudentsPage(): React.JSX.Element {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!deleting) {
+            setDeleteDialogOpen(open);
+            if (!open) {
+              setStudentToDelete(null);
+            }
+          }
+        }}
+      >
+        <DialogContent
+          onPointerDownOutside={(e) => deleting && e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>Delete Student</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{studentToDelete?.fullName}</strong>?
+              This will remove all their enrollments and achievements. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={deleting}
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setStudentToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              variant="destructive"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

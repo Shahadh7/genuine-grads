@@ -404,7 +404,7 @@ export const studentMutations = {
 
         if (existingEnrollment) {
           throw new GraphQLError(
-            `Student is already enrolled in ${courseName} for batch year ${batchYear}`,
+            `Student is already registered with the course "${courseName}" (${batchYear})`,
             {
               extensions: {
                 code: 'DUPLICATE_ENROLLMENT',
@@ -508,8 +508,9 @@ export const studentMutations = {
         studentId: student.id,
         universityId: context.admin!.universityId,
         email: normalizedEmail,
+        isExistingStudent,
       },
-      'Student registered'
+      isExistingStudent ? 'Existing student enrolled in new course' : 'Student registered'
     );
 
     return studentWithRelations ?? student;
@@ -903,19 +904,24 @@ export const studentMutations = {
       seenNicHashes.set(nicHash, rowNumber);
 
       try {
-        const existingInUniversity = await universityDb.student.findFirst({
-          where: {
-            OR: [{ email }, { studentNumber }, { nicHash }],
-          },
+        // Check if student already exists by NIC hash (primary identifier)
+        const existingStudentByNic = await universityDb.student.findUnique({
+          where: { nicHash },
         });
 
-        if (existingInUniversity) {
-          throw new GraphQLError(
-            'Student already exists in your university (duplicate email, student number, or NIC)',
-            {
+        // If student doesn't exist by NIC, check for conflicts with email/studentNumber from OTHER students
+        if (!existingStudentByNic) {
+          const conflictingStudent = await universityDb.student.findFirst({
+            where: {
+              OR: [{ email }, { studentNumber }],
+            },
+          });
+
+          if (conflictingStudent) {
+            throw new GraphQLError('Another student already uses this email or student number', {
               extensions: { code: 'BAD_USER_INPUT', field: 'email' },
-            }
-          );
+            });
+          }
         }
 
         let globalIndex = await sharedDb.globalStudentIndex.findUnique({
@@ -1000,18 +1006,47 @@ export const studentMutations = {
             update: courseUpdateData,
           });
 
-          const studentRecord = await tx.student.create({
-          data: {
-            email,
-            fullName,
-            studentNumber,
-            nicHash,
-              walletAddress: normalizedWallet,
-            program,
-            department,
-            enrollmentYear,
-          },
-        });
+          let studentRecord: any;
+
+          if (existingStudentByNic) {
+            // Student already exists - use existing record
+            studentRecord = existingStudentByNic;
+
+            // Check if already enrolled in this course for this batch year
+            const existingEnrollment = await tx.enrollment.findFirst({
+              where: {
+                studentId: studentRecord.id,
+                courseId: courseRecord.id,
+                batchYear: enrollmentYear,
+              },
+            });
+
+            if (existingEnrollment) {
+              throw new GraphQLError(
+                `Student is already registered with the course "${courseName}" (${enrollmentYear})`,
+                {
+                  extensions: {
+                    code: 'DUPLICATE_ENROLLMENT',
+                    enrollmentId: existingEnrollment.id,
+                  },
+                }
+              );
+            }
+          } else {
+            // Create new student
+            studentRecord = await tx.student.create({
+              data: {
+                email,
+                fullName,
+                studentNumber,
+                nicHash,
+                walletAddress: normalizedWallet,
+                program,
+                department,
+                enrollmentYear,
+              },
+            });
+          }
 
           const enrollmentRecord = await tx.enrollment.create({
             data: {
@@ -1157,7 +1192,7 @@ export const studentMutations = {
   },
 
   /**
-   * Delete/deactivate a student
+   * Delete a student (hard delete if no certificates issued)
    */
   async deleteStudent(_: any, { id }: { id: string }, context: GraphQLContext) {
     requireUniversityAdmin(context);
@@ -1179,18 +1214,17 @@ export const studentMutations = {
 
     // Prevent deletion if student has certificates
     if (existing.certificates.length > 0) {
-      throw new GraphQLError('Cannot delete student with issued certificates. Deactivate instead.', {
+      throw new GraphQLError('Cannot delete student with issued certificates', {
         extensions: { code: 'BAD_USER_INPUT' },
       });
     }
 
-    // Soft delete by deactivating
-    await universityDb.student.update({
+    // Hard delete - cascades to enrollments, achievements, etc.
+    await universityDb.student.delete({
       where: { id },
-      data: { isActive: false },
     });
 
-    logger.info({ studentId: id }, 'Student deactivated');
+    logger.info({ studentId: id, nicHash: existing.nicHash }, 'Student deleted');
 
     return true;
   },
