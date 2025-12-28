@@ -1060,6 +1060,9 @@ class GraphQLClient {
           status
           issuedAt
           revoked
+          revokedAt
+          revocationReason
+          revocationTransactionSignature
           student {
             id
             fullName
@@ -1427,6 +1430,42 @@ class GraphQLClient {
         mint: any;
       };
     }>(mutation, { certificateId });
+  }
+
+  async prepareBurnCertificateTransaction(certificateId: string, reason: string) {
+    const mutation = `
+      mutation PrepareBurnCertificateTransaction($certificateId: ID!, $reason: String!) {
+        prepareBurnCertificateTransaction(certificateId: $certificateId, reason: $reason) {
+          ${PREPARED_TRANSACTION_FIELDS}
+        }
+      }
+    `;
+
+    return this.request<{
+      prepareBurnCertificateTransaction: any;
+    }>(mutation, { certificateId, reason });
+  }
+
+  async prepareBurnCertificateWorkflow(certificateId: string, reason: string) {
+    const mutation = `
+      mutation PrepareBurnCertificateWorkflow($certificateId: ID!, $reason: String!) {
+        prepareBurnCertificateWorkflow(certificateId: $certificateId, reason: $reason) {
+          prerequisites {
+            ${PREPARED_TRANSACTION_FIELDS}
+          }
+          burn {
+            ${PREPARED_TRANSACTION_FIELDS}
+          }
+        }
+      }
+    `;
+
+    return this.request<{
+      prepareBurnCertificateWorkflow: {
+        prerequisites: any[];
+        burn: any | null;
+      };
+    }>(mutation, { certificateId, reason });
   }
 
   async submitSignedTransaction(params: {

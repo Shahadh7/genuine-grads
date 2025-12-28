@@ -1,4 +1,4 @@
-import { GraphQLContext, requireAuth } from '../../context.js';
+import { GraphQLContext } from '../../context.js';
 import { sharedDb } from '../../../db/shared.client.js';
 
 export const authQueries = {

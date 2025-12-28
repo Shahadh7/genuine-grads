@@ -12,7 +12,7 @@ export const studentAuthMutations = {
   async studentLoginWithWallet(
     _: any,
     { walletAddress }: { walletAddress: string },
-    context: GraphQLContext
+    _context: GraphQLContext
   ) {
     try {
       // Normalize wallet address
@@ -47,7 +47,7 @@ export const studentAuthMutations = {
       }
 
       // Get university database
-      const universityDb = getUniversityDb(globalStudent.createdByUniversity.databaseUrl);
+      const universityDb = getUniversityDb(globalStudent.createdByUniversity.databaseUrl!);
 
       // Find student in university database
       const student = await universityDb.student.findUnique({

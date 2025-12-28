@@ -2,7 +2,6 @@ import { sharedDb } from '../../db/shared.client.js';
 import { getUniversityDb } from '../../db/university.client.js';
 import { logger } from '../../utils/logger.js';
 import crypto from 'crypto';
-import { env } from '../../env.js';
 
 interface HeliusWebhookPayload {
   signature: string;
@@ -170,7 +169,7 @@ export async function setupHeliusWebhook(
       throw new Error(`Failed to setup webhook: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { webhookID: string };
     logger.info({ webhookId: data.webhookID }, 'Helius webhook setup successfully');
   } catch (error: any) {
     logger.error({ error: error.message }, 'Failed to setup Helius webhook');

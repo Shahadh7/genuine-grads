@@ -204,8 +204,8 @@ export const universityQueries = {
       where: { universityId: context.admin!.universityId },
     });
 
-    const successfulMints = mintLogs.filter(m => m.status === 'SUCCESS').length;
-    const failedMints = mintLogs.filter(m => m.status === 'FAILED').length;
+    const successfulMints = mintLogs.filter((m: any) => m.status === 'SUCCESS').length;
+    const failedMints = mintLogs.filter((m: any) => m.status === 'FAILED').length;
     const successRate = mintLogs.length > 0 ? (successfulMints / mintLogs.length) * 100 : 0;
 
     // Get recent mints with student info
@@ -217,7 +217,7 @@ export const universityQueries = {
 
     // Get student names for recent mints
     const recentMints = await Promise.all(
-      recentMintLogs.map(async (log) => {
+      recentMintLogs.map(async (log: any) => {
         let studentName = 'Unknown';
         if (log.studentWallet) {
           const student = await universityDb.student.findFirst({
@@ -274,16 +274,16 @@ export const universityQueries = {
     // Get certificate counts per program
     const topPrograms = await Promise.all(
       programStats
-        .filter(p => p.program)
+        .filter((p: any) => p.program)
         .slice(0, 10)
-        .map(async (p) => {
+        .map(async (p: any) => {
           const studentIds = await universityDb.student.findMany({
             where: { program: p.program },
             select: { id: true },
           });
 
           const certificateCount = await universityDb.certificate.count({
-            where: { studentId: { in: studentIds.map(s => s.id) } },
+            where: { studentId: { in: studentIds.map((s: any) => s.id) } },
           });
 
           return {
@@ -296,7 +296,7 @@ export const universityQueries = {
     );
 
     // Sort by student count
-    topPrograms.sort((a, b) => b.studentCount - a.studentCount);
+    topPrograms.sort((a: any, b: any) => b.studentCount - a.studentCount);
 
     return {
       overview,

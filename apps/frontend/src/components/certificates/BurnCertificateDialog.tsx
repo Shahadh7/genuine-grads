@@ -2,10 +2,13 @@
 
 import { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { Connection, VersionedTransaction } from '@solana/web3.js';
+import { Connection, VersionedTransaction, Transaction } from '@solana/web3.js';
 import { graphqlClient } from '@/lib/graphql-client';
 import { useToast } from '@/hooks/useToast';
 import bs58 from 'bs58';
+
+// Helper to wait for ALT to be active on-chain (Solana requires ~1-2 slots)
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 import {
   Dialog,
   DialogContent,
@@ -52,9 +55,10 @@ export function BurnCertificateDialog({
   const [reason, setReason] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [currentStep, setCurrentStep] = useState<'confirm' | 'burning' | 'success' | 'error'>('confirm');
+  const [currentStep, setCurrentStep] = useState<'confirm' | 'creating_alt' | 'burning' | 'success' | 'error'>('confirm');
   const [signature, setSignature] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>('');
 
   const handleClose = () => {
     if (!isLoading) {
@@ -63,6 +67,7 @@ export function BurnCertificateDialog({
       setCurrentStep('confirm');
       setSignature(null);
       setError(null);
+      setStatusMessage('');
       onOpenChange(false);
     }
   };
@@ -93,48 +98,127 @@ export function BurnCertificateDialog({
     }
 
     setIsLoading(true);
-    setCurrentStep('burning');
     setError(null);
 
     try {
-      // Step 1: Prepare burn transaction
-      const prepareResponse = await graphqlClient.prepareBurnCertificateTransaction(
+      // Step 1: Use the workflow to get prerequisites and burn transaction
+      setStatusMessage('Preparing burn transaction...');
+      const workflowResponse = await graphqlClient.prepareBurnCertificateWorkflow(
         certificate.id,
         reason
       );
 
-      if (!prepareResponse.data?.prepareBurnCertificateTransaction) {
-        throw new Error('Failed to prepare burn transaction');
+      if (!workflowResponse.data?.prepareBurnCertificateWorkflow) {
+        throw new Error('Failed to prepare burn workflow');
       }
 
-      const { transaction, metadata } = prepareResponse.data.prepareBurnCertificateTransaction;
+      const { prerequisites, burn } = workflowResponse.data.prepareBurnCertificateWorkflow;
 
-      // Step 2: Deserialize transaction
-      const transactionBuffer = bs58.decode(transaction);
-      const versionedTransaction = VersionedTransaction.deserialize(transactionBuffer);
+      // Step 2: Execute prerequisites (ALT creation) if any
+      if (prerequisites.length > 0) {
+        setCurrentStep('creating_alt');
 
-      // Step 3: Sign transaction with wallet
-      const signedTransaction = await signTransaction(versionedTransaction);
+        for (const prereq of prerequisites) {
+          setStatusMessage(`${prereq.message}...`);
 
-      // Step 4: Serialize signed transaction
-      const signedTxBase64 = Buffer.from(signedTransaction.serialize()).toString('base64');
+          // Deserialize and sign the prerequisite transaction (legacy transaction for ALT)
+          const prereqBuffer = bs58.decode(prereq.transaction);
+          const prereqTx = Transaction.from(prereqBuffer);
 
-      // Step 5: Submit to backend
-      const submitResponse = await graphqlClient.submitSignedTransaction({
-        signedTransaction: signedTxBase64,
-        operationType: 'burn_certificate',
-        metadata,
-      });
+          // Sign the transaction
+          const signedPrereq = await signTransaction(prereqTx);
+          const signedPrereqBase58 = bs58.encode(signedPrereq.serialize());
 
-      if (!submitResponse.data?.submitSignedTransaction?.success) {
-        throw new Error(
-          submitResponse.data?.submitSignedTransaction?.message || 'Transaction failed'
+          // Submit to backend
+          const prereqSubmitResponse = await graphqlClient.submitSignedTransaction({
+            signedTransaction: signedPrereqBase58,
+            operationType: prereq.operationType,
+            metadata: prereq.metadata,
+          });
+
+          if (!prereqSubmitResponse.data?.submitSignedTransaction?.success) {
+            throw new Error(
+              prereqSubmitResponse.data?.submitSignedTransaction?.message ||
+              `Prerequisite ${prereq.operationType} failed`
+            );
+          }
+
+          // Wait for ALT to be active on-chain (takes a few slots)
+          if (prereq.operationType === 'create_address_lookup_table') {
+            setStatusMessage('Waiting for Address Lookup Table to activate...');
+            await sleep(3000); // Wait 3 seconds for ALT to be active
+          }
+        }
+
+        // Re-fetch the burn transaction now that ALT exists
+        setStatusMessage('Preparing burn transaction with optimized size...');
+        const burnResponse = await graphqlClient.prepareBurnCertificateWorkflow(
+          certificate.id,
+          reason
         );
-      }
 
-      const txSignature = submitResponse.data.submitSignedTransaction.signature;
-      setSignature(txSignature);
-      setCurrentStep('success');
+        if (!burnResponse.data?.prepareBurnCertificateWorkflow?.burn) {
+          throw new Error('Failed to prepare burn transaction after ALT creation');
+        }
+
+        // Use the new burn transaction
+        const { burn: burnTx } = burnResponse.data.prepareBurnCertificateWorkflow;
+
+        setCurrentStep('burning');
+        setStatusMessage('Burning certificate...');
+
+        // Deserialize and sign the burn transaction (versioned transaction)
+        const burnBuffer = bs58.decode(burnTx.transaction);
+        const versionedTransaction = VersionedTransaction.deserialize(burnBuffer);
+        const signedBurn = await signTransaction(versionedTransaction);
+        const signedBurnBase58 = bs58.encode(signedBurn.serialize());
+
+        // Submit burn transaction
+        const burnSubmitResponse = await graphqlClient.submitSignedTransaction({
+          signedTransaction: signedBurnBase58,
+          operationType: 'burn_certificate',
+          metadata: burnTx.metadata,
+        });
+
+        if (!burnSubmitResponse.data?.submitSignedTransaction?.success) {
+          throw new Error(
+            burnSubmitResponse.data?.submitSignedTransaction?.message || 'Burn transaction failed'
+          );
+        }
+
+        const txSignature = burnSubmitResponse.data.submitSignedTransaction.signature;
+        setSignature(txSignature);
+        setCurrentStep('success');
+      } else if (burn) {
+        // No prerequisites, execute burn directly
+        setCurrentStep('burning');
+        setStatusMessage('Burning certificate...');
+
+        // Deserialize and sign the burn transaction (versioned transaction)
+        const burnBuffer = bs58.decode(burn.transaction);
+        const versionedTransaction = VersionedTransaction.deserialize(burnBuffer);
+        const signedBurn = await signTransaction(versionedTransaction);
+        const signedBurnBase58 = bs58.encode(signedBurn.serialize());
+
+        // Submit burn transaction
+        const burnSubmitResponse = await graphqlClient.submitSignedTransaction({
+          signedTransaction: signedBurnBase58,
+          operationType: 'burn_certificate',
+          metadata: burn.metadata,
+        });
+
+        if (!burnSubmitResponse.data?.submitSignedTransaction?.success) {
+          throw new Error(
+            burnSubmitResponse.data?.submitSignedTransaction?.message || 'Burn transaction failed'
+          );
+        }
+
+        const txSignature = burnSubmitResponse.data.submitSignedTransaction.signature;
+        setSignature(txSignature);
+        setCurrentStep('success');
+      } else {
+        throw new Error('No burn transaction available');
+      }
 
       toast.success({
         title: 'Certificate burned successfully!',
@@ -158,6 +242,7 @@ export function BurnCertificateDialog({
       });
     } finally {
       setIsLoading(false);
+      setStatusMessage('');
     }
   };
 
@@ -263,6 +348,31 @@ export function BurnCertificateDialog({
           </>
         );
 
+      case 'creating_alt':
+        return (
+          <>
+            <DialogHeader>
+              <DialogTitle>Setting Up Transaction Optimization</DialogTitle>
+              <DialogDescription>
+                Creating an Address Lookup Table to enable certificate burning...
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex flex-col items-center justify-center py-8 space-y-4">
+              <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+              <div className="text-center space-y-2">
+                <p className="font-medium">One-time setup in progress</p>
+                <p className="text-sm text-muted-foreground">
+                  {statusMessage || 'Creating Address Lookup Table...'}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  This is required once per university to enable certificate burning.
+                </p>
+              </div>
+            </div>
+          </>
+        );
+
       case 'burning':
         return (
           <>
@@ -278,7 +388,7 @@ export function BurnCertificateDialog({
               <div className="text-center space-y-2">
                 <p className="font-medium">Processing burn transaction</p>
                 <p className="text-sm text-muted-foreground">
-                  Please approve the transaction in your wallet and wait for confirmation...
+                  {statusMessage || 'Please approve the transaction in your wallet and wait for confirmation...'}
                 </p>
               </div>
             </div>

@@ -42,7 +42,8 @@ model University {
   treeConfigAddress   String?           // Tree config PDA
   collectionAddress   String?           @unique // MPL Core collection address
   collectionPDA       String?           // University collection PDA on program
-  
+  addressLookupTable  String?           // Address Lookup Table for large transactions (burn, etc.)
+
   // Super admin public key (for deriving GlobalConfig)
   superAdminPubkey    String?           // Super admin's public key
 
@@ -196,7 +197,10 @@ model RevokedCertIndex {
   // Reason and metadata
   reason                String
   studentWallet         String?
-  
+
+  // Transaction signature (burn transaction on Solana)
+  transactionSignature  String?     @unique
+
   // Timestamps
   revokedAt             DateTime    @default(now())
   

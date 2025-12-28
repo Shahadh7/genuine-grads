@@ -9,12 +9,24 @@ import {
   buildCreateTreeInstruction,
   buildCreateCollectionInstruction,
   buildMintCertificateInstruction,
+  buildBurnCertificateInstruction,
   connection,
+  GENUINEGRADS_PROGRAM_ID,
+  MPL_CORE_PROGRAM_ID,
+  BUBBLEGUM_PROGRAM_ID,
   SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+  SPL_NOOP_PROGRAM_ID,
+  deriveGlobalConfigPDA,
+  deriveUniversityPDA,
+  deriveUniversityCollectionPDA,
+  deriveUniversityTreePDA,
+  deriveTreeConfig,
   fetchUniversityCollection,
   fetchUniversityTree,
 } from '../../../services/solana/program.service.js';
-import { prepareTransaction, submitSignedTransaction } from '../../../services/solana/transaction.service.js';
+import { getAssetWithProof } from '../../../services/helius/helius.client.js';
+import bs58 from 'bs58';
+import { prepareTransaction, prepareVersionedTransaction, submitSignedTransaction, createAddressLookupTableInstructions, fetchAddressLookupTable } from '../../../services/solana/transaction.service.js';
 import { getConcurrentMerkleTreeAccountSize } from '@solana/spl-account-compression';
 import { uploadMetadataToIPFS, buildCertificateMetadata, uploadFileToIPFS, buildCollectionMetadata } from '../../../services/ipfs/pinata.service.js';
 import { getUniversityDb } from '../../../db/university.client.js';
@@ -982,6 +994,648 @@ async function prepareMintCertificateTransaction(
 }
 
 /**
+ * Prepare burn certificate transaction
+ */
+async function prepareBurnCertificateTransaction(
+  _: any,
+  {
+    certificateId,
+    reason,
+  }: {
+    certificateId: string;
+    reason: string;
+  },
+  context: GraphQLContext
+) {
+  requireUniversityAdmin(context);
+
+  const universityId = context.admin!.universityId;
+
+  if (!universityId) {
+    throw new GraphQLError('University admin not associated with university', {
+      extensions: { code: 'UNAUTHORIZED' },
+    });
+  }
+
+  // Validate reason
+  if (!reason || reason.trim().length === 0) {
+    throw new GraphQLError('Revocation reason is required', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  if (reason.length > 120) {
+    throw new GraphQLError('Revocation reason must be 120 characters or less', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  const university = await sharedDb.university.findUnique({
+    where: { id: universityId },
+  });
+
+  if (!university) {
+    throw new GraphQLError('University not found', {
+      extensions: { code: 'NOT_FOUND' },
+    });
+  }
+
+  if (!university.merkleTreeAddress || !university.collectionAddress || !university.superAdminPubkey) {
+    throw new GraphQLError('University blockchain setup incomplete', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  // Get certificate from university database
+  const universityDb = await getUniversityDb(university.databaseUrl!);
+
+  const certificate = await universityDb.certificate.findUnique({
+    where: { id: certificateId },
+    include: {
+      student: true,
+    },
+  });
+
+  if (!certificate) {
+    throw new GraphQLError('Certificate not found', {
+      extensions: { code: 'NOT_FOUND' },
+    });
+  }
+
+  if (certificate.status !== 'MINTED') {
+    throw new GraphQLError('Certificate must be minted before it can be burned', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  if (certificate.revoked) {
+    throw new GraphQLError('Certificate is already revoked', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  if (!certificate.mintAddress) {
+    throw new GraphQLError('Certificate mint address not found', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  try {
+    // Get asset data and proof from Helius DAS API
+    // Use truncateCanopy to reduce proof size based on tree's canopy depth
+    const assetData = await getAssetWithProof(certificate.mintAddress, { truncateCanopy: true });
+
+    if (!assetData) {
+      throw new GraphQLError('Failed to retrieve asset proof from blockchain. The certificate may not be indexed yet.', {
+        extensions: { code: 'BLOCKCHAIN_ERROR' },
+      });
+    }
+
+    const { asset, proof, dataHash, creatorHash, leafOwner, leafDelegate } = assetData;
+
+    // Convert base58 strings to byte arrays (Helius DAS API returns base58)
+    const rootBytes: number[] = Array.from(bs58.decode(proof.root));
+    const dataHashBytes: number[] = Array.from(bs58.decode(dataHash));
+    const creatorHashBytes: number[] = Array.from(bs58.decode(creatorHash));
+    const proofNodes = proof.proof.map((p: string) => new PublicKey(p));
+
+    // Get compression data for nonce and index
+    const compression = asset.compression;
+    const nonce = BigInt(compression.leaf_id);
+    const index = compression.leaf_id;
+
+    // Get asset_data_hash if available (Bubblegum v2) - also base58 encoded
+    const assetDataHash = compression.asset_data_hash
+      ? Array.from(bs58.decode(compression.asset_data_hash))
+      : null;
+
+    const superAdmin = new PublicKey(university.superAdminPubkey);
+    const universityAuthority = new PublicKey(university.walletAddress);
+    const merkleTree = new PublicKey(university.merkleTreeAddress);
+    const coreCollection = new PublicKey(university.collectionAddress);
+
+    const { instruction } = await buildBurnCertificateInstruction({
+      universityAuthority,
+      superAdmin,
+      merkleTree,
+      coreCollection,
+      leafOwner: new PublicKey(leafOwner),
+      leafDelegate: leafDelegate ? new PublicKey(leafDelegate) : null,
+      root: rootBytes,
+      dataHash: dataHashBytes,
+      creatorHash: creatorHashBytes,
+      nonce,
+      index,
+      assetDataHash,
+      flags: null,
+      reason: reason.trim(),
+      attachCollection: true,
+      proofNodes,
+    });
+
+    // Use versioned transaction for burn operations as the Merkle proof
+    // can make the transaction exceed the legacy 1232 byte limit
+    // If university has an Address Lookup Table, use it to compress the transaction
+    let addressLookupTableAccounts: any[] = [];
+
+    if (university.addressLookupTable) {
+      try {
+        const altAccount = await fetchAddressLookupTable(new PublicKey(university.addressLookupTable));
+        if (altAccount) {
+          addressLookupTableAccounts = [altAccount];
+          logger.info(
+            {
+              universityId: university.id,
+              altAddress: university.addressLookupTable,
+              addressCount: altAccount.state.addresses.length,
+            },
+            'Using Address Lookup Table for burn transaction'
+          );
+        } else {
+          logger.warn(
+            { altAddress: university.addressLookupTable },
+            'ALT not found on-chain, proceeding without it'
+          );
+        }
+      } catch (altError: any) {
+        logger.warn(
+          { error: altError.message, altAddress: university.addressLookupTable },
+          'Failed to fetch ALT, proceeding without it'
+        );
+      }
+    }
+
+    const prepared = await prepareVersionedTransaction({
+      instructions: [instruction],
+      feePayer: universityAuthority,
+      addressLookupTableAccounts,
+    });
+
+    logger.info(
+      {
+        certificateId,
+        mintAddress: certificate.mintAddress,
+        leafOwner,
+        proofLength: proof.proof.length,
+        usingALT: addressLookupTableAccounts.length > 0,
+      },
+      'Prepared burn certificate versioned transaction'
+    );
+
+    return {
+      operationType: 'burn_certificate',
+      transaction: prepared.transaction,
+      blockhash: prepared.blockhash,
+      lastValidBlockHeight: prepared.lastValidBlockHeight,
+      message: `Burn certificate: ${certificate.badgeTitle}`,
+      metadata: {
+        universityId: university.id,
+        certificateId: certificate.id,
+        certificateNumber: certificate.certificateNumber,
+        mintAddress: certificate.mintAddress,
+        studentName: certificate.student.fullName,
+        studentWallet: certificate.student.walletAddress,
+        merkleTreeAddress: merkleTree.toBase58(),
+        collectionAddress: coreCollection.toBase58(),
+        reason: reason.trim(),
+      },
+    };
+  } catch (error: any) {
+    logger.error({ error: error.message, certificateId }, 'Failed to prepare burn certificate transaction');
+    throw new GraphQLError(`Failed to prepare burn transaction: ${error.message}`, {
+      extensions: { code: 'INTERNAL_SERVER_ERROR' },
+    });
+  }
+}
+
+/**
+ * Prepare Address Lookup Table creation for reducing transaction sizes
+ * This is a one-time setup per university that creates an ALT containing
+ * all static program addresses used in burn operations
+ */
+async function prepareCreateAddressLookupTable(
+  _: any,
+  __: any,
+  context: GraphQLContext
+) {
+  requireUniversityAdmin(context);
+
+  const universityId = context.admin!.universityId;
+
+  if (!universityId) {
+    throw new GraphQLError('University admin not associated with university', {
+      extensions: { code: 'UNAUTHORIZED' },
+    });
+  }
+
+  const university = await sharedDb.university.findUnique({
+    where: { id: universityId },
+  });
+
+  if (!university) {
+    throw new GraphQLError('University not found', {
+      extensions: { code: 'NOT_FOUND' },
+    });
+  }
+
+  if (!university.merkleTreeAddress || !university.collectionAddress || !university.superAdminPubkey) {
+    throw new GraphQLError('University blockchain setup incomplete. Tree and collection must be created first.', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  // Check if ALT already exists
+  if (university.addressLookupTable) {
+    throw new GraphQLError('Address Lookup Table already exists for this university', {
+      extensions: { code: 'BAD_USER_INPUT', existingAlt: university.addressLookupTable },
+    });
+  }
+
+  try {
+    const universityAuthority = new PublicKey(university.walletAddress);
+    const superAdmin = new PublicKey(university.superAdminPubkey);
+    const merkleTree = new PublicKey(university.merkleTreeAddress);
+    const coreCollection = new PublicKey(university.collectionAddress);
+
+    // Derive all PDAs that are used in burn operations
+    const [globalConfigPDA] = deriveGlobalConfigPDA(superAdmin);
+    const [universityPDA] = deriveUniversityPDA(universityAuthority);
+    const [universityCollectionPDA] = deriveUniversityCollectionPDA(universityPDA);
+    const [universityTreePDA] = deriveUniversityTreePDA(merkleTree);
+    const [treeConfig] = deriveTreeConfig(merkleTree);
+
+    // MPL Core CPI signer (hardcoded in the program)
+    const mplCoreCpiSigner = new PublicKey('CbNY3JiXdXNE9tPNEk1aRZVEkWdj2v7kfJLNQwZZgpXk');
+
+    // Collect all static addresses used in burn transactions
+    // These are addresses that don't change between burn operations
+    const staticAddresses: PublicKey[] = [
+      // Program IDs
+      GENUINEGRADS_PROGRAM_ID,
+      MPL_CORE_PROGRAM_ID,
+      BUBBLEGUM_PROGRAM_ID,
+      SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+      SPL_NOOP_PROGRAM_ID,
+      SystemProgram.programId,
+      // PDAs and static accounts
+      globalConfigPDA,
+      universityPDA,
+      universityCollectionPDA,
+      universityTreePDA,
+      merkleTree,
+      treeConfig,
+      coreCollection,
+      mplCoreCpiSigner,
+      universityAuthority,
+    ];
+
+    // Create ALT instructions
+    const { lookupTableAddress, instructions } = await createAddressLookupTableInstructions({
+      authority: universityAuthority,
+      addresses: staticAddresses,
+    });
+
+    // Prepare the transaction
+    const prepared = await prepareTransaction({
+      instructions,
+      feePayer: universityAuthority,
+    });
+
+    logger.info(
+      {
+        universityId,
+        lookupTableAddress: lookupTableAddress.toBase58(),
+        addressCount: staticAddresses.length,
+      },
+      'Prepared create Address Lookup Table transaction'
+    );
+
+    return {
+      operationType: 'create_address_lookup_table',
+      transaction: prepared.transaction,
+      blockhash: prepared.blockhash,
+      lastValidBlockHeight: prepared.lastValidBlockHeight,
+      message: `Create Address Lookup Table with ${staticAddresses.length} addresses`,
+      metadata: {
+        universityId,
+        lookupTableAddress: lookupTableAddress.toBase58(),
+        addressCount: staticAddresses.length,
+      },
+      accountsCreated: [
+        {
+          name: 'Address Lookup Table',
+          address: lookupTableAddress.toBase58(),
+        },
+      ],
+    };
+  } catch (error: any) {
+    logger.error({ error: error.message, universityId }, 'Failed to prepare create ALT transaction');
+    throw new GraphQLError(`Failed to prepare ALT transaction: ${error.message}`, {
+      extensions: { code: 'INTERNAL_SERVER_ERROR' },
+    });
+  }
+}
+
+/**
+ * Prepare burn certificate workflow - automatically creates ALT if needed
+ * Returns prerequisites (ALT creation) and burn transaction
+ */
+async function prepareBurnCertificateWorkflow(
+  _: any,
+  {
+    certificateId,
+    reason,
+  }: {
+    certificateId: string;
+    reason: string;
+  },
+  context: GraphQLContext
+) {
+  requireUniversityAdmin(context);
+
+  const universityId = context.admin!.universityId;
+
+  if (!universityId) {
+    throw new GraphQLError('University admin not associated with university', {
+      extensions: { code: 'UNAUTHORIZED' },
+    });
+  }
+
+  // Validate reason
+  if (!reason || reason.trim().length === 0) {
+    throw new GraphQLError('Revocation reason is required', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  if (reason.length > 120) {
+    throw new GraphQLError('Revocation reason must be 120 characters or less', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  const university = await sharedDb.university.findUnique({
+    where: { id: universityId },
+  });
+
+  if (!university) {
+    throw new GraphQLError('University not found', {
+      extensions: { code: 'NOT_FOUND' },
+    });
+  }
+
+  if (!university.merkleTreeAddress || !university.collectionAddress || !university.superAdminPubkey) {
+    throw new GraphQLError('University blockchain setup incomplete', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  // Get certificate from university database
+  const universityDb = await getUniversityDb(university.databaseUrl!);
+
+  const certificate = await universityDb.certificate.findUnique({
+    where: { id: certificateId },
+    include: {
+      student: true,
+    },
+  });
+
+  if (!certificate) {
+    throw new GraphQLError('Certificate not found', {
+      extensions: { code: 'NOT_FOUND' },
+    });
+  }
+
+  if (certificate.status !== 'MINTED') {
+    throw new GraphQLError('Certificate must be minted before it can be burned', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  if (certificate.revoked) {
+    throw new GraphQLError('Certificate is already revoked', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  if (!certificate.mintAddress) {
+    throw new GraphQLError('Certificate mint address not found', {
+      extensions: { code: 'BAD_USER_INPUT' },
+    });
+  }
+
+  const prerequisites: PreparedTransactionStep[] = [];
+
+  try {
+    const universityAuthority = new PublicKey(university.walletAddress);
+    const superAdmin = new PublicKey(university.superAdminPubkey);
+    const merkleTree = new PublicKey(university.merkleTreeAddress);
+    const coreCollection = new PublicKey(university.collectionAddress);
+
+    // Check if ALT exists, if not create it as a prerequisite
+    let altAddress = university.addressLookupTable;
+
+    if (!altAddress) {
+      // Create ALT as prerequisite
+      logger.info({ universityId }, 'No ALT found, creating as prerequisite for burn');
+
+      // Derive all PDAs that are used in burn operations
+      const [globalConfigPDA] = deriveGlobalConfigPDA(superAdmin);
+      const [universityPDA] = deriveUniversityPDA(universityAuthority);
+      const [universityCollectionPDA] = deriveUniversityCollectionPDA(universityPDA);
+      const [universityTreePDA] = deriveUniversityTreePDA(merkleTree);
+      const [treeConfig] = deriveTreeConfig(merkleTree);
+
+      // MPL Core CPI signer (hardcoded in the program)
+      const mplCoreCpiSigner = new PublicKey('CbNY3JiXdXNE9tPNEk1aRZVEkWdj2v7kfJLNQwZZgpXk');
+
+      // Collect all static addresses used in burn transactions
+      const staticAddresses: PublicKey[] = [
+        // Program IDs
+        GENUINEGRADS_PROGRAM_ID,
+        MPL_CORE_PROGRAM_ID,
+        BUBBLEGUM_PROGRAM_ID,
+        SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+        SPL_NOOP_PROGRAM_ID,
+        SystemProgram.programId,
+        // PDAs and static accounts
+        globalConfigPDA,
+        universityPDA,
+        universityCollectionPDA,
+        universityTreePDA,
+        merkleTree,
+        treeConfig,
+        coreCollection,
+        mplCoreCpiSigner,
+        universityAuthority,
+      ];
+
+      // Create ALT instructions
+      const { lookupTableAddress, instructions } = await createAddressLookupTableInstructions({
+        authority: universityAuthority,
+        addresses: staticAddresses,
+      });
+
+      // Prepare the ALT creation transaction
+      const altPrepared = await prepareTransaction({
+        instructions,
+        feePayer: universityAuthority,
+      });
+
+      prerequisites.push({
+        operationType: 'create_address_lookup_table',
+        transaction: altPrepared.transaction,
+        blockhash: altPrepared.blockhash,
+        lastValidBlockHeight: altPrepared.lastValidBlockHeight,
+        message: `Create Address Lookup Table with ${staticAddresses.length} addresses (required for burn)`,
+        metadata: {
+          universityId,
+          lookupTableAddress: lookupTableAddress.toBase58(),
+          addressCount: staticAddresses.length,
+        },
+        accountsCreated: [
+          {
+            name: 'Address Lookup Table',
+            address: lookupTableAddress.toBase58(),
+          },
+        ],
+      });
+
+      // Set the ALT address for use in burn transaction
+      // Note: The burn transaction will be prepared but won't work until ALT is created
+      // The frontend should execute prerequisites first, then fetch the burn transaction again
+      altAddress = lookupTableAddress.toBase58();
+
+      logger.info(
+        {
+          universityId,
+          lookupTableAddress: altAddress,
+        },
+        'Prepared ALT creation as prerequisite for burn'
+      );
+    }
+
+    // Get asset data and proof from Helius DAS API
+    const assetData = await getAssetWithProof(certificate.mintAddress, { truncateCanopy: true });
+
+    if (!assetData) {
+      throw new GraphQLError('Failed to retrieve asset proof from blockchain. The certificate may not be indexed yet.', {
+        extensions: { code: 'BLOCKCHAIN_ERROR' },
+      });
+    }
+
+    const { asset, proof, dataHash, creatorHash, leafOwner, leafDelegate } = assetData;
+
+    // Convert base58 strings to byte arrays (Helius DAS API returns base58)
+    const rootBytes: number[] = Array.from(bs58.decode(proof.root));
+    const dataHashBytes: number[] = Array.from(bs58.decode(dataHash));
+    const creatorHashBytes: number[] = Array.from(bs58.decode(creatorHash));
+    const proofNodes = proof.proof.map((p: string) => new PublicKey(p));
+
+    // Get compression data for nonce and index
+    const compression = asset.compression;
+    const nonce = BigInt(compression.leaf_id);
+    const index = compression.leaf_id;
+
+    // Get asset_data_hash if available (Bubblegum v2) - also base58 encoded
+    const assetDataHash = compression.asset_data_hash
+      ? Array.from(bs58.decode(compression.asset_data_hash))
+      : null;
+
+    const { instruction } = await buildBurnCertificateInstruction({
+      universityAuthority,
+      superAdmin,
+      merkleTree,
+      coreCollection,
+      leafOwner: new PublicKey(leafOwner),
+      leafDelegate: leafDelegate ? new PublicKey(leafDelegate) : null,
+      root: rootBytes,
+      dataHash: dataHashBytes,
+      creatorHash: creatorHashBytes,
+      nonce,
+      index,
+      assetDataHash,
+      flags: null,
+      reason: reason.trim(),
+      attachCollection: true,
+      proofNodes,
+    });
+
+    // Try to use ALT if it exists on-chain (only if no prerequisites)
+    let addressLookupTableAccounts: any[] = [];
+
+    if (prerequisites.length === 0 && altAddress) {
+      try {
+        const altAccount = await fetchAddressLookupTable(new PublicKey(altAddress));
+        if (altAccount) {
+          addressLookupTableAccounts = [altAccount];
+          logger.info(
+            {
+              universityId: university.id,
+              altAddress,
+              addressCount: altAccount.state.addresses.length,
+            },
+            'Using existing Address Lookup Table for burn transaction'
+          );
+        }
+      } catch (altError: any) {
+        logger.warn(
+          { error: altError.message, altAddress },
+          'Failed to fetch ALT, proceeding without it'
+        );
+      }
+    }
+
+    const burnPrepared = await prepareVersionedTransaction({
+      instructions: [instruction],
+      feePayer: universityAuthority,
+      addressLookupTableAccounts,
+    });
+
+    const burnTransaction: PreparedTransactionStep = {
+      operationType: 'burn_certificate',
+      transaction: burnPrepared.transaction,
+      blockhash: burnPrepared.blockhash,
+      lastValidBlockHeight: burnPrepared.lastValidBlockHeight,
+      message: `Burn certificate: ${certificate.badgeTitle}`,
+      metadata: {
+        universityId: university.id,
+        certificateId: certificate.id,
+        certificateNumber: certificate.certificateNumber,
+        mintAddress: certificate.mintAddress,
+        studentName: certificate.student.fullName,
+        studentWallet: certificate.student.walletAddress,
+        merkleTreeAddress: merkleTree.toBase58(),
+        collectionAddress: coreCollection.toBase58(),
+        reason: reason.trim(),
+      },
+    };
+
+    logger.info(
+      {
+        certificateId,
+        mintAddress: certificate.mintAddress,
+        leafOwner,
+        proofLength: proof.proof.length,
+        hasPrerequisites: prerequisites.length > 0,
+        usingALT: addressLookupTableAccounts.length > 0,
+      },
+      'Prepared burn certificate workflow'
+    );
+
+    return {
+      prerequisites,
+      burn: prerequisites.length === 0 ? burnTransaction : null,
+    };
+  } catch (error: any) {
+    logger.error({ error: error.message, certificateId }, 'Failed to prepare burn certificate workflow');
+    throw new GraphQLError(`Failed to prepare burn workflow: ${error.message}`, {
+      extensions: { code: 'INTERNAL_SERVER_ERROR' },
+    });
+  }
+}
+
+/**
  * Submit any signed transaction and update database
  */
 async function submitSignedTransactionMutation(
@@ -1120,6 +1774,76 @@ async function submitSignedTransactionMutation(
           }
         }
       }
+    } else if (operationType === 'burn_certificate' && metadata?.certificateId) {
+      const universityId = context.admin.universityId;
+      const university = await sharedDb.university.findUnique({
+        where: { id: universityId! },
+      });
+
+      if (university?.databaseUrl) {
+        const universityDb = await getUniversityDb(university.databaseUrl);
+
+        // Update certificate as revoked with transaction signature
+        await universityDb.certificate.update({
+          where: { id: metadata.certificateId },
+          data: {
+            revoked: true,
+            revokedAt: new Date(),
+            revocationReason: metadata.reason || 'Certificate burned on-chain',
+            revocationTransactionSignature: result.signature,
+          },
+        });
+
+        // Create revoked certificate index entry for audit trail
+        try {
+          await sharedDb.revokedCertIndex.create({
+            data: {
+              revokedByUniversityId: university.id,
+              certificateNumber: metadata.certificateNumber,
+              mintAddress: metadata.mintAddress,
+              reason: metadata.reason || 'Certificate burned on-chain',
+              studentWallet: metadata.studentWallet,
+              transactionSignature: result.signature,
+            },
+          });
+        } catch (indexError: any) {
+          // Log but don't fail - the certificate is already revoked
+          logger.warn(
+            { error: indexError.message, certificateNumber: metadata.certificateNumber },
+            'Failed to create revoked cert index entry (may already exist)'
+          );
+        }
+
+        logger.info(
+          {
+            certificateId: metadata.certificateId,
+            certificateNumber: metadata.certificateNumber,
+            signature: result.signature,
+          },
+          'Certificate burned and marked as revoked'
+        );
+      }
+    } else if (operationType === 'create_address_lookup_table' && metadata?.lookupTableAddress) {
+      // Update university with ALT address
+      const universityId = metadata.universityId || context.admin.universityId;
+
+      if (universityId) {
+        await sharedDb.university.update({
+          where: { id: universityId },
+          data: {
+            addressLookupTable: metadata.lookupTableAddress,
+          },
+        });
+
+        logger.info(
+          {
+            universityId,
+            lookupTableAddress: metadata.lookupTableAddress,
+            signature: result.signature,
+          },
+          'Address Lookup Table created and saved to university'
+        );
+      }
     }
 
     logger.info(
@@ -1256,7 +1980,7 @@ async function confirmTransaction(
     {
       signature,
       operationType,
-      adminId: context.admin.id,
+      adminId: context.admin!.id,
     },
     'Confirming transaction'
   );
@@ -1356,7 +2080,7 @@ async function confirmTransaction(
             );
           }
 
-          const updatedCertificate = await uniDb.certificate.update({
+          await uniDb.certificate.update({
             where: { id: metadata.certificateId },
             data: updateData,
           });
@@ -1401,7 +2125,7 @@ async function confirmTransaction(
       {
         signature,
         operationType,
-        adminId: context.admin.id,
+        adminId: context.admin!.id,
       },
       'Transaction confirmed successfully'
     );
@@ -1426,7 +2150,6 @@ async function mintCertificate(
   _: any,
   {
     certificateId,
-    attachCollection = true,
   }: {
     certificateId: string;
     attachCollection?: boolean;
@@ -1487,6 +2210,9 @@ export const solanaMutations = {
   prepareCreateCollectionTransaction,
   prepareMintCertificateTransaction,
   prepareMintCertificateWorkflow,
+  prepareBurnCertificateTransaction,
+  prepareBurnCertificateWorkflow,
+  prepareCreateAddressLookupTable,
   submitSignedTransaction: submitSignedTransactionMutation,
   // New one-click mutations
   createMerkleTree,

@@ -197,7 +197,7 @@ export const universityMutations = {
     const databaseUrl = env.UNIVERSITY_DATABASE_URL.replace(/\/[^/]*$/, `/${databaseName}`);
     const passwordHash = await hashPassword(adminPassword);
 
-    const result = await sharedDb.$transaction(async (tx) => {
+    const result = await sharedDb.$transaction(async (tx: any) => {
       const university = await tx.university.create({
         data: {
           name,

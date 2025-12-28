@@ -4,6 +4,7 @@ import { sharedDb } from '../../../db/shared.client.js';
 import { getUniversityDb } from '../../../db/university.client.js';
 import { logger } from '../../../utils/logger.js';
 import { env } from '../../../env.js';
+import { getAssetOnChainStatus } from '../../../services/helius/helius.client.js';
 
 interface VerifyInput {
   certificateNumber?: string;
@@ -71,10 +72,11 @@ export const publicQueries = {
             isRevoked: true,
             revokedAt: revokedCert.revokedAt,
             reason: revokedCert.reason,
+            transactionSignature: revokedCert.transactionSignature,
           },
           blockchainProof: {
             mintAddress: revokedCert.mintAddress,
-            transactionSignature: null,
+            transactionSignature: revokedCert.transactionSignature,
             merkleTreeAddress: null,
             metadataUri: null,
             verifiedAt: new Date(),
@@ -271,7 +273,7 @@ export const publicQueries = {
                 badgeTitle: true,
               },
             });
-            achievements = achievementRecords.map(a => a.badgeTitle);
+            achievements = achievementRecords.map((a: any) => a.badgeTitle);
           }
         } catch (error) {
           logger.warn({ error, certificateId: certificate.id }, 'Failed to parse metadataJson for achievements');
@@ -280,6 +282,9 @@ export const publicQueries = {
 
       // Check if revoked (double check at university level)
       if (certificate.revoked) {
+        // Get revocation transaction signature from certificate or shared index
+        const revocationTxSig = (certificate as any).revocationTransactionSignature || null;
+
         return {
           isValid: false,
           status: 'REVOKED',
@@ -299,10 +304,11 @@ export const publicQueries = {
             isRevoked: true,
             revokedAt: certificate.revokedAt,
             reason: certificate.revocationReason,
+            transactionSignature: revocationTxSig,
           },
           blockchainProof: {
             mintAddress: certificate.mintAddress,
-            transactionSignature: certificate.transactionSignature,
+            transactionSignature: revocationTxSig || certificate.transactionSignature,
             merkleTreeAddress: certificate.merkleTreeAddress,
             metadataUri: certificate.ipfsMetadataUri,
             verifiedAt: new Date(),
@@ -311,8 +317,87 @@ export const publicQueries = {
         };
       }
 
-      // Step 4: Verify on-chain (TODO: integrate with Helius NFT API)
-      // const onChainValid = await verifyNFTOnChain(certificate.mintAddress);
+      // Step 4: Verify on-chain using Helius DAS API
+      // Check if the certificate NFT has been burned on-chain
+      if (certificate.mintAddress) {
+        try {
+          const onChainStatus = await getAssetOnChainStatus(certificate.mintAddress);
+
+          logger.info(
+            {
+              mintAddress: certificate.mintAddress,
+              onChainStatus,
+            },
+            'On-chain verification status'
+          );
+
+          // If asset is burned on-chain but not marked as revoked in DB,
+          // update verification log and return revoked status
+          if (onChainStatus.burnt) {
+            // Try to find revocation info from shared index
+            const revokedInfo = await sharedDb.revokedCertIndex.findUnique({
+              where: { mintAddress: certificate.mintAddress },
+            });
+
+            // Update verification log to indicate burnt on-chain
+            try {
+              await universityDb.verificationLog.create({
+                data: {
+                  studentId: certificate.studentId,
+                  certificateId: certificate.id,
+                  verifiedAt: new Date(),
+                  verificationType: 'PUBLIC',
+                  verificationStatus: 'FAILED',
+                  verifierIpAddress: context.req.ip || 'unknown',
+                  verifierUserAgent: context.req.headers['user-agent'] || null,
+                  certificateNumber: certificate.certificateNumber,
+                  mintAddress: certificate.mintAddress,
+                  errorMessage: 'Certificate NFT burned on-chain',
+                },
+              });
+            } catch (logErr) {
+              // Ignore duplicate log errors
+            }
+
+            return {
+              isValid: false,
+              status: 'REVOKED',
+              certificate: {
+                badgeTitle: certificate.badgeTitle,
+                issueDate: certificate.issuedAt,
+                university: {
+                  name: mintLog.university.name,
+                  logoUrl: mintLog.university.logoUrl,
+                  isVerified: mintLog.university.status === 'APPROVED',
+                },
+                studentName: certificate.student.fullName,
+                degreeType: certificate.degreeType,
+                achievements,
+              },
+              revocationInfo: {
+                isRevoked: true,
+                revokedAt: revokedInfo?.revokedAt || null,
+                reason: revokedInfo?.reason || 'Certificate burned on-chain',
+                transactionSignature: revokedInfo?.transactionSignature || null,
+              },
+              blockchainProof: {
+                mintAddress: certificate.mintAddress,
+                transactionSignature: revokedInfo?.transactionSignature || certificate.transactionSignature,
+                merkleTreeAddress: certificate.merkleTreeAddress,
+                metadataUri: certificate.ipfsMetadataUri,
+                verifiedAt: new Date(),
+              },
+              verificationTimestamp: new Date(),
+            };
+          }
+        } catch (onChainError) {
+          // Log but don't fail verification if on-chain check fails
+          logger.warn(
+            { error: onChainError, mintAddress: certificate.mintAddress },
+            'Failed to check on-chain status, continuing with DB verification'
+          );
+        }
+      }
 
       // Certificate is valid!
       return {

@@ -24,7 +24,7 @@ export const authMutations = {
   /**
    * Register a new admin (can be super admin or university admin)
    */
-  async register(_: any, { input }: { input: RegisterInput }, context: GraphQLContext) {
+  async register(_: any, { input }: { input: RegisterInput }, _context: GraphQLContext) {
     const { email, password, username, fullName, universityId } = input;
 
     // Validate password strength
@@ -106,7 +106,7 @@ export const authMutations = {
   /**
    * Login with email and password (and optional TOTP token)
    */
-  async login(_: any, { input }: { input: LoginInput }, context: GraphQLContext) {
+  async login(_: any, { input }: { input: LoginInput }, _context: GraphQLContext) {
     const { email, password, totpToken } = input;
 
     // Find admin by email
@@ -247,7 +247,7 @@ export const authMutations = {
   /**
    * Refresh access token using refresh token
    */
-  async refreshToken(_: any, { refreshToken }: { refreshToken: string }, context: GraphQLContext) {
+  async refreshToken(_: any, { refreshToken }: { refreshToken: string }, _context: GraphQLContext) {
     try {
       // Verify refresh token
       const payload = verifyRefreshToken(refreshToken);

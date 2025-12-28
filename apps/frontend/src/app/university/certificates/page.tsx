@@ -71,6 +71,9 @@ type CertificateRecord = {
   mintAddress?: string | null;
   transactionSignature?: string | null;
   revoked?: boolean;
+  revokedAt?: string | null;
+  revocationReason?: string | null;
+  revocationTransactionSignature?: string | null;
   student?: {
     id: string;
     fullName?: string | null;
@@ -307,9 +310,10 @@ export default function CertificatesPage(): React.JSX.Element {
 
     const matchesStatus =
       statusFilter === 'all' ||
-      (statusFilter === 'issued' && cert.status === 'MINTED') ||
+      (statusFilter === 'issued' && cert.status === 'MINTED' && !cert.revoked) ||
       (statusFilter === 'pending' && cert.status === 'PENDING') ||
-      (statusFilter === 'failed' && cert.status === 'FAILED');
+      (statusFilter === 'failed' && cert.status === 'FAILED') ||
+      (statusFilter === 'revoked' && cert.revoked);
 
     const matchesProgram =
       programFilter === 'all' ||
@@ -438,19 +442,28 @@ export default function CertificatesPage(): React.JSX.Element {
     {
       key: 'status',
       header: 'Status',
-      render: (cert: CertificateRecord) => (
-        <Badge
-          variant={
-            cert.status === 'MINTED'
-              ? 'default'
-              : cert.status === 'FAILED'
-              ? 'destructive'
-              : 'secondary'
-          }
-        >
-          {cert.status === 'MINTED' ? 'Issued' : cert.status === 'FAILED' ? 'Failed' : 'Pending'}
-        </Badge>
-      )
+      render: (cert: CertificateRecord) => {
+        if (cert.revoked) {
+          return (
+            <Badge variant="destructive" className="bg-red-600">
+              Revoked
+            </Badge>
+          );
+        }
+        return (
+          <Badge
+            variant={
+              cert.status === 'MINTED'
+                ? 'default'
+                : cert.status === 'FAILED'
+                ? 'destructive'
+                : 'secondary'
+            }
+          >
+            {cert.status === 'MINTED' ? 'Issued' : cert.status === 'FAILED' ? 'Failed' : 'Pending'}
+          </Badge>
+        );
+      }
     },
     {
       key: 'actions',
@@ -522,12 +535,6 @@ export default function CertificatesPage(): React.JSX.Element {
               Design Templates
             </Button>
           </Link>
-          <Link href="/university/certificates/revoke">
-            <Button variant="outline" className="flex items-center gap-2">
-              <XCircle className="h-4 w-4" />
-              Revoke Certificate
-            </Button>
-          </Link>
           <Link href="/university/settings/blockchain">
             <Button variant="outline" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
@@ -560,6 +567,7 @@ export default function CertificatesPage(): React.JSX.Element {
                 <SelectItem value="issued">Issued</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="revoked">Revoked</SelectItem>
               </SelectContent>
             </Select>
 
@@ -719,17 +727,23 @@ export default function CertificatesPage(): React.JSX.Element {
 
                   <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
                     <span className="text-sm font-medium">Status:</span>
-                    <Badge
-                      variant={
-                        selectedCertificate.status === 'MINTED'
-                          ? 'default'
-                          : selectedCertificate.status === 'FAILED'
-                          ? 'destructive'
-                          : 'secondary'
-                      }
-                    >
-                      {selectedCertificate.status === 'MINTED' ? 'Issued' : selectedCertificate.status === 'FAILED' ? 'Failed' : 'Pending'}
-                    </Badge>
+                    {selectedCertificate.revoked ? (
+                      <Badge variant="destructive" className="bg-red-600">
+                        Revoked
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant={
+                          selectedCertificate.status === 'MINTED'
+                            ? 'default'
+                            : selectedCertificate.status === 'FAILED'
+                            ? 'destructive'
+                            : 'secondary'
+                        }
+                      >
+                        {selectedCertificate.status === 'MINTED' ? 'Issued' : selectedCertificate.status === 'FAILED' ? 'Failed' : 'Pending'}
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
@@ -738,6 +752,68 @@ export default function CertificatesPage(): React.JSX.Element {
                   </div>
                 </div>
               </div>
+
+              {/* Revocation Details */}
+              {selectedCertificate.revoked && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-destructive uppercase tracking-wide flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    Revocation Details
+                  </h3>
+                  <div className="grid gap-4">
+                    {selectedCertificate.revokedAt && (
+                      <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                        <span className="text-sm font-medium">Revoked On:</span>
+                        <span className="text-sm">{formatDate(selectedCertificate.revokedAt)}</span>
+                      </div>
+                    )}
+
+                    {selectedCertificate.revocationReason && (
+                      <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                        <span className="text-sm font-medium">Reason:</span>
+                        <span className="text-sm">{selectedCertificate.revocationReason}</span>
+                      </div>
+                    )}
+
+                    {selectedCertificate.revocationTransactionSignature && (
+                      <div className="grid grid-cols-[120px_1fr] gap-4 items-start">
+                        <span className="text-sm font-medium">Transaction:</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-mono break-all">
+                            {selectedCertificate.revocationTransactionSignature}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => handleCopyToClipboard(selectedCertificate.revocationTransactionSignature!, 'Revocation Transaction')}
+                          >
+                            {copiedField === 'Revocation Transaction' ? (
+                              <CheckCircle2 className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => window.open(`https://explorer.solana.com/tx/${selectedCertificate.revocationTransactionSignature}?cluster=devnet`, '_blank')}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {!selectedCertificate.revokedAt && !selectedCertificate.revocationReason && !selectedCertificate.revocationTransactionSignature && (
+                      <p className="text-sm text-muted-foreground">
+                        This certificate has been revoked by the issuing institution.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Student Information */}
               {selectedCertificate.student && (

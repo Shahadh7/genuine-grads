@@ -60,6 +60,13 @@ pub mod genuinegrads {
         mint_certificate_v2::handler(ctx, args)
     }
 
+    pub fn burn_certificate_v2<'info>(
+        ctx: Context<'_, '_, '_, 'info, BurnCertificateV2<'info>>,
+        args: BurnCertificateArgs,
+    ) -> Result<()> {
+        burn_certificate_v2::handler(ctx, args)
+    }
+
     // pub fn set_non_transferable_v2(ctx: Context<SetNonTransferableV2>, args: SetNonTransferableArgs) -> Result<()> {
     //     set_non_transferable_v2::handler(ctx, args)
     // }

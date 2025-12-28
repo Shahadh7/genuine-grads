@@ -48,11 +48,11 @@ export default function AccountPage(): React.JSX.Element {
     router.push('/login');
   };
 
-  const copyToClipboard = (text) => {
+  const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
 
-  const copyWalletAddress = (text) => {
+  const copyWalletAddress = (text: string) => {
     copyToClipboard(text);
   };
 

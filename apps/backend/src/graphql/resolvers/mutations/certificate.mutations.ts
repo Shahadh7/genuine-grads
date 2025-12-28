@@ -1,7 +1,7 @@
 import { GraphQLError } from 'graphql';
 import { sharedDb } from '../../../db/shared.client.js';
 import { GraphQLContext, requireUniversityAdmin, requireUniversityDb } from '../../context.js';
-import { generateCertificateNumber, generateJobId } from '../../../utils/ids.js';
+import { generateCertificateNumber } from '../../../utils/ids.js';
 import { logger } from '../../../utils/logger.js';
 import { generateCertificateFromTemplate, DesignTemplate } from '../../../services/certificate/generator.service.js';
 import { uploadFileToIPFS, uploadMetadataToIPFS } from '../../../services/ipfs/pinata.service.js';
@@ -144,7 +144,7 @@ export const certificateMutations = {
     );
 
     const template = await universityDb.certificateTemplate.create({
-      data: payload,
+      data: payload as any,
     });
 
     logger.info(
@@ -625,7 +625,7 @@ export const certificateMutations = {
     requireUniversityAdmin(context);
     const universityDb = requireUniversityDb(context);
 
-    const { studentIds, batchName, certificateData } = input;
+    const { studentIds, batchName } = input;
 
     if (studentIds.length === 0) {
       throw new GraphQLError('No students provided', {
@@ -633,21 +633,19 @@ export const certificateMutations = {
       });
     }
 
-    // Generate job ID
-    const jobId = generateJobId();
-
     // Create batch job record
     const batchJob = await universityDb.batchIssuanceJob.create({
       data: {
-        jobId,
+        universityId: context.admin!.universityId!,
         batchName,
-        totalStudents: studentIds.length,
+        totalCertificates: studentIds.length,
         status: 'PENDING',
-        studentIds,
-        certificateData: JSON.stringify(certificateData),
+        certificateIds: studentIds,
         createdByAdminId: context.admin!.id,
       },
     });
+
+    const jobId = batchJob.id;
 
     // TODO: Queue the job with BullMQ
     // await certificateQueue.add('bulk-issue', {
@@ -676,7 +674,7 @@ export const certificateMutations = {
     requireUniversityAdmin(context);
     const universityDb = requireUniversityDb(context);
 
-    const { certificateId, reason, adminPassword } = input;
+    const { certificateId, reason } = input;
 
     // Verify admin password
     const admin = await sharedDb.admin.findUnique({
@@ -819,11 +817,11 @@ export const certificateMutations = {
     }
 
     // Check for missing wallet addresses
-    const missingWallets = certificates.filter((cert) => !cert.student.walletAddress);
+    const missingWallets = certificates.filter((cert: any) => !cert.student.walletAddress);
     if (missingWallets.length > 0) {
       throw new GraphQLError(
         `${missingWallets.length} student(s) do not have wallet addresses: ${missingWallets
-          .map((c) => c.student.fullName)
+          .map((c: any) => c.student.fullName)
           .join(', ')}`,
         {
           extensions: { code: 'BAD_USER_INPUT' },
@@ -837,7 +835,7 @@ export const certificateMutations = {
         universityId: context.admin!.universityId!,
         batchName: `Batch ${new Date().toISOString()}`,
         totalCertificates: certificates.length,
-        certificateIds: certificates.map((c) => c.id),
+        certificateIds: certificates.map((c: any) => c.id),
         status: 'PENDING',
         createdByAdminId: context.admin!.id,
       },
@@ -848,7 +846,7 @@ export const certificateMutations = {
       batchId: batchJob.id,
       totalCertificates: certificates.length,
       estimatedTimeMinutes: Math.ceil((certificates.length * 5) / 60), // ~5 seconds per cert
-      certificates: certificates.map((cert) => ({
+      certificates: certificates.map((cert: any) => ({
         certificateId: cert.id,
         certificateNumber: cert.certificateNumber,
         studentName: cert.student.fullName,

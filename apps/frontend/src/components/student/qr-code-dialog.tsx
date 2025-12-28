@@ -7,7 +7,11 @@ import { Copy, Download, XCircle, QrCode } from 'lucide-react';
 import QRCode from 'react-qr-code';
 
 interface Props {
-  // Add props here
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  value: string;
+  description?: string;
 }
 
 export default function QRCodeDialog({
@@ -17,7 +21,7 @@ export default function QRCodeDialog({
   value, 
   description = "Scan this QR code to verify or view the content"
 }: Props): React.JSX.Element {
-  const copyToClipboard = (text) => {
+  const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     // You could add a toast notification here
   };

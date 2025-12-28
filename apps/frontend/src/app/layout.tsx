@@ -1,4 +1,4 @@
-import React from "react"
+import React, { Suspense } from "react"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import "@solana/wallet-adapter-react-ui/styles.css"
@@ -55,7 +55,7 @@ interface RootLayoutProps {
   children: React.ReactNode
 }
 
-export default function RootLayout({ children }: RootLayoutProps): React.React.JSX.Element {
+export default function RootLayout({ children }: RootLayoutProps): React.JSX.Element {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
@@ -67,7 +67,9 @@ export default function RootLayout({ children }: RootLayoutProps): React.React.J
         >
           <SolanaWalletProvider>
             <ToastProvider>
-              <NavigationLoader />
+              <Suspense fallback={null}>
+                <NavigationLoader />
+              </Suspense>
               <LayoutWrapper>
                 {children}
               </LayoutWrapper>

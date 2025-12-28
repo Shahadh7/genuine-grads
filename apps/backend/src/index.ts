@@ -1,5 +1,3 @@
-import express from 'express';
-import cors from 'cors';
 import { env } from './env.js';
 import { logger } from './utils/logger.js';
 import { startServer } from './server.js';

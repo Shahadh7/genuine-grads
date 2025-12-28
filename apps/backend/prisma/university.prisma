@@ -217,9 +217,10 @@ model Certificate {
   expiryDate DateTime?
 
   // Revocation (also tracked in shared DB)
-  revoked          Boolean   @default(false)
-  revokedAt        DateTime?
-  revocationReason String?
+  revoked                    Boolean   @default(false)
+  revokedAt                  DateTime?
+  revocationReason           String?
+  revocationTransactionSignature String? @unique // Burn transaction signature
 
   // Issued by
   issuedByAdminId String?

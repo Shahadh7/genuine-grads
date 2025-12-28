@@ -10,7 +10,7 @@ use crate::states::{
 
 // Bubblegum v2 CPI
 use mpl_bubblegum::ID as BUBBLEGUM_ID;
-use mpl_bubblegum::instructions::BurnV2CpiBuilder;
+use mpl_bubblegum::instructions::{BurnV2Cpi, BurnV2CpiAccounts, BurnV2InstructionArgs};
 
 // SPL-Compression + Noop
 use crate::utils::{Noop, SplAccountCompression};
@@ -129,7 +129,7 @@ pub struct BurnCertificateV2<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<BurnCertificateV2>, args: BurnCertificateArgs) -> Result<()> {
+pub fn handler<'info>(ctx: Context<'_, '_, '_, 'info, BurnCertificateV2<'info>>, args: BurnCertificateArgs) -> Result<()> {
     // --- Governance guards ---
     require!(!ctx.accounts.global_config.frozen, GenuineGradsError::Frozen);
     require!(ctx.accounts.university.is_active, GenuineGradsError::UniversityInactive);
@@ -201,42 +201,50 @@ pub fn handler(ctx: Context<BurnCertificateV2>, args: BurnCertificateArgs) -> Re
     );
 
     // --- Burn V2 CPI ---
-    let mut cpi = BurnV2CpiBuilder::new(&ctx.accounts.bubblegum_program);
+    // Bind account infos to extend their lifetime
+    let authority_info = ctx.accounts.university_authority.to_account_info();
+    let core_collection_info = ctx.accounts.core_collection.to_account_info();
+    let mpl_core_cpi_signer_info = ctx.accounts.mpl_core_cpi_signer.to_account_info();
 
-    cpi.tree_config(&ctx.accounts.tree_config.to_account_info());
-    cpi.payer(&ctx.accounts.university_authority.to_account_info());
+    // Build the CPI accounts struct
+    let cpi_accounts = BurnV2CpiAccounts {
+        tree_config: &ctx.accounts.tree_config,
+        payer: &ctx.accounts.university_authority,
+        authority: Some(&authority_info),
+        leaf_owner: &ctx.accounts.leaf_owner,
+        leaf_delegate: None,
+        merkle_tree: &ctx.accounts.merkle_tree,
+        core_collection: Some(&core_collection_info),
+        mpl_core_cpi_signer: Some(&mpl_core_cpi_signer_info),
+        log_wrapper: &ctx.accounts.log_wrapper,
+        compression_program: &ctx.accounts.compression_program,
+        mpl_core_program: &ctx.accounts.mpl_core_program,
+        system_program: &ctx.accounts.system_program,
+    };
 
-    // University authority burns as the authority (PermanentBurnDelegate managed by update authority)
-    cpi.authority(Some(&ctx.accounts.university_authority.to_account_info()));
-    cpi.leaf_owner(&ctx.accounts.leaf_owner.to_account_info());
-    cpi.leaf_delegate(None);
-    cpi.merkle_tree(&ctx.accounts.merkle_tree.to_account_info());
-    cpi.core_collection(Some(&ctx.accounts.core_collection.to_account_info()));
-    cpi.mpl_core_cpi_signer(Some(&ctx.accounts.mpl_core_cpi_signer.to_account_info()));
-    cpi.mpl_core_program(&ctx.accounts.mpl_core_program.to_account_info()); 
-    cpi.log_wrapper(&ctx.accounts.log_wrapper.to_account_info());
-    cpi.compression_program(&ctx.accounts.compression_program.to_account_info());
-    cpi.system_program(&ctx.accounts.system_program.to_account_info());
+    // Build instruction args
+    let cpi_args = BurnV2InstructionArgs {
+        root: args.root,
+        data_hash: args.data_hash,
+        creator_hash: args.creator_hash,
+        asset_data_hash: args.asset_data_hash,
+        flags: args.flags,
+        nonce: args.nonce,
+        index: args.index,
+    };
 
-    // Args
-    cpi.root(args.root);
-    cpi.data_hash(args.data_hash);
-    cpi.creator_hash(args.creator_hash);
-    cpi.nonce(args.nonce);
-    cpi.index(args.index);
+    // Build the CPI instruction
+    let cpi = BurnV2Cpi::new(&ctx.accounts.bubblegum_program, cpi_accounts, cpi_args);
 
-    if let Some(h) = args.asset_data_hash {
-        cpi.asset_data_hash(h);
-    }
-    if let Some(f) = args.flags {
-        cpi.flags(f);
-    }
+    // Collect proof accounts as tuples (account_info, is_writable, is_signer)
+    let proof_accounts: Vec<_> = ctx
+        .remaining_accounts
+        .iter()
+        .map(|ai| (ai, false, false))
+        .collect();
 
-    // ✅ Add proof nodes (remaining accounts for merkle proof path)
-    for ai in &ctx.remaining_accounts.iter() {
-        cpi.add_remaining_account(ai, false, false);
-    }
-    cpi.invoke()?;
+    // Invoke with remaining accounts for merkle proof
+    cpi.invoke_with_remaining_accounts(&proof_accounts)?;
 
     // Emit event (audit trail)
     let now = Clock::get()?.unix_timestamp;

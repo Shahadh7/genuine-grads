@@ -3,13 +3,89 @@ import {
   TransactionInstruction,
   PublicKey,
   Keypair,
-  Connection,
   VersionedTransaction,
   TransactionMessage,
+  AddressLookupTableAccount,
+  AddressLookupTableProgram,
 } from '@solana/web3.js';
 import bs58 from 'bs58';
 import { connection } from './program.service.js';
 import { logger } from '../../utils/logger.js';
+
+/**
+ * Fetch an Address Lookup Table account by address
+ */
+export async function fetchAddressLookupTable(
+  altAddress: PublicKey
+): Promise<AddressLookupTableAccount | null> {
+  try {
+    const response = await connection.getAddressLookupTable(altAddress);
+    if (response.value) {
+      logger.info(
+        {
+          altAddress: altAddress.toBase58(),
+          addresses: response.value.state.addresses.length,
+        },
+        'Fetched Address Lookup Table'
+      );
+      return response.value;
+    }
+    return null;
+  } catch (error: any) {
+    logger.warn({ error: error.message, altAddress: altAddress.toBase58() }, 'Failed to fetch ALT');
+    return null;
+  }
+}
+
+/**
+ * Get instructions to create and extend an Address Lookup Table
+ * Returns the ALT address and the instructions to create it
+ */
+export async function createAddressLookupTableInstructions(params: {
+  authority: PublicKey;
+  addresses: PublicKey[];
+}): Promise<{
+  lookupTableAddress: PublicKey;
+  instructions: TransactionInstruction[];
+}> {
+  const { authority, addresses } = params;
+
+  // Get recent slot for the lookup table
+  const slot = await connection.getSlot();
+
+  // Create the lookup table
+  const [createIx, lookupTableAddress] = AddressLookupTableProgram.createLookupTable({
+    authority,
+    payer: authority,
+    recentSlot: slot,
+  });
+
+  // Extend the lookup table with addresses (max 30 per instruction)
+  const extendInstructions: TransactionInstruction[] = [];
+  for (let i = 0; i < addresses.length; i += 30) {
+    const chunk = addresses.slice(i, i + 30);
+    const extendIx = AddressLookupTableProgram.extendLookupTable({
+      authority,
+      payer: authority,
+      lookupTable: lookupTableAddress,
+      addresses: chunk,
+    });
+    extendInstructions.push(extendIx);
+  }
+
+  logger.info(
+    {
+      lookupTableAddress: lookupTableAddress.toBase58(),
+      addressCount: addresses.length,
+    },
+    'Created ALT instructions'
+  );
+
+  return {
+    lookupTableAddress,
+    instructions: [createIx, ...extendInstructions],
+  };
+}
 
 /**
  * Prepare an unsigned transaction for frontend signing
@@ -70,6 +146,60 @@ export async function prepareTransaction(params: {
 }
 
 /**
+ * Prepare an unsigned versioned transaction for frontend signing
+ * Versioned transactions support larger payloads and address lookup tables
+ */
+export async function prepareVersionedTransaction(params: {
+  instructions: TransactionInstruction[];
+  feePayer: PublicKey;
+  addressLookupTableAccounts?: AddressLookupTableAccount[];
+}): Promise<{
+  transaction: string; // Base58 encoded serialized transaction
+  message: string; // For display purposes
+  blockhash: string;
+  lastValidBlockHeight: number;
+}> {
+  const { instructions, feePayer, addressLookupTableAccounts = [] } = params;
+
+  // Get recent blockhash
+  const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+
+  // Create a TransactionMessage then compile to V0
+  const message = new TransactionMessage({
+    payerKey: feePayer,
+    recentBlockhash: blockhash,
+    instructions,
+  });
+
+  // Compile to V0 message (with optional lookup tables)
+  const messageV0 = message.compileToV0Message(addressLookupTableAccounts);
+
+  // Create versioned transaction
+  const versionedTransaction = new VersionedTransaction(messageV0);
+
+  // Serialize transaction (unsigned)
+  const serialized = versionedTransaction.serialize();
+  const transactionBase58 = bs58.encode(serialized);
+
+  logger.info(
+    {
+      feePayer: feePayer.toBase58(),
+      instructionsCount: instructions.length,
+      lookupTablesCount: addressLookupTableAccounts.length,
+      serializedSize: serialized.length,
+    },
+    'Versioned transaction prepared for signing'
+  );
+
+  return {
+    transaction: transactionBase58,
+    message: `Versioned transaction with ${instructions.length} instruction(s)`,
+    blockhash,
+    lastValidBlockHeight,
+  };
+}
+
+/**
  * Submit a signed transaction
  */
 export async function submitSignedTransaction(params: {
@@ -88,15 +218,31 @@ export async function submitSignedTransaction(params: {
   try {
     // Decode transaction
     const transactionBuffer = bs58.decode(signedTransaction);
-    const transaction = Transaction.from(transactionBuffer);
 
-    logger.info(
-      {
-        signatures: transaction.signatures.length,
-        instructionsCount: transaction.instructions.length,
-      },
-      'Submitting signed transaction'
-    );
+    // Try to deserialize as VersionedTransaction first, then fall back to legacy Transaction
+    let blockhash: string | undefined;
+    try {
+      const versionedTx = VersionedTransaction.deserialize(transactionBuffer);
+      blockhash = versionedTx.message.recentBlockhash;
+      logger.info(
+        {
+          signatures: versionedTx.signatures.length,
+          isVersioned: true,
+        },
+        'Submitting signed versioned transaction'
+      );
+    } catch {
+      const legacyTx = Transaction.from(transactionBuffer);
+      blockhash = legacyTx.recentBlockhash || undefined;
+      logger.info(
+        {
+          signatures: legacyTx.signatures.length,
+          instructionsCount: legacyTx.instructions.length,
+          isVersioned: false,
+        },
+        'Submitting signed legacy transaction'
+      );
+    }
 
     // Send transaction
     const signature = await connection.sendRawTransaction(transactionBuffer, {
@@ -107,11 +253,12 @@ export async function submitSignedTransaction(params: {
     logger.info({ signature }, 'Transaction submitted successfully');
 
     // Confirm transaction
+    const { lastValidBlockHeight } = await connection.getLatestBlockhash();
     const confirmation = await connection.confirmTransaction(
       {
         signature,
-        blockhash: transaction.recentBlockhash!,
-        lastValidBlockHeight: (await connection.getLatestBlockhash()).lastValidBlockHeight,
+        blockhash: blockhash!,
+        lastValidBlockHeight,
       },
       'confirmed'
     );

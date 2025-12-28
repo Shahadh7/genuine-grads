@@ -362,7 +362,7 @@ export const studentQueries = {
 
     // Transform MintActivityLog to Certificate format, enriching with university DB data
     const certificates = await Promise.all(
-      mintLogs.map(async (log) => {
+      mintLogs.map(async (log: any) => {
         let parsedMetadata = null;
         let ipfsMetadataUri = log.ipfsUri;
 
@@ -490,7 +490,7 @@ export const studentQueries = {
           });
 
           // Add university info to each achievement
-          const achievementsWithUni = achievements.map((ach) => ({
+          const achievementsWithUni = achievements.map((ach: any) => ({
             ...ach,
             universityName: university.name,
             universityId: university.id,
@@ -582,7 +582,7 @@ export const studentQueries = {
           });
 
           // Add university info to each log
-          const logsWithUni = logs.map((log) => ({
+          const logsWithUni = logs.map((log: any) => ({
             ...log,
             universityName: university.name,
             universityId: university.id,

@@ -21,7 +21,7 @@ export interface TokenPair {
  */
 export function signAccessToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
   return jwt.sign(payload, env.JWT_SECRET, {
-    expiresIn: env.JWT_ACCESS_EXPIRY,
+    expiresIn: env.JWT_ACCESS_EXPIRY as jwt.SignOptions['expiresIn'],
     issuer: 'genuinegrads-api',
     audience: 'genuinegrads-client',
   });
@@ -32,7 +32,7 @@ export function signAccessToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): strin
  */
 export function signRefreshToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
   return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
-    expiresIn: env.JWT_REFRESH_EXPIRY,
+    expiresIn: env.JWT_REFRESH_EXPIRY as jwt.SignOptions['expiresIn'],
     issuer: 'genuinegrads-api',
     audience: 'genuinegrads-client',
   });

@@ -135,7 +135,7 @@ export const certificateQueries = {
       },
     });
 
-    return templates.map((template) => parseTemplate(template));
+    return templates.map((template: any) => parseTemplate(template));
   },
 
   /**
@@ -290,7 +290,7 @@ export const certificateQueries = {
     const universityDb = requireUniversityDb(context);
 
     const job = await universityDb.batchIssuanceJob.findUnique({
-      where: { jobId },
+      where: { id: jobId },
     });
 
     if (!job) {

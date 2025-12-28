@@ -1,4 +1,5 @@
 import { AnchorProvider, Program, Idl, web3 } from '@coral-xyz/anchor';
+import BN from 'bn.js';
 import { Connection, Keypair, PublicKey, Transaction } from '@solana/web3.js';
 import { env } from '../../env.js';
 import { logger } from '../../utils/logger.js';
@@ -363,6 +364,29 @@ interface MintCertificateParams {
   attachCollection: boolean;
 }
 
+interface BurnCertificateParams {
+  universityAuthority: PublicKey;
+  superAdmin: PublicKey;
+  merkleTree: PublicKey;
+  coreCollection: PublicKey;
+  leafOwner: PublicKey;
+  leafDelegate: PublicKey | null;
+  // Merkle proof data (from DAS getAssetProof)
+  root: number[];
+  dataHash: number[];
+  creatorHash: number[];
+  nonce: bigint;
+  index: number;
+  // Optional Bubblegum v2 extras
+  assetDataHash: number[] | null;
+  flags: number | null;
+  // Reason for burning/revoking
+  reason: string;
+  attachCollection: boolean;
+  // Merkle proof nodes (remaining accounts)
+  proofNodes: PublicKey[];
+}
+
 export async function buildMintCertificateInstruction(params: MintCertificateParams) {
   const program = getProgram();
   const {
@@ -410,6 +434,83 @@ export async function buildMintCertificateInstruction(params: MintCertificatePar
       logWrapper: SPL_NOOP_PROGRAM_ID,
       systemProgram: web3.SystemProgram.programId,
     })
+    .instruction();
+
+  return { instruction: ix };
+}
+
+export async function buildBurnCertificateInstruction(params: BurnCertificateParams) {
+  const program = getProgram();
+  const {
+    universityAuthority,
+    superAdmin,
+    merkleTree,
+    coreCollection,
+    leafOwner,
+    root,
+    dataHash,
+    creatorHash,
+    nonce,
+    index,
+    assetDataHash,
+    flags,
+    reason,
+    proofNodes,
+  } = params;
+
+  const [globalConfigPDA] = deriveGlobalConfigPDA(superAdmin);
+  const [universityPDA] = deriveUniversityPDA(universityAuthority);
+  const [universityCollectionPDA] = deriveUniversityCollectionPDA(universityPDA);
+  const [universityTreePDA] = deriveUniversityTreePDA(merkleTree);
+  const [treeConfig] = deriveTreeConfig(merkleTree);
+
+  // Use hardcoded MPL Core CPI signer (as specified in the Solana program)
+  const mplCoreCpiSigner = new PublicKey('CbNY3JiXdXNE9tPNEk1aRZVEkWdj2v7kfJLNQwZZgpXk');
+
+  // Convert arrays to proper format for Anchor
+  const rootArray = Array.from(root);
+  const dataHashArray = Array.from(dataHash);
+  const creatorHashArray = Array.from(creatorHash);
+  const assetDataHashArray = assetDataHash ? Array.from(assetDataHash) : null;
+
+  // Convert nonce from bigint to BN for Anchor
+  const nonceBN = new BN(nonce.toString());
+
+  const ix = await program.methods
+    .burnCertificateV2({
+      root: rootArray,
+      dataHash: dataHashArray,
+      creatorHash: creatorHashArray,
+      nonce: nonceBN,
+      index,
+      assetDataHash: assetDataHashArray,
+      flags: flags !== null ? flags : null,
+      reason,
+    })
+    .accounts({
+      universityAuthority,
+      globalConfig: globalConfigPDA,
+      university: universityPDA,
+      universityCollection: universityCollectionPDA,
+      universityTree: universityTreePDA,
+      merkleTree,
+      treeConfig,
+      coreCollection,
+      mplCoreProgram: MPL_CORE_PROGRAM_ID,
+      mplCoreCpiSigner,
+      leafOwner,
+      bubblegumProgram: BUBBLEGUM_PROGRAM_ID,
+      compressionProgram: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+      logWrapper: SPL_NOOP_PROGRAM_ID,
+      systemProgram: web3.SystemProgram.programId,
+    })
+    .remainingAccounts(
+      proofNodes.map((pubkey) => ({
+        pubkey,
+        isSigner: false,
+        isWritable: false,
+      }))
+    )
     .instruction();
 
   return { instruction: ix };

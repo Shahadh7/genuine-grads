@@ -11,7 +11,7 @@ const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     // Accept only image files
     const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     if (allowedMimeTypes.includes(file.mimetype)) {
@@ -26,7 +26,7 @@ const upload = multer({
  * POST /api/upload/logo
  * Upload a university logo to IPFS via Pinata
  */
-router.post('/logo', upload.single('logo'), async (req: Request, res: Response) => {
+router.post('/logo', upload.single('logo') as any, async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({

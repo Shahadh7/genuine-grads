@@ -176,6 +176,7 @@ export const typeDefs = gql`
     revoked: Boolean!
     revokedAt: DateTime
     revocationReason: String
+    revocationTransactionSignature: String
 
     # Relations
     student: Student # Nullable - when fetched from MintActivityLog
@@ -455,13 +456,14 @@ type StudentAchievement {
     isRevoked: Boolean!
     revokedAt: DateTime
     reason: String
+    transactionSignature: String
   }
   
   type BlockchainProof {
     mintAddress: String!
     transactionSignature: String!
     merkleTreeAddress: String
-    metadataUri: String!
+    metadataUri: String
     verifiedAt: DateTime!
   }
 
@@ -489,6 +491,11 @@ type StudentAchievement {
   type PrepareMintCertificateWorkflowPayload {
     prerequisites: [PreparedSolanaTransaction!]!
     mint: PreparedSolanaTransaction
+  }
+
+  type PrepareBurnCertificateWorkflowPayload {
+    prerequisites: [PreparedSolanaTransaction!]!
+    burn: PreparedSolanaTransaction
   }
 
   type ImageUploadResult {
@@ -679,6 +686,9 @@ type StudentAchievement {
     prepareCreateTreeTransaction(universityId: ID!, maxDepth: Int!, maxBufferSize: Int!, isPublic: Boolean!): PreparedSolanaTransaction! @auth(requires: ADMIN)
     prepareCreateCollectionTransaction(universityId: ID!, name: String!, uri: String!): PreparedSolanaTransaction! @auth(requires: ADMIN)
     prepareMintCertificateTransaction(certificateId: ID!): PreparedSolanaTransaction! @auth(requires: ADMIN)
+    prepareBurnCertificateTransaction(certificateId: ID!, reason: String!): PreparedSolanaTransaction! @auth(requires: ADMIN)
+    prepareBurnCertificateWorkflow(certificateId: ID!, reason: String!): PrepareBurnCertificateWorkflowPayload! @auth(requires: ADMIN)
+    prepareCreateAddressLookupTable: PreparedSolanaTransaction! @auth(requires: ADMIN)
     submitSignedTransaction(signedTransaction: String!, operationType: String!, metadata: JSON): TransactionSubmissionResult! @auth(requires: ADMIN)
 
     # One-click transaction mutations (client-side signing with wallet)

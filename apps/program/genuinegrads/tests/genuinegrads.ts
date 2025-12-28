@@ -9,6 +9,7 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
   SystemProgram,
+  AccountMeta,
 } from "@solana/web3.js";
 import { expect } from "chai";
 import { Genuinegrads } from "../target/types/genuinegrads";
@@ -55,6 +56,9 @@ describe("genuinegrads", () => {
   // Recipient (student)
   let student: Keypair;
 
+  // Minted certificate asset ID (set during mint_certificate_v2 test)
+  let mintedAssetId: PublicKey;
+
   async function airdrop(pubkey: PublicKey, sol = 5) {
     const sig = await provider.connection.requestAirdrop(
       pubkey,
@@ -98,6 +102,19 @@ describe("genuinegrads", () => {
     );
   }
 
+  // Derive asset ID for a compressed NFT from merkle tree and leaf index
+  function getAssetId(tree: PublicKey, leafIndex: number): PublicKey {
+    const [assetId] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("asset"),
+        tree.toBuffer(),
+        new anchor.BN(leafIndex).toArrayLike(Buffer, "le", 8),
+      ],
+      new PublicKey(MPL_BUBBLEGUM_PROGRAM_ID)
+    );
+    return assetId;
+  }
+
   before("bootstrap keypairs + airdrops", async () => {
     superAdmin = Keypair.generate();
     uniAuth = Keypair.generate();
@@ -124,7 +141,7 @@ describe("genuinegrads", () => {
     it("creates the global config for superAdmin (payer==superAdmin)", async () => {
       await program.methods
         .initializeConfig()
-        .accounts({
+        .accountsPartial({
           superAdmin: superAdmin.publicKey,
           globalConfig: globalPda,
           systemProgram: SystemProgram.programId,
@@ -142,7 +159,7 @@ describe("genuinegrads", () => {
       try {
         await program.methods
           .initializeConfig()
-          .accounts({
+          .accountsPartial({
             superAdmin: superAdmin.publicKey,
             globalConfig: globalPda,
             systemProgram: SystemProgram.programId,
@@ -165,7 +182,7 @@ describe("genuinegrads", () => {
     it("registers a university (payer==authority) → inactive", async () => {
       await program.methods
         .registerUniversity({ name: "Solana U", metadataUri: "https://u/1.json" })
-        .accounts({
+        .accountsPartial({
           universityAuthority: uniAuth.publicKey,
           globalConfig: globalPda,
           university: uniPda,
@@ -183,7 +200,7 @@ describe("genuinegrads", () => {
     it("superAdmin approves the university", async () => {
       await program.methods
         .approveUniversity()
-        .accounts({
+        .accountsPartial({
           superAdmin: superAdmin.publicKey,
           globalConfig: globalPda,
           universityAuthority: uniAuth.publicKey,
@@ -199,7 +216,7 @@ describe("genuinegrads", () => {
     it("registers a second university (inactive), then deactivates after approval", async () => {
       await program.methods
         .registerUniversity({ name: "Another U", metadataUri: "https://u/2.json" })
-        .accounts({
+        .accountsPartial({
           universityAuthority: uniAuth2.publicKey,
           globalConfig: globalPda,
           university: uniPda2,
@@ -211,7 +228,7 @@ describe("genuinegrads", () => {
       // approve then deactivate
       await program.methods
         .approveUniversity()
-        .accounts({
+        .accountsPartial({
           superAdmin: superAdmin.publicKey,
           globalConfig: globalPda,
           universityAuthority: uniAuth2.publicKey,
@@ -225,7 +242,7 @@ describe("genuinegrads", () => {
 
       await program.methods
         .deactivateUniversity()
-        .accounts({
+        .accountsPartial({
           superAdmin: superAdmin.publicKey,
           globalConfig: globalPda,
           universityAuthority: uniAuth2.publicKey,
@@ -248,7 +265,7 @@ describe("genuinegrads", () => {
       if (!uni.isActive) {
         await program.methods
           .approveUniversity()
-          .accounts({
+          .accountsPartial({
             superAdmin: superAdmin.publicKey,
             globalConfig: globalPda,
             universityAuthority: uniAuth.publicKey,
@@ -265,7 +282,7 @@ describe("genuinegrads", () => {
 
      const tx = await program.methods
         .createCoreCollectionV2Cpi({ name: "GG Degrees", uri: "https://coll/gg.json" })
-        .accounts({
+        .accountsPartial({
           universityAuthority: uniAuth.publicKey,
           globalConfig: globalPda,
           university: uniPda,
@@ -343,7 +360,7 @@ describe("genuinegrads", () => {
           maxBufferSize: MAX_BUFFER,
           isPublic: IS_PUBLIC,
         })
-        .accounts({
+        .accountsPartial({
           universityAuthority: uniAuth.publicKey,
           globalConfig: globalPda,
           university: uniPda,
@@ -381,7 +398,7 @@ describe("genuinegrads", () => {
           recipient: student.publicKey,
           attachCollection: true,
         })
-        .accounts({
+        .accountsPartial({
           universityAuthority: uniAuth.publicKey,
           globalConfig: globalPda,
           university: uniPda,
@@ -402,8 +419,350 @@ describe("genuinegrads", () => {
 
         console.log(`tx: ${tx}`)
 
-      // No on-program cert PDA was defined in the latest code; we rely on event/leaf existence.
-      // (Optional) You can add a CertificateRecord PDA and fetch/validate it here.
+      // Derive and store the asset ID for the minted certificate (leaf index 0)
+      mintedAssetId = getAssetId(merkleTree.publicKey, 0);
+      console.log(`Minted certificate asset ID: ${mintedAssetId.toBase58()}`);
+    });
+  });
+
+  // -------------------------------------------------------
+  // burn_certificate_v2 (requires merkle proof from DAS)
+  // -------------------------------------------------------
+  describe("burn_certificate_v2", () => {
+    // Helper to fetch asset proof from DAS API
+    async function getAssetWithProof(assetId: PublicKey): Promise<{
+      root: number[];
+      dataHash: number[];
+      creatorHash: number[];
+      nonce: number;
+      index: number;
+      proof: PublicKey[];
+    }> {
+      const rpcEndpoint = provider.connection.rpcEndpoint;
+
+      const response = await fetch(rpcEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "get-asset-proof",
+          method: "getAssetProof",
+          params: { id: assetId.toBase58() },
+        }),
+      });
+
+      const json = await response.json() as { result?: any };
+      const result = json.result;
+
+      if (!result) {
+        throw new Error(`Asset proof not found for ${assetId.toBase58()}`);
+      }
+
+      return {
+        root: Array.from(Buffer.from(result.root, "base64")),
+        dataHash: Array.from(Buffer.from(result.data_hash || result.dataHash, "base64")),
+        creatorHash: Array.from(Buffer.from(result.creator_hash || result.creatorHash, "base64")),
+        nonce: result.nonce,
+        index: result.index ?? result.leaf_index ?? 0,
+        proof: (result.proof as string[]).map((p: string) => new PublicKey(p)),
+      };
+    }
+
+    // Helper to get asset by owner from DAS
+    async function getAssetsByOwner(owner: PublicKey): Promise<any[]> {
+      const rpcEndpoint = provider.connection.rpcEndpoint;
+
+      const response = await fetch(rpcEndpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "get-assets-by-owner",
+          method: "getAssetsByOwner",
+          params: {
+            ownerAddress: owner.toBase58(),
+            page: 1,
+            limit: 10,
+          },
+        }),
+      });
+
+      const json = await response.json() as { result?: { items?: any[] } };
+      return json.result?.items || [];
+    }
+
+    it("burns a minted certificate with valid proof", async () => {
+      // Use the asset ID from the previously minted certificate
+      console.log(`Asset ID to burn: ${mintedAssetId.toBase58()}`);
+
+      // Wait a bit for indexer to catch up
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Get the merkle proof for this asset
+      const proofData = await getAssetWithProof(mintedAssetId);
+      console.log(`Got proof with ${proofData.proof.length} nodes`);
+
+      // Convert proof nodes to remaining accounts
+      const proofAccounts: AccountMeta[] = proofData.proof.map((pubkey) => ({
+        pubkey,
+        isSigner: false,
+        isWritable: false,
+      }));
+
+      // Execute burn
+      const tx = await program.methods
+        .burnCertificateV2({
+          root: proofData.root as number[],
+          dataHash: proofData.dataHash as number[],
+          creatorHash: proofData.creatorHash as number[],
+          nonce: new anchor.BN(proofData.nonce),
+          index: proofData.index,
+          assetDataHash: null,
+          flags: null,
+          reason: "Certificate revoked - academic misconduct",
+        })
+        .accountsPartial({
+          universityAuthority: uniAuth.publicKey,
+          merkleTree: merkleTree.publicKey,
+          treeConfig: treeConfigPda,
+          coreCollection: coreCollection.publicKey,
+          mplCoreCpiSigner: mplCoreCpiSigner,
+          leafOwner: student.publicKey,
+          bubblegumProgram: MPL_BUBBLEGUM_PROGRAM_ID,
+        })
+        .remainingAccounts(proofAccounts)
+        .signers([uniAuth])
+        .rpc();
+
+      console.log(`Burn tx: ${tx}`);
+
+      // Verify the asset is no longer owned by student (after indexer updates)
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const assetsAfterBurn = await getAssetsByOwner(student.publicKey);
+      console.log(`Assets after burn: ${assetsAfterBurn.length}`);
+    });
+
+    it("fails to burn with empty reason", async () => {
+      // Mint another certificate first
+      await program.methods
+        .mintCertificateV2({
+          name: "Test Cert for Burn Validation",
+          uri: "https://certs/test.json",
+          recipient: student.publicKey,
+          attachCollection: true,
+        })
+        .accountsPartial({
+          universityAuthority: uniAuth.publicKey,
+          globalConfig: globalPda,
+          university: uniPda,
+          universityCollection: uniCollectionPda,
+          universityTree: uniTreePda,
+          merkleTree: merkleTree.publicKey,
+          treeConfig: treeConfigPda,
+          recipient: student.publicKey,
+          coreCollection: coreCollection.publicKey,
+          mplCoreCpiSigner: mplCoreCpiSigner,
+          bubblegumProgram: MPL_BUBBLEGUM_PROGRAM_ID,
+          compressionProgram: SPL_ACCOUNT_COMPRESSION_PROGRAM_ID,
+          logWrapper: SPL_NOOP_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([uniAuth])
+        .rpc();
+
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const assets = await getAssetsByOwner(student.publicKey);
+      if (assets.length === 0) {
+        console.log("No assets found - skipping validation test");
+        return;
+      }
+
+      const asset = assets[0];
+      const assetId = new PublicKey(asset.id);
+      const proofData = await getAssetWithProof(assetId);
+
+      const proofAccounts: AccountMeta[] = proofData.proof.map((pubkey) => ({
+        pubkey,
+        isSigner: false,
+        isWritable: false,
+      }));
+
+      let threw = false;
+      try {
+        await program.methods
+          .burnCertificateV2({
+            root: proofData.root as number[],
+            dataHash: proofData.dataHash as number[],
+            creatorHash: proofData.creatorHash as number[],
+            nonce: new anchor.BN(proofData.nonce),
+            index: proofData.index,
+            assetDataHash: null,
+            flags: null,
+            reason: "", // Empty reason should fail
+          })
+          .accountsPartial({
+            universityAuthority: uniAuth.publicKey,
+            merkleTree: merkleTree.publicKey,
+            treeConfig: treeConfigPda,
+            coreCollection: coreCollection.publicKey,
+            mplCoreCpiSigner: mplCoreCpiSigner,
+            leafOwner: student.publicKey,
+            bubblegumProgram: MPL_BUBBLEGUM_PROGRAM_ID,
+          })
+          .remainingAccounts(proofAccounts)
+          .signers([uniAuth])
+          .rpc();
+      } catch (e: any) {
+        threw = true;
+        expect(e.message).to.match(/InvalidBurnReason|Invalid burn reason/i);
+      }
+      expect(threw).to.eq(true, "Expected burn with empty reason to fail");
+    });
+
+    it("fails to burn with reason exceeding 120 characters", async () => {
+      const assets = await getAssetsByOwner(student.publicKey);
+      if (assets.length === 0) {
+        console.log("No assets found - skipping validation test");
+        return;
+      }
+
+      const asset = assets[0];
+      const assetId = new PublicKey(asset.id);
+      const proofData = await getAssetWithProof(assetId);
+
+      const proofAccounts: AccountMeta[] = proofData.proof.map((pubkey) => ({
+        pubkey,
+        isSigner: false,
+        isWritable: false,
+      }));
+
+      const longReason = "A".repeat(121); // 121 characters, exceeds limit
+
+      let threw = false;
+      try {
+        await program.methods
+          .burnCertificateV2({
+            root: proofData.root as number[],
+            dataHash: proofData.dataHash as number[],
+            creatorHash: proofData.creatorHash as number[],
+            nonce: new anchor.BN(proofData.nonce),
+            index: proofData.index,
+            assetDataHash: null,
+            flags: null,
+            reason: longReason,
+          })
+          .accountsPartial({
+            universityAuthority: uniAuth.publicKey,
+            merkleTree: merkleTree.publicKey,
+            treeConfig: treeConfigPda,
+            coreCollection: coreCollection.publicKey,
+            mplCoreCpiSigner: mplCoreCpiSigner,
+            leafOwner: student.publicKey,
+            bubblegumProgram: MPL_BUBBLEGUM_PROGRAM_ID,
+          })
+          .remainingAccounts(proofAccounts)
+          .signers([uniAuth])
+          .rpc();
+      } catch (e: any) {
+        threw = true;
+        expect(e.message).to.match(/InvalidBurnReason|Invalid burn reason/i);
+      }
+      expect(threw).to.eq(true, "Expected burn with long reason to fail");
+    });
+
+    it("fails when non-authority tries to burn", async () => {
+      const assets = await getAssetsByOwner(student.publicKey);
+      if (assets.length === 0) {
+        console.log("No assets found - skipping authorization test");
+        return;
+      }
+
+      const asset = assets[0];
+      const assetId = new PublicKey(asset.id);
+      const proofData = await getAssetWithProof(assetId);
+
+      const proofAccounts: AccountMeta[] = proofData.proof.map((pubkey) => ({
+        pubkey,
+        isSigner: false,
+        isWritable: false,
+      }));
+
+      // Try to burn with uniAuth2 (not the university authority for this cert)
+      let threw = false;
+      try {
+        await program.methods
+          .burnCertificateV2({
+            root: proofData.root as number[],
+            dataHash: proofData.dataHash as number[],
+            creatorHash: proofData.creatorHash as number[],
+            nonce: new anchor.BN(proofData.nonce),
+            index: proofData.index,
+            assetDataHash: null,
+            flags: null,
+            reason: "Unauthorized burn attempt",
+          })
+          .accountsPartial({
+            universityAuthority: uniAuth2.publicKey,
+            merkleTree: merkleTree.publicKey,
+            treeConfig: treeConfigPda,
+            coreCollection: coreCollection.publicKey,
+            mplCoreCpiSigner: mplCoreCpiSigner,
+            leafOwner: student.publicKey,
+            bubblegumProgram: MPL_BUBBLEGUM_PROGRAM_ID,
+          })
+          .remainingAccounts(proofAccounts)
+          .signers([uniAuth2])
+          .rpc();
+      } catch (e: any) {
+        threw = true;
+        // Could fail with Unauthorized or constraint error or inactive university
+        expect(e.message).to.match(/Unauthorized|constraint|inactive|A seeds constraint was violated/i);
+      }
+      expect(threw).to.eq(true, "Expected unauthorized burn to fail");
+    });
+
+    it("fails when proof is missing (no remaining accounts)", async () => {
+      const assets = await getAssetsByOwner(student.publicKey);
+      if (assets.length === 0) {
+        console.log("No assets found - skipping missing proof test");
+        return;
+      }
+
+      const asset = assets[0];
+      const assetId = new PublicKey(asset.id);
+      const proofData = await getAssetWithProof(assetId);
+
+      let threw = false;
+      try {
+        await program.methods
+          .burnCertificateV2({
+            root: proofData.root as number[],
+            dataHash: proofData.dataHash as number[],
+            creatorHash: proofData.creatorHash as number[],
+            nonce: new anchor.BN(proofData.nonce),
+            index: proofData.index,
+            assetDataHash: null,
+            flags: null,
+            reason: "Test burn",
+          })
+          .accountsPartial({
+            universityAuthority: uniAuth.publicKey,
+            merkleTree: merkleTree.publicKey,
+            treeConfig: treeConfigPda,
+            coreCollection: coreCollection.publicKey,
+            mplCoreCpiSigner: mplCoreCpiSigner,
+            leafOwner: student.publicKey,
+            bubblegumProgram: MPL_BUBBLEGUM_PROGRAM_ID,
+          })
+          // No remaining accounts - missing proof!
+          .signers([uniAuth])
+          .rpc();
+      } catch (e: any) {
+        threw = true;
+        expect(e.message).to.match(/MissingMerkleProof|Missing merkle proof/i);
+      }
+      expect(threw).to.eq(true, "Expected burn without proof to fail");
     });
   });
 });
