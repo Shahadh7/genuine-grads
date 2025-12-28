@@ -197,21 +197,25 @@ Usage of this repository is governed by the terms defined in the
 - [x] Student portal
 - [x] Batch minting optimization
 - [x] Admin analytics dashboard
-- [x] Certificate verification with QR code.
-- [x] Landing page enhancements.
-- [x] Certificate designer integratation with issuance flow.
-- [x] Student verification logs, and Certifictes listing and sharing.
-- [x] TOTP with Authenticator app for superadmin, and uni admins.
-- [x] Certificate revocation.
-- [x] Student Dashboard.
+- [x] Certificate verification with QR code
+- [x] Landing page enhancements
+- [x] Certificate designer integratation with issuance flow
+- [x] Student verification logs, and Certifictes listing and sharing
+- [x] TOTP with Authenticator app for superadmin, and uni admins
+- [x] Certificate revocation
+- [x] Student Dashboard
 - [ ] ZKP integration for verify claims
 - [ ] Advanced templates
 - [ ] Final report
 
-### Phase 3 (Q3 2025)
+### Phase 3 (Future enchancements)
 - [ ] Multi-chain support
 - [ ] Multi-sig support
 - [ ] Mobile app
+- [ ] Multi roles with permissions
+- [ ] Mobile app
+- [ ] Bulk certificates issuance with bubblegum-batch-sdk
+- [ ] Advanced superadmin portal
 
 ## Use Cases
 
