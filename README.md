@@ -184,6 +184,7 @@ Usage of this repository is governed by the terms defined in the
 
 ### MVP (Current) 
 - [x] University registration
+- [x] Single and bulk student registration with course details.
 - [x] Certificate issuance
 - [x] Compressed NFTs
 - [x] Wallet integration
@@ -193,16 +194,23 @@ Usage of this repository is governed by the terms defined in the
 
 ### Phase 2 (Q2 2025)
 - [x] Student portal
-- [ ] Mobile app
 - [x] Batch minting optimization
-- [ ] Advanced templates
-- [x] Analytics dashboard
+- [x] Admin analytics dashboard
 - [x] Certificate verification with QR code.
+- [x] Landing page enhancements.
+- [x] Certificate designer integratation with issuance flow.
+- [x] Student verification logs, and Certifictes listing and sharing.
+- [x] TOTP with Authenticator app for superadmin, and uni admins.
+- [x] Certificate revocation.
+- [x] Student Dashboard.
+- [ ] ZKP integration for verify claims
+- [ ] Advanced templates
+- [ ] Final report
 
 ### Phase 3 (Q3 2025)
-- [ ] ZKP integration
 - [ ] Multi-chain support
 - [ ] Multi-sig support
+- [ ] Mobile app
 
 ## Use Cases
 
