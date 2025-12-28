@@ -192,17 +192,17 @@ Usage of this repository is governed by the terms defined in the
 - [x] Certificate verification with certificate number/ leaf ID
 
 ### Phase 2 (Q2 2025)
-- [ ] Student portal
+- [x] Student portal
 - [ ] Mobile app
-- [ ] Batch minting optimization
+- [x] Batch minting optimization
 - [ ] Advanced templates
-- [ ] Analytics dashboard
-- [ ] Certificate verification with QR code.
+- [x] Analytics dashboard
+- [x] Certificate verification with QR code.
 
 ### Phase 3 (Q3 2025)
 - [ ] ZKP integration
 - [ ] Multi-chain support
-- [ ] Multi-sig supportSSS
+- [ ] Multi-sig support
 
 ## Use Cases
 
