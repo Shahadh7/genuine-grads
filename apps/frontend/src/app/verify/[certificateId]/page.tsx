@@ -429,7 +429,7 @@ export default function CertificatePage(): React.JSX.Element {
                         Revocation Details
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-6">
+                    <CardContent className="pt-6 space-y-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <p className="text-sm text-muted-foreground">Revoked At</p>
@@ -440,6 +440,35 @@ export default function CertificatePage(): React.JSX.Element {
                           <p className="text-base font-medium">{revocationInfo?.reason ?? 'Not provided'}</p>
                         </div>
                       </div>
+                      {revocationInfo?.transactionSignature && (
+                        <div className="p-4 bg-red-500/5 rounded-lg border border-red-300/30 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-red-600 dark:text-red-400">Revocation Transaction</p>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard(revocationInfo.transactionSignature!, 'revokeTx')}
+                              className="h-8 w-8 p-0"
+                            >
+                              {copied === 'revokeTx' ? (
+                                <Check className="h-4 w-4 text-green-600" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                          <p className="font-mono text-xs break-all text-muted-foreground">{revocationInfo.transactionSignature}</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full border-red-300/50 hover:bg-red-500/10"
+                            onClick={() => window.open(getSolanaExplorerUrl(revocationInfo.transactionSignature!, 'tx'), '_blank')}
+                          >
+                            <ExternalLink className="h-3 w-3 mr-2" />
+                            View Revocation Transaction
+                          </Button>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}

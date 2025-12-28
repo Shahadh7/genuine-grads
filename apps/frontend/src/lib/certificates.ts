@@ -19,6 +19,7 @@ export interface RevocationInfo {
   isRevoked: boolean;
   revokedAt?: string | null;
   reason?: string | null;
+  transactionSignature?: string | null;
 }
 
 export interface BlockchainProof {

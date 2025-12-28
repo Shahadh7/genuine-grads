@@ -1145,6 +1145,7 @@ class GraphQLClient {
             isRevoked
             revokedAt
             reason
+            transactionSignature
           }
           blockchainProof {
             mintAddress
