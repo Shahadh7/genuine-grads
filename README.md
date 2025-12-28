@@ -184,6 +184,7 @@ Usage of this repository is governed by the terms defined in the
 
 ### MVP (Current) 
 - [x] University registration
+- [x] Super admin panel
 - [x] Single and bulk student registration with course details.
 - [x] Certificate issuance
 - [x] Compressed NFTs
