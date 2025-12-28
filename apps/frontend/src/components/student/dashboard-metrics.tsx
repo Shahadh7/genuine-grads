@@ -8,7 +8,7 @@ interface Props {
   // Add props here
 }
 
-export default function DashboardMetrics({metrics}): React.React.JSX.Element {
+export default function DashboardMetrics({metrics}): React.JSX.Element {
   const { 
     totalCertificates = 0, 
     totalUniversities = 0, 

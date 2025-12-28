@@ -9,7 +9,7 @@ interface Props {
   // Add props here
 }
 
-export default function VerificationLogTable({logs}): React.React.JSX.Element {
+export default function VerificationLogTable({logs}): React.JSX.Element {
   return (
     <div className="rounded-md border">
       <Table>

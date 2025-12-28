@@ -1,18 +1,15 @@
-import React from "react"
 'use client';
 
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useEffect } from 'react';
-import { updateSession } from '@/lib/session';
 
-const WalletConnectButton = ({ onWalletConnected }) => {
+const WalletConnectButton = ({ onWalletConnected }: { onWalletConnected?: (walletAddress: string) => void }) => {
   const { publicKey, connected } = useWallet();
 
   useEffect(() => {
     if (connected && publicKey) {
       const walletAddress = publicKey.toString();
-      updateSession({ wallet: walletAddress });
       if (onWalletConnected) {
         onWalletConnected(walletAddress);
       }

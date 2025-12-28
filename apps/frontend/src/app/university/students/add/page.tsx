@@ -44,7 +44,16 @@ export default function AddStudentPage(): React.JSX.Element {
   const router = useRouter();
   const { loading: guardLoading } = useRoleGuard(['university_admin']);
   const toast = useToast();
+  interface ProgramData {
+    program: string;
+    courseCode: string;
+    courseName: string;
+    degreeType: string;
+    department: string;
+    credits?: number;
+  }
   const [programs, setPrograms] = useState<string[]>([]);
+  const [programDataMap, setProgramDataMap] = useState<Map<string, ProgramData>>(new Map());
   const [programsLoading, setProgramsLoading] = useState<boolean>(true);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -107,10 +116,47 @@ export default function AddStudentPage(): React.JSX.Element {
 
   useEffect(() => {
     const loadPrograms = async () => {
-      type StudentRecord = { program?: string | null };
+      interface StudentRecord {
+        program?: string | null;
+        department?: string | null;
+        enrollments?: Array<{
+          course?: {
+            code?: string | null;
+            name?: string | null;
+            level?: string | null;
+            department?: string | null;
+            credits?: number | null;
+          } | null;
+        }> | null;
+      }
       try {
         const response = await graphqlClient.getStudents({ limit: 200 });
         const students = (response.data?.students ?? []) as StudentRecord[];
+
+        // Build a map of program -> course data (use the first enrollment's course)
+        const dataMap = new Map<string, ProgramData>();
+
+        for (const student of students) {
+          const program = student.program?.trim();
+          if (!program || dataMap.has(program)) continue;
+
+          const firstEnrollment = student.enrollments?.[0];
+          const course = firstEnrollment?.course;
+
+          if (course) {
+            dataMap.set(program, {
+              program,
+              courseCode: course.code?.trim() ?? '',
+              courseName: course.name?.trim() ?? '',
+              degreeType: course.level?.trim() ?? '',
+              department: course.department?.trim() ?? student.department?.trim() ?? '',
+              credits: course.credits ?? undefined,
+            });
+          }
+        }
+
+        setProgramDataMap(dataMap);
+
         const uniquePrograms = Array.from(
           new Set(
             students
@@ -167,6 +213,22 @@ export default function AddStudentPage(): React.JSX.Element {
         setErrors((prev) => ({
           ...prev,
           nationalId: nicValidation.error || 'Invalid NIC format',
+        }));
+      }
+    }
+
+    // Auto-fill course fields when program is selected from existing programs
+    if (field === 'program' && value.trim()) {
+      const programData = programDataMap.get(value.trim());
+      if (programData) {
+        setFormData((prev) => ({
+          ...prev,
+          program: value,
+          courseCode: programData.courseCode || prev.courseCode,
+          courseName: programData.courseName || prev.courseName,
+          degreeType: programData.degreeType || prev.degreeType,
+          department: programData.department || prev.department,
+          courseCredits: programData.credits?.toString() ?? prev.courseCredits,
         }));
       }
     }
@@ -427,7 +489,7 @@ export default function AddStudentPage(): React.JSX.Element {
                       id="name"
                       placeholder="Enter student's full name"
                       value={formData.fullName}
-                      onChange={(e: any) => handleInputChange('fullName', e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('fullName', e.target.value)}
                       className="h-11 bg-background/50 border-muted focus:border-primary"
                       required
                     />
@@ -441,7 +503,7 @@ export default function AddStudentPage(): React.JSX.Element {
                       id="studentNumber"
                       placeholder="e.g. STU-2025-001"
                       value={formData.studentNumber}
-                      onChange={(e: any) => handleInputChange('studentNumber', e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('studentNumber', e.target.value)}
                       className="h-11 bg-background/50 border-muted focus:border-primary"
                       required
                     />
@@ -457,7 +519,7 @@ export default function AddStudentPage(): React.JSX.Element {
                     id="nationalId"
                     placeholder="e.g., 852365478V or 200145602345"
                     value={formData.nationalId}
-                    onChange={(e: any) => handleInputChange('nationalId', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('nationalId', e.target.value)}
                     className={`h-11 bg-background/50 border-muted focus:border-primary ${
                       errors.nationalId ? 'border-destructive focus:border-destructive' : ''
                     }`}
@@ -487,7 +549,7 @@ export default function AddStudentPage(): React.JSX.Element {
                     type="email"
                     placeholder="Enter student's email address"
                     value={formData.email}
-                    onChange={(e: any) => handleInputChange('email', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('email', e.target.value)}
                     className="h-11 bg-background/50 border-muted focus:border-primary"
                     required
                   />
@@ -499,42 +561,52 @@ export default function AddStudentPage(): React.JSX.Element {
                     Program Enrolled <span className="text-destructive">*</span>
                   </Label>
                   {programsLoading ? (
-                    <Select value={formData.program}>
-                      <SelectTrigger
-                        className="h-11 bg-background/50 border-muted focus:border-primary"
-                        disabled
-                      >
-                        <SelectValue placeholder="Loading programs..." />
-                      </SelectTrigger>
-                    </Select>
+                    <Input
+                      id="program"
+                      placeholder="Loading programs..."
+                      disabled
+                      className="h-11 bg-background/50 border-muted"
+                    />
                   ) : programs.length > 0 ? (
-                    <Select
-                      value={formData.program}
-                      onValueChange={(value) => handleInputChange('program', value)}
-                    >
-                      <SelectTrigger className="h-11 bg-background/50 border-muted focus:border-primary">
-                        <SelectValue placeholder="Select a program" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {programs.map((program) => (
-                          <SelectItem key={program} value={program}>
-                            {program}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <>
+                      <Select
+                        value={formData.program}
+                        onValueChange={(value) => handleInputChange('program', value)}
+                      >
+                        <SelectTrigger className="h-11 bg-background/50 border-muted focus:border-primary">
+                          <SelectValue placeholder="Select an existing program" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {programs.map((program) => (
+                            <SelectItem key={program} value={program}>
+                              {program}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Select from existing programs, or enter a new one below
+                      </p>
+                      <Input
+                        id="program-custom"
+                        placeholder="Or enter a new program name"
+                        value={programs.includes(formData.program) ? '' : formData.program}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('program', e.target.value)}
+                        className="h-11 bg-background/50 border-muted focus:border-primary"
+                      />
+                    </>
                   ) : (
                     <>
                       <Input
                         id="program"
-                        placeholder="Enter program name"
+                        placeholder="Enter the program name"
                         value={formData.program}
-                        onChange={(e: any) => handleInputChange('program', e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('program', e.target.value)}
                         className="h-11 bg-background/50 border-muted focus:border-primary"
                         required
                       />
                       <p className="text-xs text-muted-foreground">
-                        No existing programs found. Enter the program name manually.
+                        Enter the program name
                       </p>
                     </>
                   )}
@@ -551,7 +623,7 @@ export default function AddStudentPage(): React.JSX.Element {
                     id="courseCode"
                     placeholder="e.g. CSC-401"
                     value={formData.courseCode}
-                    onChange={(e: any) => handleInputChange('courseCode', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('courseCode', e.target.value)}
                     className="h-11 bg-background/50 border-muted focus:border-primary"
                     required
                   />
@@ -564,7 +636,7 @@ export default function AddStudentPage(): React.JSX.Element {
                     id="courseName"
                     placeholder="e.g. Bachelor of Science in Computer Science"
                     value={formData.courseName}
-                    onChange={(e: any) => handleInputChange('courseName', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('courseName', e.target.value)}
                     className="h-11 bg-background/50 border-muted focus:border-primary"
                     required
                   />
@@ -577,7 +649,7 @@ export default function AddStudentPage(): React.JSX.Element {
                     id="degreeType"
                     placeholder="e.g. Bachelor"
                     value={formData.degreeType}
-                    onChange={(e: any) => handleInputChange('degreeType', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('degreeType', e.target.value)}
                     className="h-11 bg-background/50 border-muted focus:border-primary"
                     required
                   />
@@ -592,11 +664,11 @@ export default function AddStudentPage(): React.JSX.Element {
                     id="courseCredits"
                     type="number"
                     min="0"
-                    max="60"
+                    max="500"
                     step="0.5"
                     placeholder="e.g. 120"
                     value={formData.courseCredits}
-                    onChange={(e: any) => handleInputChange('courseCredits', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('courseCredits', e.target.value)}
                     className="h-11 bg-background/50 border-muted focus:border-primary"
                   />
                 </div>
@@ -608,7 +680,7 @@ export default function AddStudentPage(): React.JSX.Element {
                     id="courseDescription"
                     placeholder="Brief description (optional)"
                     value={formData.courseDescription}
-                    onChange={(e: any) => handleInputChange('courseDescription', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('courseDescription', e.target.value)}
                     className="h-11 bg-background/50 border-muted focus:border-primary"
                   />
                 </div>
@@ -625,7 +697,7 @@ export default function AddStudentPage(): React.JSX.Element {
                       id="department"
                       placeholder="e.g. Faculty of Engineering"
                       value={formData.department}
-                      onChange={(e: any) => handleInputChange('department', e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('department', e.target.value)}
                       className="h-11 bg-background/50 border-muted focus:border-primary"
                       required
                     />
@@ -642,7 +714,7 @@ export default function AddStudentPage(): React.JSX.Element {
                       max="2100"
                       placeholder="e.g. 2025"
                       value={formData.enrollmentYear}
-                      onChange={(e: any) => handleInputChange('enrollmentYear', e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('enrollmentYear', e.target.value)}
                       className="h-11 bg-background/50 border-muted focus:border-primary"
                       required
                     />
@@ -662,7 +734,7 @@ export default function AddStudentPage(): React.JSX.Element {
                   step="0.01"
                   placeholder="e.g. 3.75"
                   value={formData.enrollmentGpa}
-                  onChange={(e: any) => handleInputChange('enrollmentGpa', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('enrollmentGpa', e.target.value)}
                   className="h-11 bg-background/50 border-muted focus:border-primary"
                 />
               </div>
@@ -674,7 +746,7 @@ export default function AddStudentPage(): React.JSX.Element {
                   id="enrollmentGrade"
                   placeholder="e.g. First Class"
                   value={formData.enrollmentGrade}
-                  onChange={(e: any) => handleInputChange('enrollmentGrade', e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('enrollmentGrade', e.target.value)}
                   className="h-11 bg-background/50 border-muted focus:border-primary"
                 />
               </div>
@@ -689,7 +761,7 @@ export default function AddStudentPage(): React.JSX.Element {
                     id="walletAddress"
                     placeholder="Enter student's Solana wallet address"
                     value={formData.walletAddress}
-                    onChange={(e: any) => handleInputChange('walletAddress', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('walletAddress', e.target.value)}
                     className="h-11 bg-background/50 border-muted focus:border-primary font-mono text-sm"
                     required
                   />

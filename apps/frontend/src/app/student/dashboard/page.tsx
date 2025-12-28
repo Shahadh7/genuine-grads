@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { graphqlClient } from '@/lib/graphql-client';
-import { FileText, Award, User, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, Award, User, Loader2, AlertCircle, Ban } from 'lucide-react';
 import Link from 'next/link';
 
 interface StudentData {
@@ -81,7 +81,11 @@ export default function StudentDashboard(): React.JSX.Element {
     );
   }
 
-  const certificatesCount = studentData?.certificates?.length || 0;
+  const allCertificates = studentData?.certificates || [];
+  const activeCertificates = allCertificates.filter((cert: any) => cert.revoked !== true);
+  const revokedCertificates = allCertificates.filter((cert: any) => cert.revoked === true);
+  const certificatesCount = activeCertificates.length;
+  const revokedCount = revokedCertificates.length;
   const achievementsCount = studentData?.achievements?.length || 0;
   const enrollmentsCount = studentData?.enrollments?.length || 0;
 
@@ -98,7 +102,7 @@ export default function StudentDashboard(): React.JSX.Element {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Link href="/student/certificates">
           <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-6 hover:border-primary/30 hover:shadow-xl transition-all duration-500 group cursor-pointer">
             <div className="flex items-center justify-between mb-4">
@@ -108,10 +112,22 @@ export default function StudentDashboard(): React.JSX.Element {
             </div>
             <div className="text-4xl font-bold text-primary mb-2">{certificatesCount}</div>
             <p className="text-sm text-muted-foreground">
-              {certificatesCount === 1 ? 'Certificate' : 'Certificates'} issued
+              Active {certificatesCount === 1 ? 'Certificate' : 'Certificates'}
             </p>
           </div>
         </Link>
+
+        <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-6 hover:border-red-500/30 hover:shadow-xl transition-all duration-500 group">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-red-500/20 to-red-500/10 inline-block group-hover:scale-110 transition-transform">
+              <Ban className="h-6 w-6 text-red-500" />
+            </div>
+          </div>
+          <div className="text-4xl font-bold text-red-500 mb-2">{revokedCount}</div>
+          <p className="text-sm text-muted-foreground">
+            Revoked {revokedCount === 1 ? 'Certificate' : 'Certificates'}
+          </p>
+        </div>
 
         <Link href="/student/achievements">
           <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-6 hover:border-primary/30 hover:shadow-xl transition-all duration-500 group cursor-pointer">
@@ -149,7 +165,7 @@ export default function StudentDashboard(): React.JSX.Element {
             Recent Certificates
           </h2>
           <div className="space-y-3">
-            {studentData?.certificates.slice(0, 3).map((cert: any) => (
+            {activeCertificates.slice(0, 3).map((cert: any) => (
               <div
                 key={cert.id}
                 className="flex items-center justify-between p-4 border border-border/50 rounded-2xl hover:bg-primary/5 hover:border-primary/30 transition-all duration-300"

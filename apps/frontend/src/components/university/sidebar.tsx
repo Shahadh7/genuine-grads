@@ -33,7 +33,7 @@ interface Props {
   // Add props here
 }
 
-export default function Sidebar({session}): React.React.JSX.Element {
+export default function Sidebar({session}): React.JSX.Element {
   const [sidebarOpen, setSidebarOpen] = useState<any>(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<any>(false);
   const pathname = usePathname();

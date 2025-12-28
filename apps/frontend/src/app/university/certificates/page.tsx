@@ -523,10 +523,10 @@ export default function CertificatesPage(): React.JSX.Element {
           {error && <div className="text-sm text-destructive">{error}</div>}
         </div>
         <div className="flex gap-2">
-          <Link href="/university/certificates/issue">
+          <Link href="/university/certificates/verify-and-draft">
             <Button className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
-              Issue Certificate
+              Verify & Draft
             </Button>
           </Link>
           <Link href="/university/certificates/designer">
@@ -668,7 +668,7 @@ export default function CertificatesPage(): React.JSX.Element {
 
               {!loading && filteredCertificates.length === 0 && !searchTerm && statusFilter === 'all' && programFilter === 'all' && (
                 <div className="text-center py-8">
-                  <Link href="/university/certificates/issue">
+                  <Link href="/university/certificates/verify-and-draft">
                     <Button>Issue Certificates</Button>
                   </Link>
                 </div>

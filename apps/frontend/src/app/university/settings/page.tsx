@@ -11,7 +11,6 @@ import { useToast } from '@/hooks/useToast';
 import { graphqlClient } from '@/lib/graphql-client';
 import TwoFactorSettings from '@/components/settings/TwoFactorSettings';
 import {
-  Settings,
   Building,
   Wallet,
   Save,
@@ -27,14 +26,6 @@ export default function SettingsPage(): React.JSX.Element {
     logoUrl: '',
   });
   const [originalProfile, setOriginalProfile] = useState<any | null>(null);
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    activeStudents: 0,
-    totalCertificates: 0,
-    mintedCount: 0,
-    pendingCount: 0,
-    revokedCount: 0,
-  });
   const [loadingProfile, setLoadingProfile] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,14 +53,6 @@ export default function SettingsPage(): React.JSX.Element {
           name: university.name ?? '',
           websiteUrl: university.websiteUrl ?? '',
           logoUrl: university.logoUrl ?? '',
-        });
-        setStats({
-          totalStudents: university.stats?.totalStudents ?? 0,
-          activeStudents: university.stats?.activeStudents ?? 0,
-          totalCertificates: university.stats?.totalCertificates ?? 0,
-          mintedCount: university.stats?.mintedCount ?? 0,
-          pendingCount: university.stats?.pendingCount ?? 0,
-          revokedCount: university.stats?.revokedCount ?? 0,
         });
       }
 
@@ -232,8 +215,8 @@ export default function SettingsPage(): React.JSX.Element {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e: any) => handleInputChange('name', e.target.value)}
                 placeholder="Enter university name"
+                disabled
               />
             </div>
 
@@ -242,8 +225,8 @@ export default function SettingsPage(): React.JSX.Element {
               <Input
                 id="website"
                 value={formData.websiteUrl}
-                onChange={(e: any) => handleInputChange('websiteUrl', e.target.value)}
                 placeholder="https://example.edu"
+                disabled
               />
             </div>
 
@@ -252,8 +235,8 @@ export default function SettingsPage(): React.JSX.Element {
               <Input
                 id="logoUrl"
                 value={formData.logoUrl}
-                onChange={(e: any) => handleInputChange('logoUrl', e.target.value)}
                 placeholder="https://cdn.example.edu/logo.png"
+                disabled
               />
             </div>
 
@@ -272,22 +255,13 @@ export default function SettingsPage(): React.JSX.Element {
               </div>
             </div>
 
-            <Button 
-              onClick={handleSave}
-              disabled={saving || !formData.name.trim()}
+            <Button
+              disabled
               className="w-full flex items-center gap-2"
             >
-              {saving ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  Save Changes
-                </>
-              )}
+              <Save className="h-4 w-4" />
+              Update Profile
+              <Badge variant="secondary" className="ml-auto text-xs">Coming Soon</Badge>
             </Button>
           </CardContent>
         </Card>
@@ -355,65 +329,6 @@ export default function SettingsPage(): React.JSX.Element {
         onStatusChange={handleTotpStatusChange}
       />
 
-      {/* Statistics */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            University Statistics
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {stats.totalStudents.toLocaleString()}
-              </div>
-              <div className="text-sm text-muted-foreground">Total Students</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                {stats.totalCertificates.toLocaleString()}
-              </div>
-              <div className="text-sm text-muted-foreground">Certificates Issued</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
-                {stats.activeStudents.toLocaleString()}
-              </div>
-              <div className="text-sm text-muted-foreground">Active Students</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                {stats.revokedCount.toLocaleString()}
-              </div>
-              <div className="text-sm text-muted-foreground">Revoked Certificates</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Danger Zone */}
-      <Card className="border-red-200 dark:border-red-800">
-        <CardHeader>
-          <CardTitle className="text-red-600 dark:text-red-400">Danger Zone</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-950/20 rounded-lg">
-              <div>
-                <h4 className="font-medium text-red-800 dark:text-red-200">Delete University Account</h4>
-                <p className="text-sm text-red-700 dark:text-red-300">
-                  Permanently delete your university account and all associated data.
-                </p>
-              </div>
-              <Button variant="destructive" size="sm">
-                Delete Account
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 } 

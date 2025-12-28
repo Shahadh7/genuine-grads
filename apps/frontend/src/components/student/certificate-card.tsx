@@ -18,7 +18,7 @@ interface Props {
   // Add props here
 }
 
-export default function CertificateCard({certificate, onView, onShare, onDownload, onShowQR}): React.React.JSX.Element {
+export default function CertificateCard({certificate, onView, onShare, onDownload, onShowQR}): React.JSX.Element {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     // You could add a toast notification here

@@ -253,7 +253,7 @@ export default function VerificationLogPage() {
               </div>
             </div>
             <Button
-              onClick={loadVerificationLogs}
+              onClick={loadInitialData}
               variant="outline"
               size="sm"
               className="mt-3"

@@ -10,7 +10,7 @@ interface Props {
   // Add props here
 }
 
-export default function AchievementCard({achievement, onClaim, onCopyProof, onShare}): React.React.JSX.Element {
+export default function AchievementCard({achievement, onClaim, onCopyProof, onShare}): React.JSX.Element {
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
     // You could add a toast notification here

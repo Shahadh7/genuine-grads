@@ -27,14 +27,14 @@ import { Loader2, AlertTriangle, CheckCircle2, Flame } from 'lucide-react';
 interface Certificate {
   id: string;
   badgeTitle: string;
-  certificateNumber: string;
-  mintAddress: string | null;
+  certificateNumber?: string | null;
+  mintAddress?: string | null;
   status: string;
-  revoked: boolean;
-  student: {
-    fullName: string;
-    walletAddress: string | null;
-  };
+  revoked?: boolean;
+  student?: {
+    fullName?: string | null;
+    walletAddress?: string | null;
+  } | null;
 }
 
 interface BurnCertificateDialogProps {
@@ -268,14 +268,14 @@ export function BurnCertificateDialog({
                   <AlertTriangle className="h-4 w-4" />
                   <AlertDescription>
                     <strong>Warning:</strong> This will permanently burn the certificate for{' '}
-                    <strong>{certificate.student.fullName}</strong> ({certificate.badgeTitle}).
+                    <strong>{certificate.student?.fullName ?? 'Unknown Student'}</strong> ({certificate.badgeTitle}).
                   </AlertDescription>
                 </Alert>
 
                 <div className="rounded-md bg-muted p-4 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Certificate Number:</span>
-                    <span className="font-medium">{certificate.certificateNumber}</span>
+                    <span className="font-medium">{certificate.certificateNumber ?? 'N/A'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Title:</span>
@@ -283,7 +283,7 @@ export function BurnCertificateDialog({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Student:</span>
-                    <span className="font-medium">{certificate.student.fullName}</span>
+                    <span className="font-medium">{certificate.student?.fullName ?? 'Unknown Student'}</span>
                   </div>
                   {certificate.mintAddress && (
                     <div className="flex justify-between">

@@ -64,6 +64,14 @@ export const studentQueries = {
             awardedAt: 'desc',
           },
         },
+        enrollments: {
+          include: {
+            course: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
       },
     });
   },
@@ -365,6 +373,9 @@ export const studentQueries = {
       mintLogs.map(async (log: any) => {
         let parsedMetadata = null;
         let ipfsMetadataUri = log.ipfsUri;
+        let revoked = false;
+        let revokedAt = null;
+        let revocationReason = null;
 
         // Try to fetch certificate from university database for complete data
         if (log.university.databaseUrl) {
@@ -377,6 +388,11 @@ export const studentQueries = {
             if (cert) {
               // Use the real IPFS URI from university database
               ipfsMetadataUri = cert.ipfsMetadataUri || log.ipfsUri;
+
+              // Get revocation status from university database
+              revoked = cert.revoked || false;
+              revokedAt = cert.revokedAt;
+              revocationReason = cert.revocationReason;
 
               // Parse metadata from university database (more complete)
               if (cert.metadataJson) {
@@ -416,9 +432,9 @@ export const studentQueries = {
           // Map MintStatus (SUCCESS) to CertificateStatus (MINTED)
           status: log.status === 'SUCCESS' ? 'MINTED' : log.status,
           issuedAt: log.timestamp,
-          revoked: false, // Check RevokedCertIndex if needed
-          revokedAt: null,
-          revocationReason: null,
+          revoked,
+          revokedAt,
+          revocationReason,
           // Required relations (mock data)
           student: null, // Will be populated by GraphQL resolver if needed
           enrollment: null,

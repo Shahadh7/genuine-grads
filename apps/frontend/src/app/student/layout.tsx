@@ -233,11 +233,12 @@ export default function StudentLayout({children}): React.JSX.Element {
                   key={item.path}
                   variant={isActive ? "default" : "ghost"}
                   className={`w-full h-auto p-3 transition-all duration-200 group relative ${
-                    sidebarCollapsed 
-                      ? 'justify-center px-2 py-3' 
-                      : 'justify-start',
-                    isActive 
-                      ? 'bg-primary text-primary-foreground shadow-sm' 
+                    sidebarCollapsed
+                      ? 'justify-center px-2 py-3'
+                      : 'justify-start'
+                  } ${
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'hover:bg-muted/50'
                   }`}
                   onClick={() => handleNavigation(item.path)}

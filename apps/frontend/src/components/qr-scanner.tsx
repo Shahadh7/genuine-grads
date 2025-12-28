@@ -6,11 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { QrCode, Camera, AlertCircle, CheckCircle } from 'lucide-react'
 
-export function QRScanner({onScan, onError}): React.React.JSX.Element {
-  const scannerRef = useRef(null)
-  const [isScanning, setIsScanning] = useState<any>(false)
-  const [error, setError] = useState<any>(null)
-  const [success, setSuccess] = useState<any>(null)
+interface QRScannerProps {
+  onScan: (certificateId: string) => void;
+  onError?: (error: string) => void;
+}
+
+export function QRScanner({ onScan, onError }: QRScannerProps): React.JSX.Element {
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null)
+  const [isScanning, setIsScanning] = useState<boolean>(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
     return () => {
@@ -55,7 +60,7 @@ export function QRScanner({onScan, onError}): React.React.JSX.Element {
     setIsScanning(false)
   }
 
-  const onScanSuccess = (decodedText) => {
+  const onScanSuccess = (decodedText: string) => {
     try {
       // Extract certificate ID from URL
       const url = new URL(decodedText)
@@ -77,14 +82,17 @@ export function QRScanner({onScan, onError}): React.React.JSX.Element {
     }
   }
 
-  const onScanFailure = (error) => {
+  const onScanFailure = (errorMessage: string) => {
     // Ignore common scanning errors
-    if (!error.includes("NotFound") && !error.includes("NotAllowedError")) {
+    if (!errorMessage.includes("NotFound") && !errorMessage.includes("NotAllowedError")) {
       setError("Scanning failed. Please try again.")
+      if (onError) {
+        onError(errorMessage)
+      }
     }
   }
 
-  const handleKeyDown = (event) => {
+  const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault()
       if (isScanning) {

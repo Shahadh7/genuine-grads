@@ -32,7 +32,7 @@ interface Props {
   // Add props here
 }
 
-export default function Topbar({session, walletAddress}): React.React.JSX.Element {
+export default function Topbar({session, walletAddress}): React.JSX.Element {
   const router = useRouter();
   const [notifications] = useState<any>(3);
   const { publicKey, connected } = useWallet();

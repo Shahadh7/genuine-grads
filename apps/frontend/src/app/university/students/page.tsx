@@ -38,6 +38,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { StudentDetailsDialog } from '@/components/university/student-details-dialog';
 
 interface Props {
   // Add props here
@@ -51,6 +52,8 @@ export default function StudentsPage(): React.JSX.Element {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [studentToDelete, setStudentToDelete] = useState<any>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState<boolean>(false);
+  const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const { loading: guardLoading } = useRoleGuard(['university_admin']);
   const toast = useToast();
 
@@ -206,7 +209,14 @@ export default function StudentsPage(): React.JSX.Element {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem className="flex items-center gap-2">
+            <DropdownMenuItem
+              className="flex items-center gap-2"
+              onSelect={(e) => {
+                e.preventDefault();
+                setSelectedStudent(student);
+                setTimeout(() => setDetailsDialogOpen(true), 0);
+              }}
+            >
               <Eye className="h-4 w-4" />
               <span>View Details</span>
             </DropdownMenuItem>
@@ -377,6 +387,18 @@ export default function StudentsPage(): React.JSX.Element {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Student Details Dialog */}
+      <StudentDetailsDialog
+        student={selectedStudent}
+        open={detailsDialogOpen}
+        onOpenChange={(open) => {
+          setDetailsDialogOpen(open);
+          if (!open) {
+            setSelectedStudent(null);
+          }
+        }}
+      />
     </div>
   );
 } 

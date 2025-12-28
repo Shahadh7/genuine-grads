@@ -87,9 +87,9 @@ export default function StudentCertificatesPage(): React.JSX.Element {
       }
 
       const dbCerts = dbResponse.data?.myCertificates || [];
-      console.log('Loaded certificates from GraphQL:', dbCerts);
-      console.log('First certificate metadata:', dbCerts[0]?.metadata);
-      setCertificates(dbCerts);
+      // Filter out revoked certificates - students should not see revoked certs
+      const activeCerts = dbCerts.filter((cert: Certificate) => cert.revoked !== true);
+      setCertificates(activeCerts);
 
       // Load from Helius DAS API if wallet is connected
       if (publicKey) {

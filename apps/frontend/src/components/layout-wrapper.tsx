@@ -4,11 +4,11 @@ import { usePathname } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 
-interface Props {
-  // Add props here
+interface LayoutWrapperProps {
+  children: React.ReactNode;
 }
 
-export default function LayoutWrapper({children}): React.React.JSX.Element {
+export default function LayoutWrapper({ children }: LayoutWrapperProps): React.JSX.Element {
   const pathname = usePathname();
   const isUniversityPage = pathname?.startsWith('/university');
   const isStudentPage = pathname?.startsWith('/student');

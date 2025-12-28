@@ -288,7 +288,7 @@ function hydrateTemplateMetadata(
   return derived;
 }
 
-export default function IssueCertificatePage(): React.JSX.Element {
+export default function VerifyAndDraftPage(): React.JSX.Element {
   const toast = useToast();
   const [students, setStudents] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -557,7 +557,7 @@ export default function IssueCertificatePage(): React.JSX.Element {
               Back to Certificates
             </Button>
           </Link>
-          <h1 className="text-3xl font-bold tracking-tight">Issue Certificate</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Verify & Draft Certificate</h1>
         </div>
         <Button variant="outline" onClick={loadData} className="flex items-center gap-2">
           <RefreshCw className="h-4 w-4" />
@@ -842,12 +842,12 @@ export default function IssueCertificatePage(): React.JSX.Element {
                     {loading ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Issuing…
+                        Creating Draft…
                       </>
                     ) : (
                       <>
                         <CheckCircle className="h-4 w-4" />
-                        Issue Certificate
+                        Create Draft
                       </>
                     )}
                   </Button>

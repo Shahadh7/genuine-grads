@@ -27,7 +27,7 @@ export default function QRCodeDialog({
   };
 
   const downloadQR = () => {
-    const canvas = document.querySelector('#qr-code canvas');
+    const canvas = document.querySelector('#qr-code canvas') as HTMLCanvasElement | null;
     if (canvas) {
       const link = document.createElement('a');
       link.download = 'qr-code.png';

@@ -739,6 +739,20 @@ class GraphQLClient {
               category
             }
           }
+          enrollments {
+            id
+            batchYear
+            gpa
+            grade
+            course {
+              id
+              code
+              name
+              credits
+              department
+              level
+            }
+          }
         }
       }
     `;
@@ -797,7 +811,6 @@ class GraphQLClient {
               id
               code
               name
-              level
               department
               credits
             }
@@ -862,7 +875,6 @@ class GraphQLClient {
             name
             code
             department
-            level
           }
           achievements {
             id

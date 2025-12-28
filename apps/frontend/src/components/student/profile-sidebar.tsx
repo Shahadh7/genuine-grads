@@ -17,17 +17,29 @@ import {
   LogOut
 } from 'lucide-react';
 
-interface Props {
-  // Add props here
+interface StudentData {
+  name: string;
+  email: string;
+  nic: string;
+  wallet: string;
+  avatar?: string;
+  universities: string[];
 }
 
-export default function ProfileSidebar(): React.JSX.Element { 
-  student, 
-  onLogout, 
-  onShowQR, 
-  onCopyWallet 
-}) {
-  const copyToClipboard = (text) => {
+interface Props {
+  student: StudentData;
+  onLogout?: () => void;
+  onShowQR?: () => void;
+  onCopyWallet?: (wallet: string) => void;
+}
+
+export default function ProfileSidebar({
+  student,
+  onLogout,
+  onShowQR,
+  onCopyWallet
+}: Props): React.JSX.Element {
+  const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     if (onCopyWallet) onCopyWallet(text);
   };
@@ -117,7 +129,7 @@ export default function ProfileSidebar(): React.JSX.Element {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {student.universities.map((university: any, index: any) => (
+            {student.universities.map((university: string, index: number) => (
               <Badge key={index} variant="outline" className="mr-2 mb-2">
                 {university}
               </Badge>

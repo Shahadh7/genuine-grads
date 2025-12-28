@@ -20,10 +20,20 @@ import {
   Clock
 } from 'lucide-react';
 
+interface RecentActivity {
+  id: string;
+  signature: string | null;
+  studentName: string;
+  badgeTitle: string;
+  timestamp: string;
+  status: string;
+}
+
 export default function UniversityDashboard(): React.JSX.Element {
   const router = useRouter();
   const { session, loading: guardLoading } = useRoleGuard(['university_admin']);
   const [university, setUniversity] = useState<any>(null);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,17 +42,24 @@ export default function UniversityDashboard(): React.JSX.Element {
       if (guardLoading || !session) return;
 
       try {
-        const response = await graphqlClient.getMyUniversity();
+        const [universityResponse, analyticsResponse] = await Promise.all([
+          graphqlClient.getMyUniversity(),
+          graphqlClient.getUniversityAnalytics(30)
+        ]);
 
-        if (response.errors) {
-          setError(response.errors[0]?.message || 'Failed to load dashboard data');
+        if (universityResponse.errors) {
+          setError(universityResponse.errors[0]?.message || 'Failed to load dashboard data');
           return;
         }
 
-        if (response.data?.myUniversity) {
-          setUniversity(response.data.myUniversity);
+        if (universityResponse.data?.myUniversity) {
+          setUniversity(universityResponse.data.myUniversity);
         } else {
           setError('University data not found');
+        }
+
+        if (analyticsResponse.data?.universityAnalytics?.blockchainMetrics?.recentMints) {
+          setRecentActivities(analyticsResponse.data.universityAnalytics.blockchainMetrics.recentMints);
         }
       } catch (error: any) {
         console.error('Failed to load dashboard data:', error);
@@ -51,7 +68,7 @@ export default function UniversityDashboard(): React.JSX.Element {
         setLoading(false);
       }
     };
-    
+
     loadDashboardData();
   }, [router, guardLoading, session]);
 
@@ -188,13 +205,13 @@ export default function UniversityDashboard(): React.JSX.Element {
 
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Link href="/university/certificates/issue">
-          <Button 
-            variant="outline" 
+        <Link href="/university/certificates/verify-and-draft">
+          <Button
+            variant="outline"
             className="h-20 w-full flex flex-col items-center justify-center space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors"
           >
             <Plus className="h-6 w-6" />
-            <span>Issue Certificate</span>
+            <span>Verify & Draft</span>
           </Button>
         </Link>
         
@@ -229,7 +246,7 @@ export default function UniversityDashboard(): React.JSX.Element {
         </Link>
       </div>
 
-      {/* Recent Activity Placeholder */}
+      {/* Recent Activity */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -240,22 +257,71 @@ export default function UniversityDashboard(): React.JSX.Element {
           </div>
         </CardHeader>
         <CardContent>
-          {stats.totalCertificates === 0 ? (
+          {recentActivities.length === 0 ? (
             <div className="text-center py-12">
               <GraduationCap className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground mb-4">
                 No certificates issued yet
               </p>
-              <Link href="/university/certificates/issue">
+              <Link href="/university/certificates/verify-and-draft">
                 <Button>
                   <Plus className="h-4 w-4 mr-2" />
-                  Issue First Certificate
+                  Draft First Certificate
                 </Button>
               </Link>
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              View your certificates in the Certificates section
+            <div className="space-y-4">
+              {recentActivities.slice(0, 5).map((activity) => (
+                <div
+                  key={activity.id}
+                  className="flex items-center justify-between py-3 border-b last:border-0"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-full ${
+                      activity.status === 'SUCCESS'
+                        ? 'bg-green-100 dark:bg-green-900/30'
+                        : activity.status === 'PENDING'
+                        ? 'bg-orange-100 dark:bg-orange-900/30'
+                        : 'bg-red-100 dark:bg-red-900/30'
+                    }`}>
+                      {activity.status === 'SUCCESS' ? (
+                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      ) : activity.status === 'PENDING' ? (
+                        <Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{activity.studentName}</p>
+                      <p className="text-xs text-muted-foreground">{activity.badgeTitle}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Badge
+                      variant={
+                        activity.status === 'SUCCESS'
+                          ? 'default'
+                          : activity.status === 'PENDING'
+                          ? 'secondary'
+                          : 'destructive'
+                      }
+                      className="text-xs"
+                    >
+                      {activity.status === 'SUCCESS' ? 'Minted' : activity.status}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {new Date(activity.timestamp).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

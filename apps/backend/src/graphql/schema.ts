@@ -297,6 +297,7 @@ export const typeDefs = gql`
     description: String
     credits: Int
     department: String
+    level: String
     isActive: Boolean!
   }
   

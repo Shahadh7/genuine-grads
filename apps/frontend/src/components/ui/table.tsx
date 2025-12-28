@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 function Table({
   className,
   ...props
-}: React.ComponentProps<typeof TablePrimitive.Root>): React.JSX.Element {
+}: React.HTMLAttributes<HTMLTableElement>): React.JSX.Element {
   return (
     <div data-slot="table-container" className="relative w-full overflow-x-auto">
       <table
@@ -21,7 +21,7 @@ function Table({
 function TableHeader({
   className,
   ...props
-}: React.ComponentProps<typeof TablePrimitive.Header>): React.JSX.Element {
+}: React.HTMLAttributes<HTMLTableSectionElement>): React.JSX.Element {
   return (
     <thead
       data-slot="table-header"
@@ -33,7 +33,7 @@ function TableHeader({
 function TableBody({
   className,
   ...props
-}: React.ComponentProps<typeof TablePrimitive.Body>): React.JSX.Element {
+}: React.HTMLAttributes<HTMLTableSectionElement>): React.JSX.Element {
   return (
     <tbody
       data-slot="table-body"
@@ -45,7 +45,7 @@ function TableBody({
 function TableFooter({
   className,
   ...props
-}: React.ComponentProps<typeof TablePrimitive.Footer>): React.JSX.Element {
+}: React.HTMLAttributes<HTMLTableSectionElement>): React.JSX.Element {
   return (
     <tfoot
       data-slot="table-footer"
@@ -57,7 +57,7 @@ function TableFooter({
 function TableRow({
   className,
   ...props
-}: React.ComponentProps<typeof TablePrimitive.Row>): React.JSX.Element {
+}: React.HTMLAttributes<HTMLTableRowElement>): React.JSX.Element {
   return (
     <tr
       data-slot="table-row"
@@ -72,7 +72,7 @@ function TableRow({
 function TableHead({
   className,
   ...props
-}: React.ComponentProps<typeof TablePrimitive.Head>): React.JSX.Element {
+}: React.ThHTMLAttributes<HTMLTableCellElement>): React.JSX.Element {
   return (
     <th
       data-slot="table-head"
@@ -87,7 +87,7 @@ function TableHead({
 function TableCell({
   className,
   ...props
-}: React.ComponentProps<typeof TablePrimitive.Cell>): React.JSX.Element {
+}: React.TdHTMLAttributes<HTMLTableCellElement>): React.JSX.Element {
   return (
     <td
       data-slot="table-cell"
@@ -102,7 +102,7 @@ function TableCell({
 function TableCaption({
   className,
   ...props
-}: React.ComponentProps<typeof TablePrimitive.Caption>): React.JSX.Element {
+}: React.HTMLAttributes<HTMLTableCaptionElement>): React.JSX.Element {
   return (
     <caption
       data-slot="table-caption"
