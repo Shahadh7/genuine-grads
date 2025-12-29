@@ -4,12 +4,14 @@ import { universityQueries } from './queries/university.queries.js';
 import { studentQueries } from './queries/student.queries.js';
 import { certificateQueries } from './queries/certificate.queries.js';
 import { publicQueries } from './queries/public.queries.js';
+import { zkQueries } from './queries/zk.queries.js';
 import { authMutations } from './mutations/auth.mutations.js';
 import { studentAuthMutations } from './mutations/student-auth.mutations.js';
 import { totpMutations } from './mutations/totp.mutations.js';
 import { universityMutations } from './mutations/university.mutations.js';
 import { studentMutations } from './mutations/student.mutations.js';
 import { certificateMutations } from './mutations/certificate.mutations.js';
+import { zkMutations } from './mutations/zk.mutations.js';
 import { requireUniversityDb } from '../context.js';
 import { solanaMutations } from './mutations/solana.mutations.js';
 
@@ -34,6 +36,9 @@ export const resolvers: Record<string, any> = {
     
     // Public
     ...publicQueries,
+
+    // ZK Verification
+    ...zkQueries,
   },
 
   // Mutations
@@ -54,6 +59,9 @@ export const resolvers: Record<string, any> = {
 
     // Solana transactions (integrated into university/certificate mutations)
     ...solanaMutations,
+
+    // ZK Verification
+    ...zkMutations,
   },
 
   // Field resolvers (for nested data)

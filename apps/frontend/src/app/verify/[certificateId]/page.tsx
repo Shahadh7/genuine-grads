@@ -29,6 +29,25 @@ import {
   CertificateVerification,
   verifyCertificate,
 } from '@/lib/certificates'
+import { graphqlClient } from '@/lib/graphql-client'
+import { ZkStatusBadge, ZkVerifyButton, getZkStatus, ZkVerificationReportDialog, type ZkVerificationResult } from '@/components/zk'
+
+interface ZkAchievementStatus {
+  achievementCode: string;
+  achievementTitle: string;
+  zkEnabled: boolean;
+  hasCommitment: boolean;
+  hasProof: boolean;
+  lastVerifiedAt: string | null;
+  verificationCount: number;
+}
+
+interface ZkReportData {
+  achievementCode: string;
+  credentialId: string;
+  result: ZkVerificationResult;
+  verificationCount: number;
+}
 
 export default function CertificatePage(): React.JSX.Element {
   const params = useParams()
@@ -41,6 +60,10 @@ export default function CertificatePage(): React.JSX.Element {
   const [copied, setCopied] = useState<string | null>(null)
   const [certificateImageUrl, setCertificateImageUrl] = useState<string | null>(null)
   const [loadingImage, setLoadingImage] = useState<boolean>(false)
+  const [zkStatuses, setZkStatuses] = useState<ZkAchievementStatus[]>([])
+  const [zkVerificationResults, setZkVerificationResults] = useState<Record<string, ZkVerificationResult>>({})
+  const [zkReportDialogOpen, setZkReportDialogOpen] = useState(false)
+  const [zkReportData, setZkReportData] = useState<ZkReportData | null>(null)
   const hasLoadedRef = useRef<boolean>(false)
   const isLikelyMintAddress = (value: string) => /^[1-9A-HJ-NP-Za-km-z]{32,}$/.test(String(value))
 
@@ -112,6 +135,73 @@ export default function CertificatePage(): React.JSX.Element {
       fetchCertificateImage(verification.blockchainProof.metadataUri)
     }
   }, [verification])
+
+  // Fetch ZK achievement statuses
+  useEffect(() => {
+    const fetchZkStatuses = async () => {
+      if (!verification?.blockchainProof?.mintAddress || !verification.isValid) {
+        return
+      }
+
+      try {
+        const response = await graphqlClient.getZkAchievementStatuses(
+          verification.blockchainProof.mintAddress
+        )
+        if (response.data?.getZkAchievementStatuses) {
+          setZkStatuses(response.data.getZkAchievementStatuses)
+        }
+      } catch (err) {
+        console.error('Failed to fetch ZK statuses:', err)
+      }
+    }
+
+    fetchZkStatuses()
+  }, [verification])
+
+  // Handle ZK verification result
+  const handleZkVerification = (achievementCode: string, result: ZkVerificationResult) => {
+    setZkVerificationResults(prev => ({
+      ...prev,
+      [achievementCode]: result
+    }))
+    // Update ZK statuses to reflect the verification
+    if (result.verified) {
+      setZkStatuses(prev => prev.map(status =>
+        status.achievementCode === achievementCode
+          ? { ...status, lastVerifiedAt: result.verifiedAt || new Date().toISOString(), verificationCount: status.verificationCount + 1 }
+          : status
+      ))
+    }
+  }
+
+  // Open ZK verification report dialog
+  const openZkReport = (achievementCode: string, credentialId: string) => {
+    const result = zkVerificationResults[achievementCode]
+    const status = zkStatuses.find(s => s.achievementCode === achievementCode)
+    if (result) {
+      setZkReportData({
+        achievementCode,
+        credentialId,
+        result,
+        verificationCount: status?.verificationCount || 1,
+      })
+      setZkReportDialogOpen(true)
+    }
+  }
+
+  // Get ZK status for an achievement
+  const getZkStatusForAchievement = (achievementTitle: string) => {
+    const status = zkStatuses.find(s => s.achievementCode === achievementTitle)
+    const verificationResult = zkVerificationResults[achievementTitle]
+
+    if (verificationResult?.verified === false) {
+      return 'failed'
+    }
+    if (status) {
+      return getZkStatus(status)
+    }
+    return 'not_enabled'
+  }
 
   if (loading) {
     return (
@@ -383,8 +473,8 @@ export default function CertificatePage(): React.JSX.Element {
                   </CardContent>
                 </Card>
 
-                {/* Achievements Section */}
-                {certificate?.achievements && certificate.achievements.length > 0 && (
+                {/* Achievements Section - hidden when certificate is revoked */}
+                {!isRevoked && certificate?.achievements && certificate.achievements.length > 0 && (
                   <Card className="border-0 shadow-xl bg-gradient-to-br from-card to-muted/5">
                     <CardHeader className="border-b bg-muted/30">
                       <CardTitle className="flex items-center gap-3 text-xl">
@@ -392,27 +482,57 @@ export default function CertificatePage(): React.JSX.Element {
                           <Award className="h-6 w-6 text-primary" />
                         </div>
                         Achievements & Honors
+                        {zkStatuses.some(s => s.hasProof) && (
+                          <Badge variant="outline" className="ml-auto text-xs">
+                            <Shield className="h-3 w-3 mr-1" />
+                            ZK Verification Available
+                          </Badge>
+                        )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-6">
-                      <div className="flex flex-wrap gap-3">
-                        {certificate.achievements.map((achievement, index) => (
-                          <div
-                            key={index}
-                            className="group relative inline-flex items-center gap-2.5 px-5 py-3 rounded-full bg-primary/5 border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/10 hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-default"
-                            title={achievement}
-                          >
-                            <div className="relative flex items-center gap-2.5">
-                              <div className="flex-shrink-0 p-1.5 bg-primary rounded-full shadow-sm">
-                                <Award className="h-3.5 w-3.5 text-primary-foreground" />
+                      <div className="space-y-4">
+                        {certificate.achievements.map((achievement, index) => {
+                          const zkStatus = getZkStatusForAchievement(achievement)
+                          const hasProof = zkStatuses.find(s => s.achievementCode === achievement)?.hasProof
+                          const verificationCount = zkStatuses.find(s => s.achievementCode === achievement)?.verificationCount || 0
+
+                          return (
+                            <div
+                              key={index}
+                              className="group flex items-center justify-between p-4 rounded-xl bg-primary/5 border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/10 transition-all duration-300"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="flex-shrink-0 p-2 bg-primary rounded-full shadow-sm">
+                                  <Award className="h-4 w-4 text-primary-foreground" />
+                                </div>
+                                <div>
+                                  <span className="text-sm font-semibold text-foreground">
+                                    {achievement}
+                                  </span>
+                                </div>
                               </div>
-                              <span className="text-sm font-semibold text-foreground whitespace-nowrap">
-                                {achievement}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <ZkStatusBadge
+                                  status={zkStatus}
+                                  verificationCount={zkStatus === 'verified' ? verificationCount : undefined}
+                                />
+                                {hasProof && blockchainProof?.mintAddress && (
+                                  <>
+                                    <ZkVerifyButton
+                                      credentialId={blockchainProof.mintAddress}
+                                      achievementCode={achievement}
+                                      onVerified={(result) => handleZkVerification(achievement, result)}
+                                      disabled={zkStatus === 'failed'}
+                                      showViewReport={!!zkVerificationResults[achievement]?.verified}
+                                      onViewReport={() => openZkReport(achievement, blockchainProof.mintAddress)}
+                                    />
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full shadow-sm opacity-75"></div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </CardContent>
                   </Card>
@@ -630,6 +750,21 @@ export default function CertificatePage(): React.JSX.Element {
           )}
         </div>
       </div>
+
+      {/* ZK Verification Report Dialog */}
+      {zkReportData && (
+        <ZkVerificationReportDialog
+          open={zkReportDialogOpen}
+          onOpenChange={setZkReportDialogOpen}
+          achievementCode={zkReportData.achievementCode}
+          credentialId={zkReportData.credentialId}
+          verificationResult={zkReportData.result}
+          studentName={certificate?.studentName}
+          universityName={certificate?.university?.name}
+          certificateTitle={certificate?.badgeTitle}
+          verificationCount={zkReportData.verificationCount}
+        />
+      )}
     </div>
   )
 }

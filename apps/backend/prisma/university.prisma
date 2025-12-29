@@ -396,3 +396,113 @@ model VerificationLog {
   @@index([mintAddress])
   @@map("verification_logs")
 }
+
+// =============================================================================
+// ZK Achievement Verification Tables (Phase 1)
+// =============================================================================
+
+// ZK Achievement Commitments
+// Stores the Poseidon commitment for each (credential, achievement) pair
+// Commitment = Poseidon(credential_hash, student_secret, salt, achievement_hash)
+model ZkAchievementCommitment {
+  id String @id @default(cuid())
+
+  // Foreign keys (denormalized for query efficiency)
+  credentialId    String // Solana mintAddress (certificate identifier)
+  achievementCode String // Achievement identifier (badgeTitle)
+
+  // ZK data
+  circuitId  String @default("ach_member_v1") // Circuit version
+  commitment String // Poseidon commitment as decimal string
+
+  // Track which wallet was used (for mismatch detection)
+  walletPubkey String // Wallet public key that generated this commitment
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  proofs ZkAchievementProof[]
+
+  @@unique([credentialId, achievementCode])
+  @@index([credentialId])
+  @@index([achievementCode])
+  @@index([walletPubkey])
+  @@map("zk_achievement_commitments")
+}
+
+// ZK Achievement Proofs
+// Stores pre-generated Groth16 proofs that employers can verify
+model ZkAchievementProof {
+  id String @id @default(cuid())
+
+  // Foreign keys
+  credentialId    String
+  achievementCode String
+
+  // Link to commitment
+  commitmentId String
+  commitment   ZkAchievementCommitment @relation(fields: [commitmentId], references: [id], onDelete: Cascade)
+
+  // ZK data
+  circuitId     String @default("ach_member_v1")
+  proofJson     Json   // Groth16 proof object {pi_a, pi_b, pi_c, protocol, curve}
+  publicSignals Json   // Array of public inputs as strings [commitment, credential_hash, achievement_hash]
+  proofHash     String // SHA256 of proof for audit trail
+
+  // Verification status
+  verified          Boolean   @default(false)
+  verifiedAt        DateTime?
+  lastVerifiedAt    DateTime?
+  verificationCount Int       @default(0)
+
+  // Expiry (optional, for future use)
+  expiresAt DateTime?
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Audit logs
+  auditLogs ZkProofAuditLog[]
+
+  @@unique([credentialId, achievementCode])
+  @@index([credentialId])
+  @@index([proofHash])
+  @@index([verified])
+  @@map("zk_achievement_proofs")
+}
+
+// ZK Proof Audit Logs
+// Tracks every verification attempt for compliance and debugging
+model ZkProofAuditLog {
+  id String @id @default(cuid())
+
+  // Foreign keys
+  credentialId    String
+  achievementCode String
+  proofId         String?
+  proof           ZkAchievementProof? @relation(fields: [proofId], references: [id], onDelete: SetNull)
+
+  // Verification result
+  verifiedAt    DateTime @default(now())
+  success       Boolean
+  failureReason String?  @db.Text
+
+  // Requester info
+  requesterIp    String?
+  requesterAgent String? @db.Text
+
+  // Proof identity
+  proofHash String // Hash of proof at time of verification
+
+  // Metadata
+  createdAt DateTime @default(now())
+
+  @@index([credentialId, achievementCode])
+  @@index([verifiedAt])
+  @@index([proofHash])
+  @@index([success])
+  @@map("zk_proof_audit_logs")
+}

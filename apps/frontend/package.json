@@ -29,6 +29,7 @@
 		"@solana/wallet-adapter-wallets": "^0.19.37",
 		"@solana/web3.js": "^1.98.2",
 		"bs58": "^5.0.0",
+		"circomlibjs": "^0.1.7",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"date-fns": "^4.1.0",
@@ -41,6 +42,7 @@
 		"react": "19.1.0",
 		"react-dom": "19.1.0",
 		"react-qr-code": "^2.0.18",
+		"snarkjs": "^0.7.5",
 		"tailwind-merge": "^3.3.1",
 		"tailwindcss-animate": "^1.0.7"
 	},

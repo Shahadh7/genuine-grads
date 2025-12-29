@@ -1697,6 +1697,13 @@ class GraphQLClient {
               code
               department
             }
+            achievements {
+              id
+              badgeTitle
+              description
+              badgeType
+              achievementDate
+            }
           }
           achievements {
             id
@@ -1859,6 +1866,224 @@ class GraphQLClient {
     `;
 
     return this.request<{ disableTOTP: boolean }>(mutation, { password });
+  }
+
+  // ============================================
+  // ZK ACHIEVEMENT VERIFICATION
+  // ============================================
+
+  /**
+   * Register a commitment for an achievement (student only)
+   */
+  async registerAchievementCommitment(input: {
+    credentialId: string;
+    achievementCode: string;
+    commitment: string;
+  }) {
+    const mutation = `
+      mutation RegisterAchievementCommitment($input: RegisterCommitmentInput!) {
+        registerAchievementCommitment(input: $input) {
+          success
+          commitmentId
+          message
+        }
+      }
+    `;
+
+    return this.request<{
+      registerAchievementCommitment: {
+        success: boolean;
+        commitmentId: string | null;
+        message: string | null;
+      };
+    }>(mutation, { input });
+  }
+
+  /**
+   * Batch register commitments for multiple achievements
+   */
+  async registerAchievementCommitmentsBatch(
+    inputs: Array<{
+      credentialId: string;
+      achievementCode: string;
+      commitment: string;
+    }>
+  ) {
+    const mutation = `
+      mutation RegisterAchievementCommitmentsBatch($inputs: [RegisterCommitmentInput!]!) {
+        registerAchievementCommitmentsBatch(inputs: $inputs) {
+          success
+          commitmentId
+          message
+        }
+      }
+    `;
+
+    return this.request<{
+      registerAchievementCommitmentsBatch: Array<{
+        success: boolean;
+        commitmentId: string | null;
+        message: string | null;
+      }>;
+    }>(mutation, { inputs });
+  }
+
+  /**
+   * Upload a proof for an achievement (student only)
+   */
+  async uploadAchievementProof(input: {
+    credentialId: string;
+    achievementCode: string;
+    proof: any;
+    publicSignals: string[];
+  }) {
+    const mutation = `
+      mutation UploadAchievementProof($input: UploadProofInput!) {
+        uploadAchievementProof(input: $input) {
+          success
+          proofId
+          proofHash
+          message
+        }
+      }
+    `;
+
+    return this.request<{
+      uploadAchievementProof: {
+        success: boolean;
+        proofId: string | null;
+        proofHash: string | null;
+        message: string | null;
+      };
+    }>(mutation, { input });
+  }
+
+  /**
+   * Batch upload proofs for multiple achievements
+   */
+  async uploadAchievementProofsBatch(
+    inputs: Array<{
+      credentialId: string;
+      achievementCode: string;
+      proof: any;
+      publicSignals: string[];
+    }>
+  ) {
+    const mutation = `
+      mutation UploadAchievementProofsBatch($inputs: [UploadProofInput!]!) {
+        uploadAchievementProofsBatch(inputs: $inputs) {
+          success
+          proofId
+          proofHash
+          message
+        }
+      }
+    `;
+
+    return this.request<{
+      uploadAchievementProofsBatch: Array<{
+        success: boolean;
+        proofId: string | null;
+        proofHash: string | null;
+        message: string | null;
+      }>;
+    }>(mutation, { inputs });
+  }
+
+  /**
+   * Get ZK status for a certificate (student dashboard)
+   */
+  async myZkCertificateStatus(credentialId: string) {
+    const query = `
+      query MyZkCertificateStatus($credentialId: String!) {
+        myZkCertificateStatus(credentialId: $credentialId) {
+          credentialId
+          achievements {
+            achievementCode
+            achievementTitle
+            zkEnabled
+            hasCommitment
+            hasProof
+            lastVerifiedAt
+            verificationCount
+          }
+        }
+      }
+    `;
+
+    return this.request<{
+      myZkCertificateStatus: {
+        credentialId: string;
+        achievements: Array<{
+          achievementCode: string;
+          achievementTitle: string;
+          zkEnabled: boolean;
+          hasCommitment: boolean;
+          hasProof: boolean;
+          lastVerifiedAt: string | null;
+          verificationCount: number;
+        }>;
+      } | null;
+    }>(query, { credentialId });
+  }
+
+  /**
+   * Get ZK status for achievements on a certificate (public)
+   */
+  async getZkAchievementStatuses(credentialId: string) {
+    const query = `
+      query GetZkAchievementStatuses($credentialId: String!) {
+        getZkAchievementStatuses(credentialId: $credentialId) {
+          achievementCode
+          achievementTitle
+          zkEnabled
+          hasCommitment
+          hasProof
+          lastVerifiedAt
+          verificationCount
+        }
+      }
+    `;
+
+    return this.request<{
+      getZkAchievementStatuses: Array<{
+        achievementCode: string;
+        achievementTitle: string;
+        zkEnabled: boolean;
+        hasCommitment: boolean;
+        hasProof: boolean;
+        lastVerifiedAt: string | null;
+        verificationCount: number;
+      }>;
+    }>(query, { credentialId });
+  }
+
+  /**
+   * Verify a stored proof (public - employer verification)
+   */
+  async verifyStoredAchievementProof(input: {
+    credentialId: string;
+    achievementCode: string;
+  }) {
+    const query = `
+      query VerifyStoredAchievementProof($input: VerifyProofInput!) {
+        verifyStoredAchievementProof(input: $input) {
+          verified
+          verifiedAt
+          failureReason
+          proofHash
+        }
+      }
+    `;
+
+    return this.request<{
+      verifyStoredAchievementProof: {
+        verified: boolean;
+        verifiedAt: string | null;
+        failureReason: string | null;
+        proofHash: string | null;
+      };
+    }>(query, { input });
   }
 }
 

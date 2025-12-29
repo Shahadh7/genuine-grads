@@ -378,6 +378,7 @@ export const studentQueries = {
         let revocationReason = null;
 
         // Try to fetch certificate from university database for complete data
+        let achievementIds: string[] = [];
         if (log.university.databaseUrl) {
           try {
             const universityDb = getUniversityDb(log.university.databaseUrl);
@@ -394,6 +395,9 @@ export const studentQueries = {
               revokedAt = cert.revokedAt;
               revocationReason = cert.revocationReason;
 
+              // Get achievement IDs
+              achievementIds = cert.achievementIds || [];
+
               // Parse metadata from university database (more complete)
               if (cert.metadataJson) {
                 try {
@@ -402,6 +406,28 @@ export const studentQueries = {
                     : cert.metadataJson;
                 } catch (error) {
                   logger.error({ error, certificateId: cert.id }, 'Failed to parse metadataJson from university DB');
+                }
+              }
+
+              // If achievementIds exist, fetch achievement titles and add to metadata
+              if (achievementIds.length > 0) {
+                try {
+                  const achievements = await universityDb.achievement.findMany({
+                    where: { id: { in: achievementIds } },
+                    select: { badgeTitle: true },
+                  });
+                  const achievementTitles = achievements.map((a: any) => a.badgeTitle);
+
+                  // Add achievements to metadata for frontend use
+                  if (!parsedMetadata) {
+                    parsedMetadata = {};
+                  }
+                  if (!parsedMetadata.properties) {
+                    parsedMetadata.properties = {};
+                  }
+                  parsedMetadata.properties.achievements = achievementTitles;
+                } catch (error) {
+                  logger.warn({ error, certificateId: cert.id }, 'Failed to fetch achievements for certificate');
                 }
               }
             }
@@ -439,7 +465,7 @@ export const studentQueries = {
           student: null, // Will be populated by GraphQL resolver if needed
           enrollment: null,
           metadata: parsedMetadata,
-          achievementIds: [],
+          achievementIds,
           // Extra fields for UI
           universityId: log.universityId,
           universityName: log.university.name,

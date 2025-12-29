@@ -506,9 +506,9 @@ type StudentAchievement {
   }
 
   # ============================================
-  # ZKP TYPES
+  # ZKP TYPES (Legacy)
   # ============================================
-  
+
   type ZKPProofRequest {
     id: ID!
     student: Student!
@@ -520,6 +520,64 @@ type StudentAchievement {
     shareToken: String
     shareUrl: String
     createdAt: DateTime!
+  }
+
+  # ============================================
+  # ZK ACHIEVEMENT VERIFICATION TYPES (Phase 1)
+  # ============================================
+
+  type ZkCommitmentResult {
+    success: Boolean!
+    commitmentId: String
+    message: String
+  }
+
+  type ZkProofUploadResult {
+    success: Boolean!
+    proofId: String
+    proofHash: String
+    message: String
+  }
+
+  type ZkVerificationResult {
+    verified: Boolean!
+    verifiedAt: DateTime
+    failureReason: String
+    proofHash: String
+  }
+
+  type ZkAchievementStatus {
+    achievementCode: String!
+    achievementTitle: String!
+    zkEnabled: Boolean!
+    hasCommitment: Boolean!
+    hasProof: Boolean!
+    lastVerifiedAt: DateTime
+    verificationCount: Int!
+  }
+
+  type ZkCertificateStatus {
+    credentialId: String!
+    achievements: [ZkAchievementStatus!]!
+  }
+
+  # ZK Input Types
+  input RegisterCommitmentInput {
+    credentialId: String!
+    achievementCode: String!
+    commitment: String!
+  }
+
+  input UploadProofInput {
+    credentialId: String!
+    achievementCode: String!
+    proof: JSON!
+    publicSignals: [String!]!
+  }
+
+  input VerifyProofInput {
+    credentialId: String!
+    achievementCode: String!
   }
 
   # ============================================
@@ -607,6 +665,13 @@ type StudentAchievement {
 
     # Get super admin wallet address for validation
     getSuperAdminWallet: String!
+
+    # ========== ZK VERIFICATION (STUDENT) ==========
+    myZkCertificateStatus(credentialId: String!): ZkCertificateStatus @auth(requires: STUDENT)
+
+    # ========== ZK VERIFICATION (PUBLIC) ==========
+    getZkAchievementStatuses(credentialId: String!): [ZkAchievementStatus!]!
+    verifyStoredAchievementProof(input: VerifyProofInput!): ZkVerificationResult!
   }
 
   # ============================================
@@ -701,8 +766,14 @@ type StudentAchievement {
     # Image upload for collections and certificates
     uploadImageToIPFS(imageBase64: String!, fileName: String!): ImageUploadResult! @auth(requires: ADMIN)
     
-    # ZKP (would be called from student frontend, needs different auth)
+    # ZKP Legacy (would be called from student frontend, needs different auth)
     generateZKProof(input: ZKProofInput!): ZKPProofRequest!
+
+    # ========== ZK ACHIEVEMENT VERIFICATION (STUDENT) ==========
+    registerAchievementCommitment(input: RegisterCommitmentInput!): ZkCommitmentResult! @auth(requires: STUDENT)
+    registerAchievementCommitmentsBatch(inputs: [RegisterCommitmentInput!]!): [ZkCommitmentResult!]! @auth(requires: STUDENT)
+    uploadAchievementProof(input: UploadProofInput!): ZkProofUploadResult! @auth(requires: STUDENT)
+    uploadAchievementProofsBatch(inputs: [UploadProofInput!]!): [ZkProofUploadResult!]! @auth(requires: STUDENT)
   }
 
   # ============================================

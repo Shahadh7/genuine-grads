@@ -86,7 +86,14 @@ export default function StudentDashboard(): React.JSX.Element {
   const revokedCertificates = allCertificates.filter((cert: any) => cert.revoked === true);
   const certificatesCount = activeCertificates.length;
   const revokedCount = revokedCertificates.length;
-  const achievementsCount = studentData?.achievements?.length || 0;
+
+  // Count achievements from both StudentAchievement (student.achievements) and Enrollment.achievements
+  const studentAchievementsCount = studentData?.achievements?.length || 0;
+  const enrollmentAchievementsCount = (studentData?.enrollments || []).reduce(
+    (count: number, enrollment: any) => count + (enrollment.achievements?.length || 0),
+    0
+  );
+  const achievementsCount = studentAchievementsCount + enrollmentAchievementsCount;
   const enrollmentsCount = studentData?.enrollments?.length || 0;
 
   return (
