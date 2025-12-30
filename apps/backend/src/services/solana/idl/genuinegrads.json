@@ -1,0 +1,2008 @@
+{
+  "address": "J9Bsd3MSutBQDqsaXc5otLvDmrrN7vEynx2fYaH296FX",
+  "metadata": {
+    "name": "genuinegrads",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "GenuineGrads Solana Program for credential management with compressed NFTs"
+  },
+  "instructions": [
+    {
+      "name": "approve_university",
+      "discriminator": [
+        54,
+        211,
+        87,
+        78,
+        137,
+        236,
+        70,
+        12
+      ],
+      "accounts": [
+        {
+          "name": "super_admin",
+          "docs": [
+            "Super admin (also payer in your model, but no new accounts created here)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "docs": [
+            "GlobalConfig bound to this super admin",
+            "PDA = [\"global-config\", super_admin]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "super_admin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university_authority",
+          "docs": [
+            "The authority that originally registered the university",
+            "(Included so we can deterministically derive the university PDA.)"
+          ]
+        },
+        {
+          "name": "university",
+          "docs": [
+            "Target University to approve",
+            "PDA = [\"university\", university_authority]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "university_authority"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "burn_certificate_v2",
+      "discriminator": [
+        54,
+        105,
+        115,
+        98,
+        83,
+        3,
+        116,
+        37
+      ],
+      "accounts": [
+        {
+          "name": "university_authority",
+          "docs": [
+            "University authority is payer & operational authority (same as mint)"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_config.owner",
+                "account": "GlobalConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university",
+          "docs": [
+            "University must be ACTIVE, tied to this authority & admin",
+            "PDA = [\"university\", university_authority]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "university_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university_collection",
+          "docs": [
+            "University collection record (created in create_core_collection_v2_cpi)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121,
+                  95,
+                  99,
+                  111,
+                  108,
+                  108,
+                  101,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "university"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university_tree",
+          "docs": [
+            "University tree record (created in create_tree_v2)",
+            "PDA = [\"university_tree\", merkle_tree]"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121,
+                  95,
+                  116,
+                  114,
+                  101,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "merkle_tree"
+              }
+            ]
+          }
+        },
+        {
+          "name": "merkle_tree",
+          "writable": true
+        },
+        {
+          "name": "tree_config",
+          "writable": true
+        },
+        {
+          "name": "core_collection",
+          "writable": true
+        },
+        {
+          "name": "mpl_core_program",
+          "address": "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
+        },
+        {
+          "name": "mpl_core_cpi_signer"
+        },
+        {
+          "name": "leaf_owner"
+        },
+        {
+          "name": "bubblegum_program",
+          "docs": [
+            "Bubblegum program"
+          ]
+        },
+        {
+          "name": "compression_program",
+          "docs": [
+            "SPL Account Compression"
+          ],
+          "address": "mcmt6YrQEMKw8Mw43FmpRLmf7BqRnFMKmAcbxE3xkAW"
+        },
+        {
+          "name": "log_wrapper",
+          "docs": [
+            "SPL Noop log wrapper"
+          ],
+          "address": "mnoopTCrg4p8ry25e4bcWA9XZjbNjMTfgYVGGEdRsf3"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "BurnCertificateArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_core_collection_v2_cpi",
+      "discriminator": [
+        124,
+        30,
+        169,
+        144,
+        45,
+        125,
+        99,
+        158
+      ],
+      "accounts": [
+        {
+          "name": "university_authority",
+          "docs": [
+            "University authority is also the payer for CPI"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "docs": [
+            "GlobalConfig bound to the program's super admin. We derive it using the",
+            "admin pubkey stored inside `university.admin` to ensure consistency.",
+            "PDA: [\"global-config\", university.admin]"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_config.owner",
+                "account": "GlobalConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university",
+          "docs": [
+            "University must already be registered and ACTIVE.",
+            "PDA: [\"university\", university_authority]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "university_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university_collection",
+          "docs": [
+            "Our program's record that links this University -> Core Collection",
+            "PDA: [\"university_collection\", university]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121,
+                  95,
+                  99,
+                  111,
+                  108,
+                  108,
+                  101,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "university"
+              }
+            ]
+          }
+        },
+        {
+          "name": "core_collection",
+          "docs": [
+            "This is created by the MPL Core program during CPI (so it must be a",
+            "writable placeholder account here)."
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "mpl_core_program",
+          "docs": [
+            "The MPL Core program",
+            "We keep it as an UncheckedAccount and enforce the well-known ID below.",
+            "You can also wrap with a typed Program if you prefer."
+          ]
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "CreateCoreCollectionV2Args"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "create_tree_v2",
+      "discriminator": [
+        55,
+        99,
+        95,
+        215,
+        142,
+        203,
+        227,
+        205
+      ],
+      "accounts": [
+        {
+          "name": "university_authority",
+          "docs": [
+            "University authority is also the payer for the CPI"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "docs": [
+            "GlobalConfig bound to this university’s admin (super admin)",
+            "PDA = [\"global-config\", university.admin]"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_config.owner",
+                "account": "GlobalConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university",
+          "docs": [
+            "University must be ACTIVE and tied to the same admin",
+            "PDA = [\"university\", university_authority]"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "university_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university_tree",
+          "docs": [
+            "Our program's record linking this University -> Merkle Tree",
+            "PDA = [\"university_tree\", merkle_tree]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121,
+                  95,
+                  116,
+                  114,
+                  101,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "merkle_tree"
+              }
+            ]
+          }
+        },
+        {
+          "name": "merkle_tree",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "tree_config",
+          "docs": [
+            "We don't derive here; we just pass it through for CPI."
+          ],
+          "writable": true
+        },
+        {
+          "name": "bubblegum_program",
+          "address": "BGUMAp9Gq7iTEuizy4pqaxsTyUCBK68MDfK752saRPUY"
+        },
+        {
+          "name": "compression_program",
+          "docs": [
+            "SPL Account Compression program"
+          ],
+          "address": "mcmt6YrQEMKw8Mw43FmpRLmf7BqRnFMKmAcbxE3xkAW"
+        },
+        {
+          "name": "log_wrapper",
+          "docs": [
+            "SPL Noop program (log wrapper)"
+          ],
+          "address": "mnoopTCrg4p8ry25e4bcWA9XZjbNjMTfgYVGGEdRsf3"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "CreateTreeV2Args"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "deactivate_university",
+      "discriminator": [
+        51,
+        22,
+        119,
+        224,
+        46,
+        24,
+        242,
+        87
+      ],
+      "accounts": [
+        {
+          "name": "super_admin",
+          "docs": [
+            "Super admin (no new accounts created here)"
+          ],
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "docs": [
+            "GlobalConfig bound to this super admin",
+            "PDA = [\"global-config\", super_admin]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "super_admin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university_authority",
+          "docs": [
+            "Authority used to derive the target university PDA"
+          ]
+        },
+        {
+          "name": "university",
+          "docs": [
+            "Target University",
+            "PDA = [\"university\", university_authority]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "university_authority"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_config",
+      "discriminator": [
+        208,
+        127,
+        21,
+        1,
+        194,
+        190,
+        196,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "super_admin",
+          "docs": [
+            "Super admin is also the payer"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "docs": [
+            "One-time GlobalConfig PDA for *this* super admin",
+            "PDA = [\"global-config\", super_admin]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "super_admin"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "mint_certificate_v2",
+      "discriminator": [
+        163,
+        9,
+        111,
+        166,
+        138,
+        93,
+        214,
+        11
+      ],
+      "accounts": [
+        {
+          "name": "university_authority",
+          "docs": [
+            "University authority is payer & operational authority"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_config.owner",
+                "account": "GlobalConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university",
+          "docs": [
+            "University must be ACTIVE, tied to this authority & admin",
+            "PDA = [\"university\", university_authority]"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "university_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university_collection",
+          "docs": [
+            "University collection record (created in create_core_collection_v2_cpi)",
+            "PDA = [\"university_collection\", university]"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121,
+                  95,
+                  99,
+                  111,
+                  108,
+                  108,
+                  101,
+                  99,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "university"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university_tree",
+          "docs": [
+            "University tree record (created in create_tree_v2)",
+            "PDA = [\"university_tree\", merkle_tree]"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121,
+                  95,
+                  116,
+                  114,
+                  101,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "merkle_tree"
+              }
+            ]
+          }
+        },
+        {
+          "name": "merkle_tree",
+          "docs": [
+            "(Bubblegum uses this to write the leaf)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "tree_config",
+          "writable": true
+        },
+        {
+          "name": "core_collection",
+          "writable": true
+        },
+        {
+          "name": "mpl_core_program",
+          "address": "CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d"
+        },
+        {
+          "name": "mpl_core_cpi_signer",
+          "docs": [
+            "seeds = [\"cpi_signer\", core_collection, BUBBLEGUM_ID] under program MPL_CORE_ID",
+            "We verify its derivation below. This must be passed when attach_collection = true.",
+            "In practice, Bubblegum uses this PDA as the collection authority via CPI."
+          ]
+        },
+        {
+          "name": "recipient"
+        },
+        {
+          "name": "bubblegum_program",
+          "docs": [
+            "Bubblegum program"
+          ]
+        },
+        {
+          "name": "compression_program",
+          "docs": [
+            "SPL Account Compression"
+          ],
+          "address": "mcmt6YrQEMKw8Mw43FmpRLmf7BqRnFMKmAcbxE3xkAW"
+        },
+        {
+          "name": "log_wrapper",
+          "docs": [
+            "SPL Noop log wrapper"
+          ],
+          "address": "mnoopTCrg4p8ry25e4bcWA9XZjbNjMTfgYVGGEdRsf3"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "MintCertificateArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "register_university",
+      "discriminator": [
+        116,
+        154,
+        134,
+        139,
+        74,
+        110,
+        176,
+        157
+      ],
+      "accounts": [
+        {
+          "name": "university_authority",
+          "docs": [
+            "University authority is also the payer"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "global_config",
+          "docs": [
+            "Global singleton config (read-only)"
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  103,
+                  108,
+                  111,
+                  98,
+                  97,
+                  108,
+                  45,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "global_config.owner",
+                "account": "GlobalConfig"
+              }
+            ]
+          }
+        },
+        {
+          "name": "university",
+          "docs": [
+            "University account PDA:",
+            "seeds = [\"university\", university_authority]  // (payer == authority)"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  117,
+                  110,
+                  105,
+                  118,
+                  101,
+                  114,
+                  115,
+                  105,
+                  116,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "university_authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "RegisterUniversityArgs"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GlobalConfig",
+      "discriminator": [
+        149,
+        8,
+        156,
+        202,
+        160,
+        252,
+        176,
+        217
+      ]
+    },
+    {
+      "name": "University",
+      "discriminator": [
+        3,
+        230,
+        97,
+        22,
+        142,
+        52,
+        70,
+        180
+      ]
+    },
+    {
+      "name": "UniversityCollection",
+      "discriminator": [
+        251,
+        192,
+        146,
+        135,
+        243,
+        166,
+        91,
+        127
+      ]
+    },
+    {
+      "name": "UniversityTree",
+      "discriminator": [
+        97,
+        180,
+        65,
+        76,
+        250,
+        6,
+        242,
+        116
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "CertificateBurnedV2",
+      "discriminator": [
+        236,
+        148,
+        97,
+        210,
+        117,
+        54,
+        176,
+        113
+      ]
+    },
+    {
+      "name": "CertificateMintedV2",
+      "discriminator": [
+        243,
+        132,
+        251,
+        232,
+        221,
+        49,
+        191,
+        87
+      ]
+    },
+    {
+      "name": "CollectionCreatedV2",
+      "discriminator": [
+        103,
+        89,
+        227,
+        206,
+        188,
+        124,
+        231,
+        241
+      ]
+    },
+    {
+      "name": "ConfigInitialized",
+      "discriminator": [
+        181,
+        49,
+        200,
+        156,
+        19,
+        167,
+        178,
+        91
+      ]
+    },
+    {
+      "name": "TreeCreatedV2",
+      "discriminator": [
+        1,
+        195,
+        235,
+        149,
+        137,
+        112,
+        118,
+        10
+      ]
+    },
+    {
+      "name": "UniversityApproved",
+      "discriminator": [
+        145,
+        191,
+        30,
+        41,
+        7,
+        197,
+        195,
+        64
+      ]
+    },
+    {
+      "name": "UniversityDeactivated",
+      "discriminator": [
+        81,
+        186,
+        152,
+        135,
+        127,
+        15,
+        13,
+        146
+      ]
+    },
+    {
+      "name": "UniversityRegistered",
+      "discriminator": [
+        11,
+        25,
+        82,
+        158,
+        193,
+        96,
+        149,
+        37
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "Unauthorized",
+      "msg": "Unauthorized"
+    },
+    {
+      "code": 6001,
+      "name": "Frozen",
+      "msg": "Program is frozen"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidName",
+      "msg": "Invalid name"
+    },
+    {
+      "code": 6003,
+      "name": "AlreadyActive",
+      "msg": "University is already active"
+    },
+    {
+      "code": 6004,
+      "name": "AlreadyInactive",
+      "msg": "University is already inactive"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidUri",
+      "msg": "Invalid URI"
+    },
+    {
+      "code": 6006,
+      "name": "UniversityInactive",
+      "msg": "University is inactive"
+    },
+    {
+      "code": 6007,
+      "name": "InvalidProgramExecutable",
+      "msg": "Invalid program executable"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidTreeConfig",
+      "msg": "Invalid tree config PDA"
+    },
+    {
+      "code": 6009,
+      "name": "CollectionMismatch",
+      "msg": "Collection mismatch"
+    },
+    {
+      "code": 6010,
+      "name": "TreeMismatch",
+      "msg": "Tree mismatch"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidCoreCpiSigner",
+      "msg": "Invalid Core CPI signer"
+    },
+    {
+      "code": 6012,
+      "name": "MissingRemainingAccounts",
+      "msg": "Missing remaining accounts for CPI"
+    },
+    {
+      "code": 6013,
+      "name": "MissingMerkleProof",
+      "msg": "Missing merkle proof accounts."
+    },
+    {
+      "code": 6014,
+      "name": "InvalidBurnReason",
+      "msg": "Invalid burn reason."
+    }
+  ],
+  "types": [
+    {
+      "name": "BurnCertificateArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "root",
+            "docs": [
+              "Merkle proof verification (from DAS getAssetWithProof)"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "data_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "creator_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "nonce",
+            "type": "u64"
+          },
+          {
+            "name": "index",
+            "type": "u32"
+          },
+          {
+            "name": "asset_data_hash",
+            "docs": [
+              "Optional Bubblegum v2 extras"
+            ],
+            "type": {
+              "option": {
+                "array": [
+                  "u8",
+                  32
+                ]
+              }
+            }
+          },
+          {
+            "name": "flags",
+            "type": {
+              "option": "u8"
+            }
+          },
+          {
+            "name": "reason",
+            "docs": [
+              "Human readable reason for burning/revoking"
+            ],
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CertificateBurnedV2",
+      "docs": [
+        "Event: emitted after a successful burn.",
+        "This is your audit trail + includes a reason string."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "university",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "leaf_owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "merkle_tree",
+            "type": "pubkey"
+          },
+          {
+            "name": "tree_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "collection",
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "type": "u32"
+          },
+          {
+            "name": "nonce",
+            "type": "u64"
+          },
+          {
+            "name": "reason",
+            "type": "string"
+          },
+          {
+            "name": "burned_at",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CertificateMintedV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "university",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "recipient",
+            "type": "pubkey"
+          },
+          {
+            "name": "merkle_tree",
+            "type": "pubkey"
+          },
+          {
+            "name": "tree_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "collection",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "uri",
+            "type": "string"
+          },
+          {
+            "name": "attached_collection",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CollectionCreatedV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "university",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "collection",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "uri",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConfigInitialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateCoreCollectionV2Args",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "docs": [
+              "Human-readable display name for the collection"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "uri",
+            "docs": [
+              "Off-chain metadata URI (JSON)"
+            ],
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateTreeV2Args",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "max_depth",
+            "docs": [
+              "Merkle max depth (e.g., 14, 20, 24)"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "max_buffer_size",
+            "docs": [
+              "Max buffer size (e.g., 64, 256, 1024)"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "is_public",
+            "docs": [
+              "Whether the tree is public (true) or private (false)"
+            ],
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "GlobalConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "docs": [
+              "The single owner (super admin) who governs the program settings."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "frozen",
+            "docs": [
+              "Optional: allow emergency freeze of university ops (you can wire this later)."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump for PDA"
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MintCertificateArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "docs": [
+              "Display name for the certificate (e.g., \"BSc Computer Science — 2025\")"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "uri",
+            "docs": [
+              "Off-chain JSON metadata for the certificate"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "recipient",
+            "docs": [
+              "Recipient (student) who will own the compressed NFT leaf"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "attach_collection",
+            "docs": [
+              "If true, attempt collection-verified mint under the university's Core collection"
+            ],
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RegisterUniversityArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "metadata_uri",
+            "type": {
+              "option": "string"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TreeCreatedV2",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "university",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "merkle_tree",
+            "type": "pubkey"
+          },
+          {
+            "name": "tree_config",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_depth",
+            "type": "u32"
+          },
+          {
+            "name": "max_buffer_size",
+            "type": "u32"
+          },
+          {
+            "name": "is_public",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "University",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "docs": [
+              "Program-level owner (super admin) from GlobalConfig.owner"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "University’s operational authority (their signer)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "metadata_uri",
+            "type": "string"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UniversityApproved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "university",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UniversityCollection",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "docs": [
+              "Program-level super admin (mirrors GlobalConfig.owner)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "university",
+            "docs": [
+              "The University account that owns this collection"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "The operational authority (same as university.authority)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "collection",
+            "docs": [
+              "The created MPL Core collection public key"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "docs": [
+              "Business metadata (sized for safety)"
+            ],
+            "type": "string"
+          },
+          {
+            "name": "uri",
+            "type": "string"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UniversityDeactivated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "university",
+            "type": "pubkey"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UniversityRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "university_authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "university",
+            "type": "pubkey"
+          },
+          {
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "name": "is_active",
+            "type": "bool"
+          },
+          {
+            "name": "metadata_uri",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "UniversityTree",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "docs": [
+              "Program-level super admin (mirrors GlobalConfig.owner)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "university",
+            "docs": [
+              "The University account that owns this Merkle tree"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "Operational authority (same as university.authority)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "merkle_tree",
+            "docs": [
+              "SPL-Compression Merkle tree account"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "tree_config",
+            "docs": [
+              "Bubblegum tree config PDA (derived from merkle_tree)"
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "max_depth",
+            "docs": [
+              "Parameters"
+            ],
+            "type": "u32"
+          },
+          {
+            "name": "max_buffer_size",
+            "type": "u32"
+          },
+          {
+            "name": "is_public",
+            "type": "bool"
+          },
+          {
+            "name": "created_at",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}

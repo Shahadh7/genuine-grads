@@ -75,7 +75,7 @@ EOF
 # Build all services
 build() {
     check_env
-    sync_idl
+    verify_files
     generate_env_files
     echo -e "${YELLOW}Building all services...${NC}"
     docker compose --env-file .env.production build
@@ -85,7 +85,7 @@ build() {
 # Start all services
 start() {
     check_env
-    sync_idl
+    verify_files
     generate_env_files
     echo -e "${YELLOW}Starting all services...${NC}"
     docker compose --env-file .env.production up -d --build
@@ -121,7 +121,7 @@ update() {
     echo -e "${YELLOW}Pulling latest changes...${NC}"
     git pull
 
-    sync_idl
+    verify_files
     generate_env_files
     echo -e "${YELLOW}Rebuilding services...${NC}"
     docker compose --env-file .env.production up -d --build
@@ -148,27 +148,41 @@ gen_env() {
     echo -e "${GREEN}Environment files generated!${NC}"
 }
 
-# Sync IDL files from program to frontend and backend
-sync_idl() {
-    echo -e "${YELLOW}Syncing IDL files...${NC}"
+# Verify required files exist
+verify_files() {
+    echo -e "${YELLOW}Verifying required files...${NC}"
     
-    IDL_SOURCE="program/genuinegrads/target/idl/genuinegrads.json"
+    local missing_files=0
     
-    if [ ! -f "$IDL_SOURCE" ]; then
-        echo -e "${RED}Error: IDL file not found at $IDL_SOURCE${NC}"
-        echo "Please build the Solana program first: cd program/genuinegrads && anchor build"
+    # Check for required JSON files
+    if [ ! -f "frontend/src/idl/genuinegrads.json" ]; then
+        echo -e "  ${RED}✗${NC} frontend/src/idl/genuinegrads.json not found"
+        missing_files=1
+    else
+        echo -e "  ${GREEN}✓${NC} frontend/src/idl/genuinegrads.json"
+    fi
+    
+    if [ ! -f "frontend/src/data/designTemplates.json" ]; then
+        echo -e "  ${RED}✗${NC} frontend/src/data/designTemplates.json not found"
+        missing_files=1
+    else
+        echo -e "  ${GREEN}✓${NC} frontend/src/data/designTemplates.json"
+    fi
+    
+    if [ ! -f "backend/src/services/solana/idl/genuinegrads.json" ]; then
+        echo -e "  ${RED}✗${NC} backend/src/services/solana/idl/genuinegrads.json not found"
+        missing_files=1
+    else
+        echo -e "  ${GREEN}✓${NC} backend/src/services/solana/idl/genuinegrads.json"
+    fi
+    
+    if [ $missing_files -eq 1 ]; then
+        echo -e "${RED}Error: Required files are missing${NC}"
+        echo "These files should be committed to git. Please ensure they exist before deploying."
         exit 1
     fi
     
-    # Copy to frontend
-    cp "$IDL_SOURCE" frontend/src/idl/genuinegrads.json
-    echo -e "  ${GREEN}✓${NC} Copied to frontend/src/idl/genuinegrads.json"
-    
-    # Copy to backend
-    cp "$IDL_SOURCE" backend/src/services/solana/idl/genuinegrads.json
-    echo -e "  ${GREEN}✓${NC} Copied to backend/src/services/solana/idl/genuinegrads.json"
-    
-    echo -e "${GREEN}IDL files synced!${NC}"
+    echo -e "${GREEN}All required files present!${NC}"
 }
 
 # Main command handler
@@ -198,8 +212,8 @@ case "${1:-help}" in
     gen-env)
         gen_env
         ;;
-    sync-idl)
-        sync_idl
+    verify)
+        verify_files
         ;;
     status)
         status
@@ -217,7 +231,7 @@ case "${1:-help}" in
         echo "  update    Pull latest code and rebuild"
         echo "  init-db   Initialize database (run after first start)"
         echo "  gen-env   Generate .env files for backend/frontend"
-        echo "  sync-idl  Sync IDL files from program to frontend/backend"
+        echo "  verify    Verify required files exist"
         echo "  status    Show service status"
         echo "  logs      View logs (add service name for specific logs)"
         echo ""
@@ -225,6 +239,6 @@ case "${1:-help}" in
         echo "  ./deploy.sh start"
         echo "  ./deploy.sh logs backend"
         echo "  ./deploy.sh update"
-        echo "  ./deploy.sh sync-idl"
+        echo "  ./deploy.sh verify"
         ;;
 esac
