@@ -1,0 +1,702 @@
+{
+  "templates": [
+    {
+      "id": "template-classic-elegant",
+      "name": "Classic Elegant",
+      "description": "Traditional academic certificate with elegant typography",
+      "createdAt": "2024-01-15T10:30:00Z",
+      "elements": [
+        {
+          "id": "certificate-header",
+          "type": "static",
+          "value": "CERTIFICATE OF ACHIEVEMENT",
+          "x": 400,
+          "y": 50,
+          "fontSize": 26,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#1a1a1a"
+        },
+        {
+          "id": "divider-top",
+          "type": "static",
+          "value": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+          "x": 400,
+          "y": 85,
+          "fontSize": 12,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#d4af37"
+        },
+        {
+          "id": "this-certifies",
+          "type": "static",
+          "value": "This certifies that",
+          "x": 400,
+          "y": 115,
+          "fontSize": 14,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#4a4a4a"
+        },
+        {
+          "id": "student-name",
+          "type": "placeholder",
+          "value": "{student_name}",
+          "x": 400,
+          "y": 150,
+          "fontSize": 32,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#1a1a1a"
+        },
+        {
+          "id": "has-successfully",
+          "type": "static",
+          "value": "has successfully completed the requirements for",
+          "x": 400,
+          "y": 195,
+          "fontSize": 13,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#4a4a4a"
+        },
+        {
+          "id": "certificate-title",
+          "type": "placeholder",
+          "value": "{certificate_title}",
+          "x": 400,
+          "y": 225,
+          "fontSize": 22,
+          "fontWeight": "semibold",
+          "textAlign": "center",
+          "color": "#2c5aa0"
+        },
+        {
+          "id": "course-name",
+          "type": "placeholder",
+          "value": "{course}",
+          "x": 400,
+          "y": 260,
+          "fontSize": 16,
+          "fontWeight": "medium",
+          "textAlign": "center",
+          "color": "#1a1a1a"
+        },
+        {
+          "id": "gpa-label",
+          "type": "static",
+          "value": "with a Grade Point Average of",
+          "x": 400,
+          "y": 295,
+          "fontSize": 13,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#4a4a4a"
+        },
+        {
+          "id": "gpa-value",
+          "type": "placeholder",
+          "value": "{gpa}",
+          "x": 400,
+          "y": 325,
+          "fontSize": 20,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#059669"
+        },
+        {
+          "id": "badge-achievement",
+          "type": "placeholder",
+          "value": "{badge_title}",
+          "x": 400,
+          "y": 360,
+          "fontSize": 15,
+          "fontWeight": "semibold",
+          "textAlign": "center",
+          "color": "#d4af37"
+        },
+        {
+          "id": "university-label",
+          "type": "static",
+          "value": "Awarded by",
+          "x": 400,
+          "y": 405,
+          "fontSize": 13,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#4a4a4a"
+        },
+        {
+          "id": "university-name",
+          "type": "placeholder",
+          "value": "{university_name}",
+          "x": 400,
+          "y": 435,
+          "fontSize": 19,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#1a1a1a"
+        },
+        {
+          "id": "date",
+          "type": "placeholder",
+          "value": "{graduation_date}",
+          "x": 400,
+          "y": 470,
+          "fontSize": 13,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#6b7280"
+        },
+        {
+          "id": "qr-code",
+          "type": "qr",
+          "x": 650,
+          "y": 430,
+          "size": 80
+        }
+      ]
+    },
+    {
+      "id": "template-modern-gradient",
+      "name": "Modern Professional",
+      "description": "Contemporary design with bold colors and clean layout",
+      "createdAt": "2024-01-20T14:15:00Z",
+      "elements": [
+        {
+          "id": "header-accent",
+          "type": "static",
+          "value": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+          "x": 400,
+          "y": 40,
+          "fontSize": 12,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#3b82f6"
+        },
+        {
+          "id": "certificate-badge",
+          "type": "static",
+          "value": "★ CERTIFICATE ★",
+          "x": 400,
+          "y": 65,
+          "fontSize": 16,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#3b82f6"
+        },
+        {
+          "id": "main-title",
+          "type": "placeholder",
+          "value": "{certificate_title}",
+          "x": 400,
+          "y": 100,
+          "fontSize": 28,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#1e293b"
+        },
+        {
+          "id": "presented-to",
+          "type": "static",
+          "value": "PRESENTED TO",
+          "x": 400,
+          "y": 140,
+          "fontSize": 12,
+          "fontWeight": "semibold",
+          "textAlign": "center",
+          "color": "#64748b"
+        },
+        {
+          "id": "student-name",
+          "type": "placeholder",
+          "value": "{student_name}",
+          "x": 400,
+          "y": 175,
+          "fontSize": 34,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#0f172a"
+        },
+        {
+          "id": "achievement-line",
+          "type": "static",
+          "value": "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+          "x": 400,
+          "y": 215,
+          "fontSize": 10,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#cbd5e1"
+        },
+        {
+          "id": "achievement-text",
+          "type": "static",
+          "value": "In recognition of outstanding achievement in",
+          "x": 400,
+          "y": 240,
+          "fontSize": 14,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#475569"
+        },
+        {
+          "id": "course-name",
+          "type": "placeholder",
+          "value": "{course}",
+          "x": 400,
+          "y": 270,
+          "fontSize": 19,
+          "fontWeight": "semibold",
+          "textAlign": "center",
+          "color": "#1e40af"
+        },
+        {
+          "id": "performance-box",
+          "type": "static",
+          "value": "═══════════════════════════════",
+          "x": 400,
+          "y": 310,
+          "fontSize": 11,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#e0e7ff"
+        },
+        {
+          "id": "gpa-display",
+          "type": "placeholder",
+          "value": "GPA: {gpa}",
+          "x": 300,
+          "y": 340,
+          "fontSize": 18,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#059669"
+        },
+        {
+          "id": "badge-display",
+          "type": "placeholder",
+          "value": "🏆 {badge_title}",
+          "x": 500,
+          "y": 340,
+          "fontSize": 16,
+          "fontWeight": "semibold",
+          "textAlign": "center",
+          "color": "#d97706"
+        },
+        {
+          "id": "performance-box-bottom",
+          "type": "static",
+          "value": "═══════════════════════════════",
+          "x": 400,
+          "y": 370,
+          "fontSize": 11,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#e0e7ff"
+        },
+        {
+          "id": "issued-by",
+          "type": "static",
+          "value": "ISSUED BY",
+          "x": 400,
+          "y": 405,
+          "fontSize": 11,
+          "fontWeight": "semibold",
+          "textAlign": "center",
+          "color": "#64748b"
+        },
+        {
+          "id": "university-name",
+          "type": "placeholder",
+          "value": "{university_name}",
+          "x": 400,
+          "y": 435,
+          "fontSize": 21,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#1e293b"
+        },
+        {
+          "id": "graduation-date",
+          "type": "placeholder",
+          "value": "Date: {graduation_date}",
+          "x": 200,
+          "y": 480,
+          "fontSize": 12,
+          "fontWeight": "normal",
+          "textAlign": "left",
+          "color": "#64748b"
+        },
+        {
+          "id": "student-id",
+          "type": "placeholder",
+          "value": "ID: {student_id}",
+          "x": 200,
+          "y": 505,
+          "fontSize": 12,
+          "fontWeight": "normal",
+          "textAlign": "left",
+          "color": "#64748b"
+        },
+        {
+          "id": "qr-code",
+          "type": "qr",
+          "x": 650,
+          "y": 420,
+          "size": 90
+        }
+      ]
+    },
+    {
+      "id": "template-minimalist-luxury",
+      "name": "Minimalist Luxury",
+      "description": "Clean, sophisticated design with focus on content",
+      "createdAt": "2024-01-25T09:45:00Z",
+      "elements": [
+        {
+          "id": "top-accent",
+          "type": "static",
+          "value": "◆",
+          "x": 400,
+          "y": 60,
+          "fontSize": 20,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#000000"
+        },
+        {
+          "id": "certificate-type",
+          "type": "placeholder",
+          "value": "{certificate_title}",
+          "x": 400,
+          "y": 95,
+          "fontSize": 32,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#000000"
+        },
+        {
+          "id": "presented-label",
+          "type": "static",
+          "value": "This certificate is proudly presented to",
+          "x": 400,
+          "y": 145,
+          "fontSize": 14,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#525252"
+        },
+        {
+          "id": "student-name",
+          "type": "placeholder",
+          "value": "{student_name}",
+          "x": 400,
+          "y": 185,
+          "fontSize": 36,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#000000"
+        },
+        {
+          "id": "underline",
+          "type": "static",
+          "value": "___________________________________",
+          "x": 400,
+          "y": 225,
+          "fontSize": 14,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#d4d4d4"
+        },
+        {
+          "id": "recognition-text",
+          "type": "static",
+          "value": "for exceptional performance and successful completion of",
+          "x": 400,
+          "y": 255,
+          "fontSize": 14,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#525252"
+        },
+        {
+          "id": "course-name",
+          "type": "placeholder",
+          "value": "{course}",
+          "x": 400,
+          "y": 290,
+          "fontSize": 20,
+          "fontWeight": "semibold",
+          "textAlign": "center",
+          "color": "#171717"
+        },
+        {
+          "id": "gpa-section",
+          "type": "placeholder",
+          "value": "Academic Excellence: {gpa} GPA",
+          "x": 400,
+          "y": 330,
+          "fontSize": 16,
+          "fontWeight": "medium",
+          "textAlign": "center",
+          "color": "#16a34a"
+        },
+        {
+          "id": "badge-honor",
+          "type": "placeholder",
+          "value": "◆ {badge_title} ◆",
+          "x": 400,
+          "y": 365,
+          "fontSize": 15,
+          "fontWeight": "semibold",
+          "textAlign": "center",
+          "color": "#a16207"
+        },
+        {
+          "id": "university-name",
+          "type": "placeholder",
+          "value": "{university_name}",
+          "x": 400,
+          "y": 420,
+          "fontSize": 20,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#171717"
+        },
+        {
+          "id": "date-of-completion",
+          "type": "placeholder",
+          "value": "{graduation_date}",
+          "x": 400,
+          "y": 455,
+          "fontSize": 13,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#737373"
+        },
+        {
+          "id": "bottom-accent",
+          "type": "static",
+          "value": "◆",
+          "x": 400,
+          "y": 490,
+          "fontSize": 16,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#000000"
+        },
+        {
+          "id": "qr-code",
+          "type": "qr",
+          "x": 660,
+          "y": 430,
+          "size": 75
+        }
+      ]
+    },
+    {
+      "id": "template-bold-modern",
+      "name": "Bold & Dynamic",
+      "description": "Eye-catching design with vibrant accents and modern layout",
+      "createdAt": "2024-01-28T11:20:00Z",
+      "elements": [
+        {
+          "id": "corner-accent-tl",
+          "type": "static",
+          "value": "┏━━━━━━━━━",
+          "x": 80,
+          "y": 40,
+          "fontSize": 18,
+          "fontWeight": "bold",
+          "textAlign": "left",
+          "color": "#7c3aed"
+        },
+        {
+          "id": "corner-accent-tr",
+          "type": "static",
+          "value": "━━━━━━━━━┓",
+          "x": 720,
+          "y": 40,
+          "fontSize": 18,
+          "fontWeight": "bold",
+          "textAlign": "right",
+          "color": "#7c3aed"
+        },
+        {
+          "id": "certificate-header",
+          "type": "static",
+          "value": "OFFICIAL CERTIFICATE",
+          "x": 400,
+          "y": 75,
+          "fontSize": 14,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#6b21a8"
+        },
+        {
+          "id": "main-title",
+          "type": "placeholder",
+          "value": "{certificate_title}",
+          "x": 400,
+          "y": 110,
+          "fontSize": 30,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#581c87"
+        },
+        {
+          "id": "honor-badge",
+          "type": "placeholder",
+          "value": "★ {badge_title} ★",
+          "x": 400,
+          "y": 150,
+          "fontSize": 14,
+          "fontWeight": "semibold",
+          "textAlign": "center",
+          "color": "#eab308"
+        },
+        {
+          "id": "divider-design",
+          "type": "static",
+          "value": "▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼",
+          "x": 400,
+          "y": 180,
+          "fontSize": 12,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#c084fc"
+        },
+        {
+          "id": "awarded-to",
+          "type": "static",
+          "value": "AWARDED TO",
+          "x": 400,
+          "y": 205,
+          "fontSize": 12,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#374151"
+        },
+        {
+          "id": "student-name",
+          "type": "placeholder",
+          "value": "{student_name}",
+          "x": 400,
+          "y": 240,
+          "fontSize": 32,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#111827"
+        },
+        {
+          "id": "completion-text",
+          "type": "static",
+          "value": "For outstanding completion of",
+          "x": 400,
+          "y": 280,
+          "fontSize": 14,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#4b5563"
+        },
+        {
+          "id": "course-name",
+          "type": "placeholder",
+          "value": "{course}",
+          "x": 400,
+          "y": 310,
+          "fontSize": 21,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#6366f1"
+        },
+        {
+          "id": "gpa-highlight",
+          "type": "placeholder",
+          "value": "◆ ACHIEVED {gpa} GPA ◆",
+          "x": 400,
+          "y": 350,
+          "fontSize": 17,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#10b981"
+        },
+        {
+          "id": "divider-bottom",
+          "type": "static",
+          "value": "▲ ▲ ▲ ▲ ▲ ▲ ▲ ▲ ▲ ▲",
+          "x": 400,
+          "y": 385,
+          "fontSize": 12,
+          "fontWeight": "normal",
+          "textAlign": "center",
+          "color": "#c084fc"
+        },
+        {
+          "id": "certified-by",
+          "type": "static",
+          "value": "CERTIFIED BY",
+          "x": 400,
+          "y": 415,
+          "fontSize": 12,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#374151"
+        },
+        {
+          "id": "university-name",
+          "type": "placeholder",
+          "value": "{university_name}",
+          "x": 400,
+          "y": 445,
+          "fontSize": 23,
+          "fontWeight": "bold",
+          "textAlign": "center",
+          "color": "#1f2937"
+        },
+        {
+          "id": "date-issued",
+          "type": "placeholder",
+          "value": "Issue Date: {graduation_date}",
+          "x": 150,
+          "y": 490,
+          "fontSize": 12,
+          "fontWeight": "normal",
+          "textAlign": "left",
+          "color": "#6b7280"
+        },
+        {
+          "id": "corner-accent-bl",
+          "type": "static",
+          "value": "┗━━━━━━━━━",
+          "x": 80,
+          "y": 520,
+          "fontSize": 18,
+          "fontWeight": "bold",
+          "textAlign": "left",
+          "color": "#7c3aed"
+        },
+        {
+          "id": "corner-accent-br",
+          "type": "static",
+          "value": "━━━━━━━━━┛",
+          "x": 720,
+          "y": 520,
+          "fontSize": 18,
+          "fontWeight": "bold",
+          "textAlign": "right",
+          "color": "#7c3aed"
+        },
+        {
+          "id": "qr-code",
+          "type": "qr",
+          "x": 630,
+          "y": 425,
+          "size": 80
+        }
+      ]
+    }
+  ]
+}
