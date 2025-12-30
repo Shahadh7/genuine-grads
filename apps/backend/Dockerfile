@@ -14,9 +14,6 @@ RUN yarn install --frozen-lockfile
 # Copy all source files
 COPY . .
 
-# Debug: list files to verify tsconfig.json is copied
-RUN ls -la && cat tsconfig.json
-
 # Generate Prisma clients
 RUN yarn db:generate
 

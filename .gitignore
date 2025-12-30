@@ -274,6 +274,7 @@ contracts/**/*.rs.bk
 !package.json
 !package-lock.json
 !jsconfig.json
+!tsconfig.json
 !tailwind.config.js
 !next.config.mjs
 !postcss.config.mjs
