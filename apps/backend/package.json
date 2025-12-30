@@ -61,6 +61,7 @@
     "pino-pretty": "^10.3.1",
     "qrcode": "^1.5.4",
     "sharp": "^0.34.5",
+    "snarkjs": "^0.7.5",
     "zod": "^3.22.4"
   },
   "devDependencies": {
