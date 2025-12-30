@@ -176,9 +176,17 @@ verify_files() {
         echo -e "  ${GREEN}✓${NC} backend/src/services/solana/idl/genuinegrads.json"
     fi
     
+    # Check for required directories
+    if [ ! -d "frontend/public" ]; then
+        echo -e "  ${RED}✗${NC} frontend/public directory not found"
+        missing_files=1
+    else
+        echo -e "  ${GREEN}✓${NC} frontend/public directory"
+    fi
+    
     if [ $missing_files -eq 1 ]; then
-        echo -e "${RED}Error: Required files are missing${NC}"
-        echo "These files should be committed to git. Please ensure they exist before deploying."
+        echo -e "${RED}Error: Required files/directories are missing${NC}"
+        echo "These should be committed to git. Please ensure they exist before deploying."
         exit 1
     fi
     
