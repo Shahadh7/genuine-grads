@@ -11,17 +11,14 @@ COPY package.json yarn.lock ./
 # Install dependencies
 RUN yarn install --frozen-lockfile
 
-# Copy prisma schemas first (needed for generate)
-COPY prisma ./prisma
+# Copy all source files
+COPY . .
 
 # Generate Prisma clients
 RUN yarn db:generate
 
-# Copy source code
-COPY . .
-
-# Build TypeScript
-RUN yarn build
+# Build TypeScript (use npx to ensure correct tsc is used)
+RUN npx tsc -p tsconfig.json
 
 # Expose port
 EXPOSE 4000
