@@ -71,7 +71,8 @@ ufw enable
 ## 4. Clone Your Repository
 
 ```bash
-cd /root
+# /srv is the standard location for site-specific data served by the system
+cd /srv
 git clone https://github.com/YOUR_USERNAME/genuinegrads.git
 cd genuinegrads/apps
 ```
@@ -234,7 +235,7 @@ docker compose down -v
 When you push updates to GitHub:
 
 ```bash
-cd /root/genuinegrads/apps
+cd /srv/genuinegrads/apps
 
 # Pull and rebuild
 ./deploy.sh update

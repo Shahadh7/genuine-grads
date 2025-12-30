@@ -61,13 +61,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_GRAPHQL_URL=${NEXT_PUBLIC_GRAPHQL_URL:-http://localhost:4000/graphql}
-        - NEXT_PUBLIC_SOLANA_NETWORK=${SOLANA_NETWORK:-devnet}
-        - NEXT_PUBLIC_SOLANA_RPC_URL=${SOLANA_RPC_URL}
-        - NEXT_PUBLIC_PROGRAM_ID=${SOLANA_PROGRAM_ID}
-        - NEXT_PUBLIC_HELIUS_API_KEY=${HELIUS_API_KEY}
-        - NEXT_PUBLIC_SUPER_ADMIN_PUBKEY=${SOLANA_SUPER_ADMIN_PUBKEY}
     container_name: genuinegrads-frontend
     restart: unless-stopped
     depends_on:
