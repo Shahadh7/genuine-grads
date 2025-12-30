@@ -51,7 +51,12 @@ const DEFAULT_TREE_PUBLIC_ACCESS = true;
 type UniversityRecord = NonNullable<Awaited<ReturnType<typeof sharedDb.university.findUnique>>>;
 
 function deriveDefaultCollectionMetadata(university: Pick<UniversityRecord, 'name' | 'id' | 'websiteUrl'>) {
-  const name = `${university.name} Certificates`;
+  // MPL Core collections support longer names, but we limit to 80 chars for safety
+  const fullName = `${university.name} Certificates`;
+  const name = fullName.length > 80
+    ? fullName.substring(0, 77) + '...'
+    : fullName;
+  
   const baseUri = university.websiteUrl?.trim();
   const uri = baseUri && baseUri.length > 0
     ? baseUri
@@ -609,13 +614,19 @@ async function prepareMintCertificateStepInternal(args: MintPreparationArgs): Pr
   const coreCollection = new PublicKey(collectionAddress);
   const recipient = new PublicKey(certificate.student.walletAddress);
 
+  // Metaplex Bubblegum requires name to be max 32 characters
+  // Truncate if necessary while preserving readability
+  const truncatedName = certificate.badgeTitle.length > 32
+    ? certificate.badgeTitle.substring(0, 29) + '...'
+    : certificate.badgeTitle;
+
   const { instruction } = await buildMintCertificateInstruction({
     universityAuthority: universityAuthorityPk,
     superAdmin: superAdminPk,
     merkleTree,
     coreCollection,
     recipient,
-    name: certificate.badgeTitle,
+    name: truncatedName,
     uri: metadataUri,
     attachCollection: true,
   });

@@ -114,7 +114,8 @@ pub fn handler(ctx: Context<MintCertificateV2>, args: MintCertificateArgs) -> Re
     // --- Governance guards ---
     require!(!ctx.accounts.global_config.frozen, GenuineGradsError::Frozen);
     require!(ctx.accounts.university.is_active, GenuineGradsError::UniversityInactive);
-    require!(args.name.len() > 0 && args.name.len() <= 31, GenuineGradsError::InvalidName);
+    // Metaplex Bubblegum enforces max 32 chars for name
+    require!(args.name.len() > 0 && args.name.len() <= 32, GenuineGradsError::InvalidName);
     require!(args.uri.len() > 0 && args.uri.len() <= 200, GenuineGradsError::InvalidUri);
 
     // Program IDs
