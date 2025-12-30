@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:15-alpine
@@ -7,7 +5,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: genuinegrads
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-genuinegrads_secure_password}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: genuinegrads_shared
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -15,7 +13,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U genuinegrads"]
+      test: ["CMD-SHELL", "pg_isready -U genuinegrads -d genuinegrads_shared"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,14 +28,14 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 4000
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_ACCESS_EXPIRY: 1d
       JWT_REFRESH_EXPIRY: 7d
-      SHARED_DATABASE_URL: postgresql://genuinegrads:${DB_PASSWORD:-genuinegrads_secure_password}@postgres:5432/genuinegrads_shared
-      UNIVERSITY_DATABASE_URL: postgresql://genuinegrads:${DB_PASSWORD:-genuinegrads_secure_password}@postgres:5432/genuinegrads_uni_template
+      SHARED_DATABASE_URL: postgresql://genuinegrads:${DB_PASSWORD}@postgres:5432/genuinegrads_shared
+      UNIVERSITY_DATABASE_URL: postgresql://genuinegrads:${DB_PASSWORD}@postgres:5432/genuinegrads_uni_template
       SOLANA_NETWORK: ${SOLANA_NETWORK:-devnet}
       SOLANA_RPC_URL: ${SOLANA_RPC_URL}
       SOLANA_PROGRAM_ID: ${SOLANA_PROGRAM_ID}
@@ -46,13 +44,15 @@ services:
       PINATA_JWT: ${PINATA_JWT}
       PINATA_GATEWAY: ${PINATA_GATEWAY}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      CORS_ORIGIN: ${CORS_ORIGIN}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
     ports:
       - "4000:4000"
+    volumes:
+      - ./backend/src:/app/src
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -65,6 +65,13 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    environment:
+      NEXT_PUBLIC_GRAPHQL_URL: ${NEXT_PUBLIC_GRAPHQL_URL}
+      NEXT_PUBLIC_SOLANA_NETWORK: ${SOLANA_NETWORK:-devnet}
+      NEXT_PUBLIC_SOLANA_RPC_URL: ${SOLANA_RPC_URL}
+      NEXT_PUBLIC_PROGRAM_ID: ${SOLANA_PROGRAM_ID}
+      NEXT_PUBLIC_HELIUS_API_KEY: ${HELIUS_API_KEY}
+      NEXT_PUBLIC_SUPER_ADMIN_PUBKEY: ${SOLANA_SUPER_ADMIN_PUBKEY}
     ports:
       - "3000:3000"
 
@@ -87,6 +94,7 @@ services:
   certbot:
     image: certbot/certbot
     container_name: genuinegrads-certbot
+    restart: unless-stopped
     volumes:
       - ./certbot/conf:/etc/letsencrypt
       - ./certbot/www:/var/www/certbot
