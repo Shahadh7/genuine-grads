@@ -1,7 +1,19 @@
 FROM node:20-alpine
 
 # Install dependencies for Prisma and native modules
-RUN apk add --no-cache openssl python3 make g++
+# Also install fonts and fontconfig for Sharp SVG text rendering
+RUN apk add --no-cache \
+    openssl \
+    python3 \
+    make \
+    g++ \
+    fontconfig \
+    ttf-dejavu \
+    ttf-liberation \
+    font-noto
+
+# Rebuild font cache to ensure fonts are properly registered
+RUN fc-cache -f -v
 
 WORKDIR /app
 

@@ -198,6 +198,7 @@ export default function CertificateDesignerPage(): React.JSX.Element {
   const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState<boolean>(false);
   const [savingTemplate, setSavingTemplate] = useState<boolean>(false);
+  const [showCenterGuides, setShowCenterGuides] = useState<any>({ horizontal: false, vertical: false });
   const fileInputRef = useRef(null);
   const canvasRef = useRef(null);
   const canvasContainerRef = useRef(null);
@@ -439,14 +440,50 @@ export default function CertificateDesignerPage(): React.JSX.Element {
     const canvasRect = canvasRef.current?.getBoundingClientRect();
     if (!canvasRect) return;
     
-    const newX = Math.max(0, Math.min(e.clientX - canvasRect.left - dragOffset.x, canvasRect.width - 100));
-    const newY = Math.max(0, Math.min(e.clientY - canvasRect.top - dragOffset.y, canvasRect.height - 50));
+    // Calculate canvas dimensions (800x600 as per the canvas style)
+    const canvasWidth = 800;
+    const canvasHeight = 600;
+    const centerX = canvasWidth / 2;
+    const centerY = canvasHeight / 2;
     
+    // Get the selected element to calculate its center
+    const element = elements.find(el => el.id === selectedElement);
+    if (!element) return;
+    
+    const elementWidth = element.width || 100;
+    const elementHeight = element.height || 50;
+    
+    let newX = Math.max(0, Math.min(e.clientX - canvasRect.left - dragOffset.x, canvasWidth - elementWidth));
+    let newY = Math.max(0, Math.min(e.clientY - canvasRect.top - dragOffset.y, canvasHeight - elementHeight));
+    
+    // Calculate element center
+    const elementCenterX = newX + elementWidth / 2;
+    const elementCenterY = newY + elementHeight / 2;
+    
+    // Snap threshold (in pixels)
+    const snapThreshold = 5;
+    
+    // Check if element center is near canvas center and snap
+    let showVerticalGuide = false;
+    let showHorizontalGuide = false;
+    
+    if (Math.abs(elementCenterX - centerX) < snapThreshold) {
+      newX = centerX - elementWidth / 2;
+      showVerticalGuide = true;
+    }
+    
+    if (Math.abs(elementCenterY - centerY) < snapThreshold) {
+      newY = centerY - elementHeight / 2;
+      showHorizontalGuide = true;
+    }
+    
+    setShowCenterGuides({ horizontal: showHorizontalGuide, vertical: showVerticalGuide });
     updateElement(selectedElement, { x: newX, y: newY });
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
+    setShowCenterGuides({ horizontal: false, vertical: false });
   };
 
   const handleImageUpload = (elementId, file) => {
@@ -1062,6 +1099,32 @@ export default function CertificateDesignerPage(): React.JSX.Element {
             <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
               <Award className="w-64 h-64 text-muted-foreground" />
             </div>
+
+            {/* Center Alignment Guides */}
+            {showCenterGuides.vertical && (
+              <div 
+                className="absolute top-0 bottom-0 w-0.5 bg-blue-500 pointer-events-none z-40"
+                style={{ left: '50%', transform: 'translateX(-50%)' }}
+              >
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-full mb-1">
+                  <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded whitespace-nowrap">
+                    Center
+                  </span>
+                </div>
+              </div>
+            )}
+            {showCenterGuides.horizontal && (
+              <div 
+                className="absolute left-0 right-0 h-0.5 bg-blue-500 pointer-events-none z-40"
+                style={{ top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full mr-1">
+                  <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded whitespace-nowrap">
+                    Center
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Elements */}
             {elements.map((element: any) => (

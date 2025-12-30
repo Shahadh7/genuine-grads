@@ -278,6 +278,11 @@ contracts/**/*.rs.bk
 !tailwind.config.js
 !next.config.mjs
 !postcss.config.mjs
+!apps/backend/zk-artifacts/*.json
+!apps/zk-service/artifacts/*.json
+!apps/frontend/src/idl/*.json
+!apps/frontend/src/data/*.json
+!apps/backend/src/services/solana/idl/*.json
 
 # Solana program keypairs
 *-keypair.json

@@ -302,8 +302,21 @@ function getTextAnchor(textAlign: string | undefined): string {
 
 /**
  * Calculate X position offset based on text alignment and width
- * In the designer, x,y represent the top-left corner of the element's bounding box
- * For SVG text, we need to adjust based on text-anchor
+ * 
+ * In the designer, x,y represent the top-left corner of the element's bounding box.
+ * For SVG text, we need to adjust the x coordinate based on text-anchor:
+ * 
+ * - Left alignment (text-anchor="start"): x stays at the left edge
+ * - Center alignment (text-anchor="middle"): x moves to the center (x + width/2)
+ * - Right alignment (text-anchor="end"): x moves to the right edge (x + width)
+ * 
+ * This ensures that text in the generated certificate appears exactly where it
+ * was positioned in the designer, including when using the center alignment guides.
+ * 
+ * @param x - The x coordinate from the designer (left edge of element)
+ * @param width - The width of the element's bounding box
+ * @param textAlign - The text alignment ('left', 'center', or 'right')
+ * @returns The adjusted x coordinate for SVG text positioning
  */
 function getAlignedX(x: number, width: number | undefined, textAlign: string | undefined): number {
   if (!width) return x;
@@ -311,13 +324,16 @@ function getAlignedX(x: number, width: number | undefined, textAlign: string | u
   switch (textAlign) {
     case 'center':
       // For center alignment, x should be at the center of the width
+      // This works with text-anchor="middle" to center the text
       return x + width / 2;
     case 'right':
       // For right alignment, x should be at the right edge
+      // This works with text-anchor="end" to right-align the text
       return x + width;
     case 'left':
     default:
       // For left alignment, x is already correct
+      // This works with text-anchor="start" to left-align the text
       return x;
   }
 }
@@ -382,21 +398,20 @@ async function generateDynamicCertificateSVG(
       const weight = mapFontWeight(fontWeight);
       const size = fontSize || 16;
       
-      // In SVG, the y coordinate represents the baseline of the text
-      // We need to add a small offset to account for the text baseline
-      // Using 0.8em (80% of font size) as a reasonable baseline offset
-      const baselineOffset = size * 0.8;
+      // In the designer, x,y represent the top-left corner of the element
+      // For SVG text with dominant-baseline="hanging", y represents the top of the text
+      // This ensures the generated certificate matches the designer preview exactly
 
       svgElements.push(`
         <text
           x="${alignedX}"
-          y="${y + baselineOffset}"
-          font-family="Arial, sans-serif"
+          y="${y}"
+          font-family="DejaVu Sans, Verdana, Geneva, sans-serif"
           font-size="${size}"
           font-weight="${weight}"
           fill="${color || '#374151'}"
           text-anchor="${anchor}"
-          dominant-baseline="text-before-edge"
+          dominant-baseline="hanging"
         >${escapedValue}</text>
       `);
     } else if (type === 'static_text') {
@@ -407,21 +422,20 @@ async function generateDynamicCertificateSVG(
       const weight = mapFontWeight(fontWeight);
       const size = fontSize || 14;
       
-      // In SVG, the y coordinate represents the baseline of the text
-      // We need to add a small offset to account for the text baseline
-      // Using 0.8em (80% of font size) as a reasonable baseline offset
-      const baselineOffset = size * 0.8;
+      // In the designer, x,y represent the top-left corner of the element
+      // For SVG text with dominant-baseline="hanging", y represents the top of the text
+      // This ensures the generated certificate matches the designer preview exactly
 
       svgElements.push(`
         <text
           x="${alignedX}"
-          y="${y + baselineOffset}"
-          font-family="Arial, sans-serif"
+          y="${y}"
+          font-family="DejaVu Sans, Verdana, Geneva, sans-serif"
           font-size="${size}"
           font-weight="${weight}"
           fill="${color || '#374151'}"
           text-anchor="${anchor}"
-          dominant-baseline="text-before-edge"
+          dominant-baseline="hanging"
         >${escapedValue}</text>
       `);
     } else if (type === 'qr_placeholder') {
@@ -512,6 +526,15 @@ export async function generateCertificateFromTemplate(
     // Generate SVG from template
     const svgContent = await generateDynamicCertificateSVG(designTemplate, data);
 
+    // Log SVG content for debugging (first 500 chars)
+    logger.debug(
+      {
+        svgPreview: svgContent.substring(0, 500),
+        svgLength: svgContent.length,
+      },
+      'Generated SVG content'
+    );
+
     // Convert SVG to PNG using sharp
     const pngBuffer = await sharp(Buffer.from(svgContent))
       .png()
@@ -521,7 +544,7 @@ export async function generateCertificateFromTemplate(
 
     return pngBuffer;
   } catch (error: any) {
-    logger.error({ error: error.message, data }, 'Failed to generate certificate from template');
+    logger.error({ error: error.message, stack: error.stack, data }, 'Failed to generate certificate from template');
     throw new Error(`Certificate generation from template failed: ${error.message}`);
   }
 }
