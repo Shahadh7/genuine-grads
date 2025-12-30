@@ -57,7 +57,7 @@ import {
 import QRCode from 'react-qr-code';
 import { graphqlClient } from '@/lib/graphql-client';
 import { useToast } from '@/hooks/useToast';
-import designTemplatesData from '../../../../../data/designTemplates.json';
+import designTemplatesData from '@/data/designTemplates.json';
 
 // Sample data for preview mode
 const sampleData = {
