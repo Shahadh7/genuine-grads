@@ -11,6 +11,7 @@ import { env } from './env.js';
 import { logger } from './utils/logger.js';
 import uploadRoutes from './routes/upload.routes.js';
 import sseRoutes from './routes/sse.routes.js';
+import ipfsRoutes from './routes/ipfs.routes.js';
 
 /**
  * Create and configure the Apollo Server with Express
@@ -87,6 +88,9 @@ export async function createApolloServer() {
 
   // Upload routes
   app.use('/api/upload', uploadRoutes);
+
+  // IPFS proxy routes (to avoid CORS issues)
+  app.use('/api/ipfs', ipfsRoutes);
 
   // SSE routes for real-time notifications
   app.use('/api/notifications', sseRoutes);

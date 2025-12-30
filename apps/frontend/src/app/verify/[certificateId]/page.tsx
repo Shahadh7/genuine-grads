@@ -31,6 +31,7 @@ import {
 } from '@/lib/certificates'
 import { graphqlClient } from '@/lib/graphql-client'
 import { ZkStatusBadge, ZkVerifyButton, getZkStatus, ZkVerificationReportDialog, type ZkVerificationResult } from '@/components/zk'
+import { fetchFromIPFS, getProxiedIPFSUrl } from '@/lib/ipfs'
 
 interface ZkAchievementStatus {
   achievementCode: string;
@@ -118,13 +119,15 @@ export default function CertificatePage(): React.JSX.Element {
   const fetchCertificateImage = async (metadataUri: string) => {
     try {
       setLoadingImage(true)
-      const response = await fetch(metadataUri)
-      const metadata = await response.json()
+      // Use proxy to fetch metadata to avoid CORS issues
+      const metadata = await fetchFromIPFS(metadataUri)
       if (metadata.image) {
-        setCertificateImageUrl(metadata.image)
+        // Use proxied URL for the image as well
+        setCertificateImageUrl(getProxiedIPFSUrl(metadata.image))
       }
     } catch (err) {
       // Failed to fetch image, continue without it
+      console.error('Failed to fetch certificate image:', err)
     } finally {
       setLoadingImage(false)
     }

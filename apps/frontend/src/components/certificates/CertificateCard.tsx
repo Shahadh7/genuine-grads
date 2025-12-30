@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { fetchFromIPFS, getProxiedIPFSUrl } from '@/lib/ipfs';
 import {
   Dialog,
   DialogContent,
@@ -79,7 +80,8 @@ export function CertificateCard({ certificate, onClick }: CertificateCardProps) 
     const fetchCertificateImage = async () => {
       // First check if image is already in metadata
       if (certificate.metadata?.image) {
-        setCertificateImageUrl(certificate.metadata.image);
+        // Use proxied URL to avoid CORS issues
+        setCertificateImageUrl(getProxiedIPFSUrl(certificate.metadata.image));
         return;
       }
 
@@ -87,13 +89,15 @@ export function CertificateCard({ certificate, onClick }: CertificateCardProps) 
       if (certificate.ipfsMetadataUri) {
         try {
           setLoadingImage(true);
-          const response = await fetch(certificate.ipfsMetadataUri);
-          const metadata = await response.json();
+          // Use proxy to fetch metadata to avoid CORS issues
+          const metadata = await fetchFromIPFS(certificate.ipfsMetadataUri);
           if (metadata.image) {
-            setCertificateImageUrl(metadata.image);
+            // Use proxied URL for the image as well
+            setCertificateImageUrl(getProxiedIPFSUrl(metadata.image));
           }
         } catch (err) {
           // Failed to fetch certificate image from IPFS
+          console.error('Failed to fetch certificate image:', err);
         } finally {
           setLoadingImage(false);
         }

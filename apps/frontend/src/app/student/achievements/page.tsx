@@ -37,6 +37,7 @@ import { ZkStatusBadge, getZkStatus, type ZkStatus } from '@/components/zk';
 import { deriveSecrets } from '@/lib/zk/deterministic-secrets';
 import { computeCommitment, ComputedCommitment } from '@/lib/zk/commitment';
 import { generateProofPack } from '@/lib/zk/proof-generator';
+import { fetchFromIPFS } from '@/lib/ipfs';
 
 interface Certificate {
   id: string;
@@ -195,8 +196,8 @@ export default function AchievementsPage(): React.JSX.Element {
         // 3. Try fetching from IPFS if still no achievements
         if (achievementTitles.length === 0 && cert.ipfsMetadataUri) {
           try {
-            const metaResponse = await fetch(cert.ipfsMetadataUri);
-            const ipfsMetadata = await metaResponse.json();
+            // Use proxy to fetch metadata to avoid CORS issues
+            const ipfsMetadata = await fetchFromIPFS(cert.ipfsMetadataUri);
 
             if (ipfsMetadata?.properties?.achievements) {
               achievementTitles = ipfsMetadata.properties.achievements;
@@ -205,6 +206,7 @@ export default function AchievementsPage(): React.JSX.Element {
             }
           } catch (e) {
             // IPFS fetch failed, continue without metadata
+            console.error('Failed to fetch IPFS metadata:', e);
           }
         }
 
