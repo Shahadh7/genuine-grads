@@ -34,8 +34,8 @@ const envSchema = z.object({
   PINATA_JWT: z.string().min(1, 'PINATA_JWT is required'),
   PINATA_GATEWAY: z.string().url('PINATA_GATEWAY must be a valid URL').default('https://gateway.pinata.cloud'),
   
-  // Redis
-  REDIS_URL: z.string().url('REDIS_URL must be a valid URL'),
+  // Redis (optional - not used in production)
+  REDIS_URL: z.string().url('REDIS_URL must be a valid URL').optional(),
   
   // CORS
   CORS_ORIGIN: z.string().default('http://localhost:3000'),
