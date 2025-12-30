@@ -193,6 +193,7 @@ export default function CertificateDesignerPage(): React.JSX.Element {
   const [dragOffset, setDragOffset] = useState<any>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState<any>(1);
   const [showGrid, setShowGrid] = useState<any>(false);
+  const [showTextBounds, setShowTextBounds] = useState<any>(true);
   const [isFullscreen, setIsFullscreen] = useState<any>(false);
   const [backgroundColor, setBackgroundColor] = useState<any>('#ffffff');
   const [savedTemplates, setSavedTemplates] = useState<any[]>([]);
@@ -450,13 +451,14 @@ export default function CertificateDesignerPage(): React.JSX.Element {
     const element = elements.find(el => el.id === selectedElement);
     if (!element) return;
     
-    const elementWidth = element.width || 100;
-    const elementHeight = element.height || 50;
+    // Use actual measured width for text elements
+    const elementWidth = getElementTextWidth(element);
+    const elementHeight = element.fontSize ? element.fontSize * 1.2 : (element.height || 50);
     
     let newX = Math.max(0, Math.min(e.clientX - canvasRect.left - dragOffset.x, canvasWidth - elementWidth));
     let newY = Math.max(0, Math.min(e.clientY - canvasRect.top - dragOffset.y, canvasHeight - elementHeight));
     
-    // Calculate element center
+    // Calculate element center based on actual text width
     const elementCenterX = newX + elementWidth / 2;
     const elementCenterY = newY + elementHeight / 2;
     
@@ -514,6 +516,31 @@ export default function CertificateDesignerPage(): React.JSX.Element {
     }
     return element.value;
   };
+
+  // Measure text width using canvas context
+  const measureTextWidth = useCallback((text: string, fontSize: number, fontWeight: string) => {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) return 0;
+    
+    // Set font properties to match the element
+    context.font = `${fontWeight} ${fontSize}px sans-serif`;
+    const metrics = context.measureText(text);
+    return metrics.width;
+  }, []);
+
+  // Get the actual rendered text width for an element
+  const getElementTextWidth = useCallback((element: any) => {
+    if (element.type === 'qr_placeholder' || element.type === 'image') {
+      return element.width || 100;
+    }
+    
+    const displayValue = getDisplayValue(element);
+    const fontSize = element.fontSize || 16;
+    const fontWeight = element.fontWeight || 'normal';
+    
+    return measureTextWidth(displayValue, fontSize, fontWeight);
+  }, [measureTextWidth, isPreviewMode]);
 
   const handleZoom = (direction) => {
     const newZoom = direction === 'in' ? Math.min(zoom * 1.2, 3) : Math.max(zoom / 1.2, 0.5);
@@ -621,8 +648,18 @@ export default function CertificateDesignerPage(): React.JSX.Element {
               size="sm"
               onClick={() => setShowGrid(!showGrid)}
               className={showGrid ? 'bg-primary text-primary-foreground' : ''}
+              title="Toggle Grid"
             >
               <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowTextBounds(!showTextBounds)}
+              className={showTextBounds ? 'bg-primary text-primary-foreground' : ''}
+              title="Toggle Text Bounds"
+            >
+              <Type className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
@@ -869,6 +906,17 @@ export default function CertificateDesignerPage(): React.JSX.Element {
               </div>
 
               <div>
+                <h3 className="font-semibold mb-3">Alignment Tips</h3>
+                <div className="space-y-2 text-xs text-muted-foreground">
+                  <p>• Text width is measured dynamically based on content</p>
+                  <p>• Drag elements near center to snap with guides</p>
+                  <p>• Use Quick Align buttons for precise positioning</p>
+                  <p>• Toggle text bounds to see actual dimensions</p>
+                  <p>• Preview mode shows how text will render with real data</p>
+                </div>
+              </div>
+
+              <div>
                 <h3 className="font-semibold mb-3">Keyboard Shortcuts</h3>
                 <div className="space-y-1 text-xs">
                   <div className="flex justify-between">
@@ -902,6 +950,27 @@ export default function CertificateDesignerPage(): React.JSX.Element {
             <TabsContent value="properties" className="space-y-4">
               {selectedElementData ? (
                 <div className="space-y-4">
+                  {/* Show text dimensions for text elements */}
+                  {(selectedElementData.type === 'placeholder' || selectedElementData.type === 'static_text') && (
+                    <div className="p-3 bg-muted/50 rounded-lg border border-muted">
+                      <div className="text-xs font-medium text-muted-foreground mb-2">Text Dimensions</div>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span>Measured Width:</span>
+                          <span className="font-mono">{Math.round(getElementTextWidth(selectedElementData))}px</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Height:</span>
+                          <span className="font-mono">{Math.round((selectedElementData.fontSize || 16) * 1.2)}px</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Position:</span>
+                          <span className="font-mono">({Math.round(selectedElementData.x)}, {Math.round(selectedElementData.y)})</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   {selectedElementData.type !== 'qr_placeholder' && (
                     <div>
                       <Label>Text Content</Label>
@@ -1001,6 +1070,56 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                             <SelectItem value="right">Right</SelectItem>
                           </SelectContent>
                         </Select>
+                      </div>
+
+                      <div>
+                        <Label>Quick Align</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const measuredWidth = getElementTextWidth(selectedElementData);
+                              updateElement(selectedElementData.id, { 
+                                x: 50,
+                                textAlign: 'left'
+                              });
+                            }}
+                            className="text-xs"
+                          >
+                            Left Edge
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const measuredWidth = getElementTextWidth(selectedElementData);
+                              const canvasWidth = 800;
+                              updateElement(selectedElementData.id, { 
+                                x: (canvasWidth - measuredWidth) / 2,
+                                textAlign: 'center'
+                              });
+                            }}
+                            className="text-xs"
+                          >
+                            Center
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const measuredWidth = getElementTextWidth(selectedElementData);
+                              const canvasWidth = 800;
+                              updateElement(selectedElementData.id, { 
+                                x: canvasWidth - measuredWidth - 50,
+                                textAlign: 'right'
+                              });
+                            }}
+                            className="text-xs"
+                          >
+                            Right Edge
+                          </Button>
+                        </div>
                       </div>
 
                       <div>
@@ -1127,7 +1246,12 @@ export default function CertificateDesignerPage(): React.JSX.Element {
             )}
 
             {/* Elements */}
-            {elements.map((element: any) => (
+            {elements.map((element: any) => {
+              const isTextElement = element.type === 'placeholder' || element.type === 'static_text';
+              const measuredWidth = isTextElement ? getElementTextWidth(element) : (element.width || 100);
+              const measuredHeight = isTextElement ? (element.fontSize || 16) * 1.2 : (element.height || 100);
+              
+              return (
               <div
                 key={element.id}
                 className={`absolute select-none ${
@@ -1140,10 +1264,15 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                   fontWeight: element.fontWeight,
                   color: element.color,
                   textAlign: element.textAlign,
-                  width: element.width || 'auto',
-                  height: element.height || 'auto',
+                  width: isTextElement ? measuredWidth : (element.width || 'auto'),
+                  height: isTextElement ? measuredHeight : (element.height || 'auto'),
                   userSelect: 'none',
-                  pointerEvents: 'auto'
+                  pointerEvents: 'auto',
+                  // Show bounding box for text elements
+                  ...(isTextElement && showTextBounds && !isPreviewMode ? {
+                    border: selectedElement === element.id ? '1px dashed rgba(59, 130, 246, 0.5)' : '1px dashed rgba(156, 163, 175, 0.3)',
+                    backgroundColor: selectedElement === element.id ? 'rgba(59, 130, 246, 0.05)' : 'rgba(156, 163, 175, 0.02)'
+                  } : {})
                 }}
                 onClick={(e: any) => {
                   if (!isDragging) {
@@ -1218,12 +1347,19 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                     )}
                   </div>
                 ) : (
-                  <div>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: element.textAlign === 'center' ? 'center' : element.textAlign === 'right' ? 'flex-end' : 'flex-start',
+                    alignItems: 'center',
+                    width: '100%',
+                    height: '100%'
+                  }}>
                     {getDisplayValue(element)}
                   </div>
                 )}
               </div>
-            ))}
+            )}
+            )}
           </div>
         </div>
       </div>
