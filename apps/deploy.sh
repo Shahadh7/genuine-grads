@@ -184,6 +184,20 @@ verify_files() {
         echo -e "  ${GREEN}✓${NC} frontend/public directory"
     fi
     
+    if [ ! -d "backend/zk-artifacts" ]; then
+        echo -e "  ${RED}✗${NC} backend/zk-artifacts directory not found"
+        missing_files=1
+    else
+        echo -e "  ${GREEN}✓${NC} backend/zk-artifacts directory"
+    fi
+    
+    if [ ! -f "backend/zk-artifacts/ach_member_v1_vkey.json" ]; then
+        echo -e "  ${RED}✗${NC} backend/zk-artifacts/ach_member_v1_vkey.json not found"
+        missing_files=1
+    else
+        echo -e "  ${GREEN}✓${NC} backend/zk-artifacts/ach_member_v1_vkey.json"
+    fi
+    
     if [ $missing_files -eq 1 ]; then
         echo -e "${RED}Error: Required files/directories are missing${NC}"
         echo "These should be committed to git. Please ensure they exist before deploying."

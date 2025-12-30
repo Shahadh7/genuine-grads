@@ -14,6 +14,12 @@ RUN yarn install --frozen-lockfile
 # Copy all source files
 COPY . .
 
+# Explicitly ensure zk-artifacts is present
+RUN if [ ! -d "zk-artifacts" ] || [ ! -f "zk-artifacts/ach_member_v1_vkey.json" ]; then \
+      echo "ERROR: zk-artifacts/ach_member_v1_vkey.json not found!"; \
+      exit 1; \
+    fi
+
 # Generate Prisma clients
 RUN yarn db:generate
 

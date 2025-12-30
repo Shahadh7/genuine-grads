@@ -94,8 +94,17 @@ cp artifacts/ach_member_v1.zkey ../frontend/public/zk-artifacts/
 Copy verification key to the backend:
 
 ```bash
+# Create directory if it doesn't exist
+mkdir -p ../backend/zk-artifacts/
+
+# Copy verification key
 cp artifacts/ach_member_v1_vkey.json ../backend/zk-artifacts/
+
+# Verify the file was copied
+ls -lh ../backend/zk-artifacts/ach_member_v1_vkey.json
 ```
+
+**Important for Production**: Ensure `backend/zk-artifacts/ach_member_v1_vkey.json` is committed to git and present before Docker builds.
 
 ## Testing
 

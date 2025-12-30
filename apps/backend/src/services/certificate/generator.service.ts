@@ -302,16 +302,22 @@ function getTextAnchor(textAlign: string | undefined): string {
 
 /**
  * Calculate X position offset based on text alignment and width
+ * In the designer, x,y represent the top-left corner of the element's bounding box
+ * For SVG text, we need to adjust based on text-anchor
  */
 function getAlignedX(x: number, width: number | undefined, textAlign: string | undefined): number {
   if (!width) return x;
+  
   switch (textAlign) {
     case 'center':
+      // For center alignment, x should be at the center of the width
       return x + width / 2;
     case 'right':
+      // For right alignment, x should be at the right edge
       return x + width;
     case 'left':
     default:
+      // For left alignment, x is already correct
       return x;
   }
 }
@@ -374,16 +380,23 @@ async function generateDynamicCertificateSVG(
       const alignedX = getAlignedX(x, width, textAlign);
       const anchor = getTextAnchor(textAlign);
       const weight = mapFontWeight(fontWeight);
+      const size = fontSize || 16;
+      
+      // In SVG, the y coordinate represents the baseline of the text
+      // We need to add a small offset to account for the text baseline
+      // Using 0.8em (80% of font size) as a reasonable baseline offset
+      const baselineOffset = size * 0.8;
 
       svgElements.push(`
         <text
           x="${alignedX}"
-          y="${y + (fontSize || 16)}"
+          y="${y + baselineOffset}"
           font-family="Arial, sans-serif"
-          font-size="${fontSize || 16}"
+          font-size="${size}"
           font-weight="${weight}"
           fill="${color || '#374151'}"
           text-anchor="${anchor}"
+          dominant-baseline="text-before-edge"
         >${escapedValue}</text>
       `);
     } else if (type === 'static_text') {
@@ -392,16 +405,23 @@ async function generateDynamicCertificateSVG(
       const alignedX = getAlignedX(x, width, textAlign);
       const anchor = getTextAnchor(textAlign);
       const weight = mapFontWeight(fontWeight);
+      const size = fontSize || 14;
+      
+      // In SVG, the y coordinate represents the baseline of the text
+      // We need to add a small offset to account for the text baseline
+      // Using 0.8em (80% of font size) as a reasonable baseline offset
+      const baselineOffset = size * 0.8;
 
       svgElements.push(`
         <text
           x="${alignedX}"
-          y="${y + (fontSize || 14)}"
+          y="${y + baselineOffset}"
           font-family="Arial, sans-serif"
-          font-size="${fontSize || 14}"
+          font-size="${size}"
           font-weight="${weight}"
           fill="${color || '#374151'}"
           text-anchor="${anchor}"
+          dominant-baseline="text-before-edge"
         >${escapedValue}</text>
       `);
     } else if (type === 'qr_placeholder') {
