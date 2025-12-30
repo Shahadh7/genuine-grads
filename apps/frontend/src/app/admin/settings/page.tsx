@@ -47,7 +47,7 @@ export default function AdminSettingsPage(): React.JSX.Element {
         setAdmin(response.data.me);
       }
     } catch (err) {
-      console.error('Failed to refresh admin data:', err);
+      // Silent fail
     }
   }, []);
 

@@ -48,7 +48,6 @@ export const getSession = (): UserSession | null => {
     if (!raw) return null;
     return JSON.parse(raw) as UserSession;
   } catch (error) {
-    console.error('Failed to parse session from storage', error);
     return null;
   }
 };
@@ -67,7 +66,7 @@ export const setSession = (
     storeSession(session);
     graphqlClient.setToken(accessToken);
   } catch (error) {
-    console.error('Failed to persist session', error);
+    // Silent fail - session won't persist
   }
 };
 
@@ -81,7 +80,7 @@ export const clearSession = () => {
     storeSession(null);
     graphqlClient.setToken(null);
   } catch (error) {
-    console.error('Failed to clear session', error);
+    // Silent fail
   }
 };
 
@@ -162,7 +161,6 @@ export const validateSession = async (): Promise<UserSession | null> => {
       }
     }
   } catch (error) {
-    console.error('Session validation failed:', error);
     // If student session validation fails, clear and return
     if (isStudentSession) {
       return clearAndReturn();
@@ -184,11 +182,8 @@ export const validateSession = async (): Promise<UserSession | null> => {
         return session;
       }
 
-      if (refreshResponse.errors) {
-        console.error('Token refresh errors:', refreshResponse.errors);
-      }
     } catch (refreshError) {
-      console.error('Token refresh failed:', refreshError);
+      // Token refresh failed
     }
   }
 

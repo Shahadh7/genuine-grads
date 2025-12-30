@@ -79,7 +79,7 @@ export default function SettingsPage(): React.JSX.Element {
         setTotpEnabled(response.data.me.totpEnabled ?? false);
       }
     } catch (err) {
-      console.error('Failed to refresh TOTP status:', err);
+      // Silent fail
     }
   }, []);
 

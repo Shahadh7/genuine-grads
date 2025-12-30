@@ -38,7 +38,7 @@ export default function Topbar({session, walletAddress}): React.JSX.Element {
     try {
       await graphqlClient.logout();
     } catch (error) {
-      console.warn('Logout failed in topbar, clearing session locally.', error);
+      // Silent fail - clear session anyway
     } finally {
       clearSession();
       router.push('/login');

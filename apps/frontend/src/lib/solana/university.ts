@@ -142,7 +142,7 @@ async function sendTransaction(
       await waitForHeliusTransaction(signature, { commitment: 'confirmed' });
       return { signature, confirmationSource: 'helius' };
     } catch (wsError) {
-      console.warn('Helius confirmation failed, falling back to RPC confirm', wsError);
+      // Helius confirmation failed, falling back to RPC confirm
     }
 
     try {
@@ -152,18 +152,14 @@ async function sendTransaction(
       );
       return { signature, confirmationSource: 'rpc' };
     } catch (rpcError) {
-      console.warn('RPC confirmTransaction failed, polling signature status', rpcError);
-
       try {
         await waitForRpcSignatureConfirmation(connection, signature, 'confirmed');
         return { signature, confirmationSource: 'rpc-status' };
       } catch (statusError) {
-        console.warn('RPC signature polling failed', statusError);
         throw rpcError;
       }
     }
   } catch (error) {
-    console.error('sendTransaction failed', error);
 
     if (error instanceof WalletSendTransactionError) {
       const walletError = error as WalletSendTransactionError & {
@@ -179,25 +175,18 @@ async function sendTransaction(
           : undefined);
 
       if (fallbackSignature) {
-        console.warn(
-          'Wallet reported an error but provided a signature; attempting confirmation with Helius'
-        );
-
         try {
           await waitForHeliusTransaction(fallbackSignature, { commitment: 'confirmed' });
           return { signature: fallbackSignature, confirmationSource: 'helius' };
         } catch (wsError) {
-          console.warn(
-            'Helius confirmation failed for fallback signature, checking via RPC statuses',
-            wsError
-          );
+          // Helius confirmation failed for fallback signature, checking via RPC statuses
         }
 
         try {
           await waitForRpcSignatureConfirmation(connection, fallbackSignature, 'confirmed');
           return { signature: fallbackSignature, confirmationSource: 'wallet-status' };
         } catch (statusError) {
-          console.warn('RPC status polling failed for fallback signature', statusError);
+          // RPC status polling failed for fallback signature
         }
       }
     }

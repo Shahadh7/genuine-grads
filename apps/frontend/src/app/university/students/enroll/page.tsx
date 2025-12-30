@@ -69,7 +69,6 @@ export default function EnrollStudentPage() {
         setStudents(response.data.students as Student[]);
       }
     } catch (error: any) {
-      console.error('Failed to load students:', error);
       toast.error({
         title: 'Error',
         description: 'Failed to load students. Please try again.',
@@ -146,7 +145,6 @@ export default function EnrollStudentPage() {
         router.push('/university/students');
       }, 1500);
     } catch (error: any) {
-      console.error('Enrollment failed:', error);
       toast.error({
         title: 'Enrollment failed',
         description: error?.message || 'Failed to enroll student. Please try again.',

@@ -10,10 +10,17 @@ import { hashPassword } from '../src/auth/password.js';
 import { logger } from '../src/utils/logger.js';
 
 async function createSuperAdmin() {
-  const email = 'superadmin@genuinegrads.com';
-  const password = 'SecurePassword123!';
+  const email = process.env.SUPER_ADMIN_EMAIL || 'superadmin@genuinegrads.com';
+  const password = process.env.SUPER_ADMIN_PASSWORD;
   const username = 'superadmin';
   const fullName = 'Super Admin';
+
+  if (!password) {
+    console.error('\n❌ Error: SUPER_ADMIN_PASSWORD environment variable is required');
+    console.log('   Set it in your .env file or pass it directly:');
+    console.log('   SUPER_ADMIN_PASSWORD=YourSecurePassword npx tsx scripts/create-super-admin.ts\n');
+    process.exit(1);
+  }
 
   try {
     // Check if super admin already exists
@@ -25,8 +32,7 @@ async function createSuperAdmin() {
       if (existing.isSuperAdmin) {
         logger.info('Super admin already exists');
         console.log('\n✅ Super admin already exists!');
-        console.log(`Email: ${email}`);
-        console.log(`Password: ${password}`);
+        console.log(`   Email: ${email}`);
         return;
       } else {
         // Update existing admin to be super admin
@@ -36,8 +42,7 @@ async function createSuperAdmin() {
         });
         logger.info('Updated existing admin to super admin');
         console.log('\n✅ Updated existing admin to super admin!');
-        console.log(`Email: ${email}`);
-        console.log(`Password: (use existing password)`);
+        console.log(`   Email: ${email}`);
         return;
       }
     }
@@ -58,14 +63,12 @@ async function createSuperAdmin() {
     });
 
     logger.info({ adminId: admin.id, email }, 'Super admin created');
-    
+
     console.log('\n✅ Super admin created successfully!');
-    console.log('\n📧 Credentials:');
     console.log(`   Email: ${email}`);
-    console.log(`   Password: ${password}`);
     console.log('\n🔗 Next steps:');
     console.log(`   1. Go to http://localhost:3000/login`);
-    console.log(`   2. Login with the credentials above`);
+    console.log(`   2. Login with your credentials`);
     console.log(`   3. Register universities from /admin/universities/register`);
     console.log('');
 

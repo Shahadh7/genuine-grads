@@ -91,7 +91,7 @@ export default function AnalyticsPage() {
         setAnalytics(response.data.universityAnalytics);
       }
     } catch (error) {
-      console.error('Failed to load analytics:', error);
+      // Silent fail
     } finally {
       setLoading(false);
       setRefreshing(false);

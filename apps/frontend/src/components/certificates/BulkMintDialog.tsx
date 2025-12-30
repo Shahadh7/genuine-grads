@@ -103,8 +103,6 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
         { certificateIds }
       );
 
-      console.log('Batch response:', response);
-
       // Check for GraphQL errors
       if (response.errors && response.errors.length > 0) {
         throw new Error(response.errors[0].message);
@@ -145,7 +143,6 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
       }));
       setProgress(initialProgress);
     } catch (error: any) {
-      console.error('Failed to initialize batch:', error);
       toast.error({
         title: 'Failed to prepare batch',
         description: error.message || 'Unable to prepare batch minting',
@@ -233,7 +230,6 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
           transactionsToSign.push(transaction);
           certIndexMap.push(index);
         } catch (error: any) {
-          console.error(`Failed to prepare transaction for ${cert.certificateNumber}:`, error);
           updateCertificateStatus(index, {
             status: 'failed',
             error: error.message || 'Failed to prepare transaction',
@@ -266,8 +262,6 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
             }
           }
         } catch (error: any) {
-          console.error('Failed to sign transactions:', error);
-
           // Mark all certs in chunk as failed
           certIndexMap.forEach((index) => {
             updateCertificateStatus(index, {
@@ -280,7 +274,7 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
         }
       }
     } catch (error) {
-      console.error('Error processing chunk:', error);
+      // Error processing chunk
     }
   };
 
@@ -370,8 +364,6 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
       setSuccessCount((prev) => prev + 1);
       setCurrentIndex(index + 1);
     } catch (error: any) {
-      console.error(`Failed to submit transaction for ${cert.certificateNumber}:`, error);
-
       const attempts = progress[index].attempts + 1;
 
       // Update backend about failure
@@ -451,7 +443,7 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
           { batchId: batchJob.batchId }
         );
       } catch (error) {
-        console.error('Failed to cancel batch job:', error);
+        // Failed to cancel batch job
       }
     }
     onClose();

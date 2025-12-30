@@ -74,7 +74,7 @@ export default function StudentLayout({children}): React.JSX.Element {
     try {
       await graphqlClient.logout();
     } catch (error) {
-      console.warn('Student logout failed, clearing session locally.', error);
+      // Silent fail - clear session anyway
     } finally {
       // Disconnect wallet to prevent auto-login
       if (disconnect) {

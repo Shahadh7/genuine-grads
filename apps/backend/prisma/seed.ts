@@ -36,9 +36,7 @@ async function main() {
   }
 
   console.log('\n✅ Seed completed successfully!');
-  console.log('\n📋 Credentials:');
-  console.log(`   Email: ${superAdminEmail}`);
-  console.log(`   Password: ${superAdminPassword}`);
+  console.log(`   Super admin email: ${superAdminEmail}`);
   console.log('\n⚠️  Make sure to change the super admin password in production!\n');
 }
 

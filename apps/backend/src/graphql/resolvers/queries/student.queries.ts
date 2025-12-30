@@ -315,7 +315,7 @@ export const studentQueries = {
         }
       } catch (error) {
         // Skip universities where we can't connect or student doesn't exist
-        console.error(`Error fetching student from university ${university.name}:`, error);
+        logger.error({ error, university: university.name }, 'Error fetching student from university');
       }
     }
 
@@ -542,7 +542,7 @@ export const studentQueries = {
         }
       } catch (error) {
         // Skip universities where we can't connect or student doesn't exist
-        console.error(`Error fetching achievements from university ${university.name}:`, error);
+        logger.error({ error, university: university.name }, 'Error fetching achievements from university');
       }
     }
 

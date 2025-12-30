@@ -70,7 +70,6 @@ export default function StudentLoginPage() {
         window.location.href = '/student/dashboard';
       }, 1000);
     } catch (err: any) {
-      console.error('Student login error:', err);
       setError(err.message || 'Failed to login. Please ensure your wallet is registered with a university.');
 
       // Disconnect wallet on error

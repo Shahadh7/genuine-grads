@@ -85,7 +85,6 @@ export default function AccountPage(): React.JSX.Element {
         setStudentData(response.data.meStudent);
       }
     } catch (err: any) {
-      console.error('Failed to load student data:', err);
       setError(err.message || 'Failed to load your data. Please try again.');
     } finally {
       setLoading(false);

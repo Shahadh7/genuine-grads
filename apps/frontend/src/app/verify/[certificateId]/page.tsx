@@ -124,7 +124,7 @@ export default function CertificatePage(): React.JSX.Element {
         setCertificateImageUrl(metadata.image)
       }
     } catch (err) {
-      console.error('Failed to fetch certificate image:', err)
+      // Failed to fetch image, continue without it
     } finally {
       setLoadingImage(false)
     }
@@ -151,7 +151,7 @@ export default function CertificatePage(): React.JSX.Element {
           setZkStatuses(response.data.getZkAchievementStatuses)
         }
       } catch (err) {
-        console.error('Failed to fetch ZK statuses:', err)
+        // Failed to fetch ZK statuses, continue without them
       }
     }
 
@@ -362,7 +362,6 @@ export default function CertificatePage(): React.JSX.Element {
                     alt="Certificate"
                     className="w-full h-auto object-contain"
                     onError={() => {
-                      console.error('Failed to load certificate image')
                       setCertificateImageUrl(null)
                     }}
                   />

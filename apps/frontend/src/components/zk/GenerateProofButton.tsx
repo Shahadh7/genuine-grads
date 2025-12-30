@@ -171,7 +171,6 @@ export function GenerateProofButton({
       setIsComplete(true);
       onSuccess?.();
     } catch (err: any) {
-      console.error('Error generating proofs:', err);
       setError(err.message || 'Failed to generate proofs');
       onError?.(err.message || 'Failed to generate proofs');
     } finally {

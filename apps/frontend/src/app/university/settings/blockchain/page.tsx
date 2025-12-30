@@ -86,7 +86,6 @@ export default function BlockchainSettingsPage(): React.ReactElement {
         image: prev.image,
       }));
     } catch (err: any) {
-      console.error('[BlockchainSettings] Failed to load university', err);
       setError(err?.message ?? 'Unable to load university data');
     } finally {
       setLoading(false);
@@ -182,7 +181,6 @@ export default function BlockchainSettingsPage(): React.ReactElement {
 
       await loadUniversity();
     } catch (err: any) {
-      console.error('[BlockchainSettings] create tree failed', err);
       toast.error({
         title: 'Creation failed',
         description: err?.message ?? 'Unable to create Merkle tree.',
@@ -282,7 +280,6 @@ export default function BlockchainSettingsPage(): React.ReactElement {
 
       await loadUniversity();
     } catch (err: any) {
-      console.error('[BlockchainSettings] create collection failed', err);
       toast.error({
         title: 'Creation failed',
         description: err?.message ?? 'Unable to create collection.',

@@ -96,7 +96,6 @@ export default function StudentCertificatesPage(): React.JSX.Element {
         await loadHeliusCertificates(publicKey.toBase58());
       }
     } catch (err: any) {
-      console.error('Failed to load certificates:', err);
       setError(err.message || 'Failed to load certificates');
     } finally {
       setLoading(false);
@@ -107,7 +106,7 @@ export default function StudentCertificatesPage(): React.JSX.Element {
     try {
       const heliusApiKey = process.env.NEXT_PUBLIC_HELIUS_API_KEY;
       if (!heliusApiKey) {
-        console.warn('Helius API key not configured');
+        // Helius API key not configured - skip loading
         return;
       }
 
@@ -144,8 +143,7 @@ export default function StudentCertificatesPage(): React.JSX.Element {
         setHeliusAssets(cNFTs);
       }
     } catch (err) {
-      console.error('Failed to load Helius assets:', err);
-      // Don't throw - this is supplementary data
+      // Silent fail - this is supplementary data
     }
   };
 

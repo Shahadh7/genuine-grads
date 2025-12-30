@@ -237,7 +237,6 @@ export default function BulkUploadPage(): React.JSX.Element {
         }
       }
     } catch (error) {
-      console.error('Upload failed:', error);
       const errorMessage = 'Upload failed. Please try again.';
       setErrors([{ message: errorMessage }]);
       toast.error({

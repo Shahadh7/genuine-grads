@@ -105,7 +105,6 @@ export function EnableZkButton({
       setStep('');
       onSuccess?.();
     } catch (error: any) {
-      console.error('Error enabling ZK:', error);
       setStep('');
       onError?.(error.message || 'Failed to enable ZK verification');
     } finally {

@@ -123,7 +123,6 @@ export default function UniversityDetailsPage() {
         }
         setUniversity(response.data.university as UniversityDetails);
       } catch (err: any) {
-        console.error('Failed to load university', err);
         setError(err.message || 'Failed to load university');
       } finally {
         setLoading(false);

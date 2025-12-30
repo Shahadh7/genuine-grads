@@ -60,7 +60,7 @@ export default function SuperAdminDashboard() {
         });
       }
     } catch (error) {
-      console.error('Failed to load universities:', error);
+      // Silent fail - UI will show empty state
     } finally {
       setLoading(false);
     }

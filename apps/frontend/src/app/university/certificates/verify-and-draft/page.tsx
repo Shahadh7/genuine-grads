@@ -41,7 +41,7 @@ function parseTemplateFields(templateFields: unknown): TemplateFieldMap {
     try {
       return JSON.parse(templateFields);
     } catch (error) {
-      console.error('Failed to parse template fields JSON:', error);
+      // Silent fail
       return {};
     }
   }
@@ -371,7 +371,6 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
 
       setCurrentIndex(0);
     } catch (loadError: any) {
-      console.error('Failed to load certificate issuance data', loadError);
       setError(
         loadError?.message ||
         'Unable to load eligible students or templates. Please verify your network connection and try again.'
@@ -524,7 +523,6 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
         setCurrentIndex((prevIndex) => (prevIndex >= remainingCount ? 0 : prevIndex));
       }
     } catch (err: any) {
-      console.error('Issue certificate failed', err);
       toast.error({
         title: 'Issuance failed',
         description: err?.message ?? 'Unable to issue the certificate. Please try again.',

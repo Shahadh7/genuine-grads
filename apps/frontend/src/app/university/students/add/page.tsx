@@ -167,7 +167,7 @@ export default function AddStudentPage(): React.JSX.Element {
 
         setPrograms(uniquePrograms);
       } catch (loadError) {
-        console.error('Failed to load available programs:', loadError);
+        // Silent fail
       } finally {
         setProgramsLoading(false);
       }
@@ -180,7 +180,6 @@ export default function AddStudentPage(): React.JSX.Element {
         setAvailableAchievements(response.data?.achievementCatalog ?? []);
         setAchievementsError(null);
       } catch (loadError) {
-        console.error('Failed to load achievement catalog:', loadError);
         setAchievementsError('Unable to load achievements. You can still create new ones below.');
       } finally {
         setAchievementsLoading(false);
@@ -394,7 +393,6 @@ export default function AddStudentPage(): React.JSX.Element {
       });
       router.push('/university/students');
     } catch (error) {
-      console.error('Error creating student:', error);
       const errorMessage = error instanceof Error
         ? error.message
         : 'Failed to register student. Please try again.';

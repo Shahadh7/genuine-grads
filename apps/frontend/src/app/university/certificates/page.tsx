@@ -135,7 +135,6 @@ export default function CertificatesPage(): React.JSX.Element {
 
         setProgramOptions(programs);
       } catch (error) {
-        console.error('Failed to load certificates:', error);
         setError('Unable to load certificates. Please try again later.');
       } finally {
         setLoading(false);
@@ -170,7 +169,7 @@ export default function CertificatesPage(): React.JSX.Element {
       const certs = (certificatesResponse.data?.certificates ?? []) as CertificateRecord[];
       setCertificates(certs);
     } catch (error) {
-      console.error('Failed to refresh certificates:', error);
+      // Silent fail
     }
   };
 
@@ -281,12 +280,11 @@ export default function CertificatesPage(): React.JSX.Element {
         const certs = (certificatesResponse.data?.certificates ?? []) as CertificateRecord[];
         setCertificates(certs);
       } catch (refreshError) {
-        console.error('Failed to refresh certificates list:', refreshError);
+        // Silent fail
       } finally {
         setRefreshingList(false);
       }
     } catch (err: any) {
-      console.error('[Certificates] mint failed', err);
       toast.error({
         title: 'Minting failed',
         description: err?.message ?? 'Unable to mint certificate.',
@@ -368,7 +366,7 @@ export default function CertificatesPage(): React.JSX.Element {
         description: `Successfully processed ${selectedCertIds.size} certificates`,
       });
     } catch (error) {
-      console.error('Failed to refresh certificates:', error);
+      // Silent fail
     }
   };
 

@@ -100,7 +100,6 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
       }
     } catch (err) {
       setError('Failed to fetch notifications');
-      console.error('Notification fetch error:', err);
     } finally {
       setLoading(false);
     }
@@ -126,7 +125,7 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
     } catch (err) {
-      console.error('Mark as read error:', err);
+      // Silent fail - notification will remain unread
     }
   }, [role]);
 
@@ -144,7 +143,7 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
         setUnreadCount(0);
       }
     } catch (err) {
-      console.error('Mark all as read error:', err);
+      // Silent fail
     }
   }, [role]);
 
@@ -163,7 +162,7 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
         }
       }
     } catch (err) {
-      console.error('Delete notification error:', err);
+      // Silent fail
     }
   }, [role, notifications]);
 
@@ -187,7 +186,6 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
       eventSource.addEventListener('connected', () => {
         setIsConnected(true);
         setError(null);
-        console.log('SSE connected');
       });
 
       eventSource.addEventListener('notification', (event) => {
@@ -206,7 +204,7 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
             });
           }
         } catch (err) {
-          console.error('Failed to parse notification:', err);
+          // Silent fail - malformed notification
         }
       });
 
@@ -215,10 +213,6 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
       });
 
       eventSource.onerror = () => {
-        // Only log error if we were previously connected
-        if (isConnected) {
-          console.warn('SSE connection lost, will attempt to reconnect...');
-        }
         setIsConnected(false);
         eventSource.close();
 
@@ -231,7 +225,6 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
         }, 5000);
       };
     } catch (err) {
-      console.warn('SSE connection failed, falling back to polling:', err);
       setIsConnected(false);
     }
 

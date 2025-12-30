@@ -245,7 +245,6 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
             description: 'Your logo has been uploaded to IPFS successfully',
           });
         } catch (error: any) {
-          console.error('Logo upload error:', error);
           setUploadingLogo(false);
           setErrors({
             logoUrl: error.message || 'Failed to upload logo. Please try again.'
@@ -322,13 +321,12 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
       });
 
     } catch (error: any) {
-      console.error('Registration error:', error);
       toast.error({
         title: 'University registration failed',
         description: error?.message || 'An unexpected error occurred.',
       });
-      setErrors({ 
-        submit: error.message || 'An error occurred during registration. Please try again.' 
+      setErrors({
+        submit: error.message || 'An error occurred during registration. Please try again.'
       });
     } finally {
       setLoading(false);

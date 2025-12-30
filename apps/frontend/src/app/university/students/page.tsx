@@ -78,7 +78,6 @@ export default function StudentsPage(): React.JSX.Element {
           setStudents(response.data.students);
         }
       } catch (error) {
-        console.error('Failed to load students:', error);
         setError(
           error instanceof Error
             ? error.message
@@ -120,7 +119,6 @@ export default function StudentsPage(): React.JSX.Element {
         description: `${studentToDelete.fullName} has been removed.`,
       });
     } catch (error) {
-      console.error('Failed to delete student:', error);
       toast.error({
         title: 'Delete failed',
         description: error instanceof Error ? error.message : 'Failed to delete student.',

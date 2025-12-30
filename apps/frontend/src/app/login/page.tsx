@@ -168,7 +168,6 @@ export default function LoginPage(): React.JSX.Element {
       }
 
     } catch (error: any) {
-      console.error('Login error:', error);
       setErrors({
         submit: error.message || 'An error occurred during login. Please try again.'
       });
@@ -226,7 +225,6 @@ export default function LoginPage(): React.JSX.Element {
       }
 
     } catch (error: any) {
-      console.error('TOTP verification error:', error);
       setErrors({
         totp: error.message || 'Verification failed. Please try again.'
       });

@@ -85,7 +85,6 @@ export default function VerificationLogPage() {
       setOffset(LOGS_PER_PAGE);
       setHasMore(newLogs.length === LOGS_PER_PAGE);
     } catch (err: any) {
-      console.error('Error loading verification logs:', err);
       setError(err.message || 'Failed to load verification logs');
     } finally {
       setLoading(false);
@@ -114,7 +113,7 @@ export default function VerificationLogPage() {
         setHasMore(newLogs.length === LOGS_PER_PAGE);
       }
     } catch (err: any) {
-      console.error('Error loading more logs:', err);
+      // Silent fail
     } finally {
       setLoadingMore(false);
     }

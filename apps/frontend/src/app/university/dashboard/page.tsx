@@ -62,7 +62,6 @@ export default function UniversityDashboard(): React.JSX.Element {
           setRecentActivities(analyticsResponse.data.universityAnalytics.blockchainMetrics.recentMints);
         }
       } catch (error: any) {
-        console.error('Failed to load dashboard data:', error);
         setError(error.message || 'Failed to load dashboard data');
       } finally {
         setLoading(false);

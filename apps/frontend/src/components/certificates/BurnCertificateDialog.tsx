@@ -233,7 +233,6 @@ export function BurnCertificateDialog({
       }, 1500);
 
     } catch (err: any) {
-      console.error('Burn error:', err);
       setError(err.message || 'Failed to burn certificate');
       setCurrentStep('error');
       toast.error({

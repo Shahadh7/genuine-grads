@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: genuinegrads-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: genuinegrads
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-genuinegrads_secure_password}
+      POSTGRES_DB: genuinegrads_shared
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genuinegrads"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: genuinegrads-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRY: 1d
+      JWT_REFRESH_EXPIRY: 7d
+      SHARED_DATABASE_URL: postgresql://genuinegrads:${DB_PASSWORD:-genuinegrads_secure_password}@postgres:5432/genuinegrads_shared
+      UNIVERSITY_DATABASE_URL: postgresql://genuinegrads:${DB_PASSWORD:-genuinegrads_secure_password}@postgres:5432/genuinegrads_uni_template
+      SOLANA_NETWORK: ${SOLANA_NETWORK:-devnet}
+      SOLANA_RPC_URL: ${SOLANA_RPC_URL}
+      SOLANA_PROGRAM_ID: ${SOLANA_PROGRAM_ID}
+      SOLANA_SUPER_ADMIN_PUBKEY: ${SOLANA_SUPER_ADMIN_PUBKEY}
+      HELIUS_API_KEY: ${HELIUS_API_KEY}
+      PINATA_JWT: ${PINATA_JWT}
+      PINATA_GATEWAY: ${PINATA_GATEWAY}
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_GRAPHQL_URL=${NEXT_PUBLIC_GRAPHQL_URL:-http://localhost:4000/graphql}
+        - NEXT_PUBLIC_SOLANA_NETWORK=${SOLANA_NETWORK:-devnet}
+        - NEXT_PUBLIC_SOLANA_RPC_URL=${SOLANA_RPC_URL}
+        - NEXT_PUBLIC_PROGRAM_ID=${SOLANA_PROGRAM_ID}
+        - NEXT_PUBLIC_HELIUS_API_KEY=${HELIUS_API_KEY}
+        - NEXT_PUBLIC_SUPER_ADMIN_PUBKEY=${SOLANA_SUPER_ADMIN_PUBKEY}
+    container_name: genuinegrads-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+
+  nginx:
+    image: nginx:alpine
+    container_name: genuinegrads-nginx
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
+
+  certbot:
+    image: certbot/certbot
+    container_name: genuinegrads-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  postgres_data:

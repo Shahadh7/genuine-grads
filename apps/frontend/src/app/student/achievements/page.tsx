@@ -155,7 +155,6 @@ export default function AchievementsPage(): React.JSX.Element {
 
       // Get student achievements from myAchievements query
       const studentAchievements = achievementsResponse.data?.myAchievements || [];
-      console.log('Student achievements from API:', studentAchievements);
 
       // Extract achievements from certificates and fetch ZK statuses
       const allAchievements: AchievementWithZk[] = [];
@@ -170,7 +169,7 @@ export default function AchievementsPage(): React.JSX.Element {
           try {
             metadata = JSON.parse(metadata);
           } catch (e) {
-            console.error('Failed to parse metadata JSON:', e);
+            // Invalid JSON metadata, continue with null
           }
         }
 
@@ -205,7 +204,7 @@ export default function AchievementsPage(): React.JSX.Element {
               achievementTitles = ipfsMetadata.achievements;
             }
           } catch (e) {
-            console.error('Failed to fetch metadata from IPFS:', e);
+            // IPFS fetch failed, continue without metadata
           }
         }
 
@@ -218,7 +217,6 @@ export default function AchievementsPage(): React.JSX.Element {
             .filter(Boolean);
         }
 
-        console.log(`Certificate ${cert.badgeTitle} achievements:`, achievementTitles);
 
         // Fetch ZK status for this certificate
         let zkStatuses: ZkAchievementStatus[] = [];
@@ -227,7 +225,7 @@ export default function AchievementsPage(): React.JSX.Element {
             const zkResponse = await graphqlClient.myZkCertificateStatus(cert.mintAddress);
             zkStatuses = zkResponse.data?.myZkCertificateStatus?.achievements || [];
           } catch (e) {
-            console.error('Failed to fetch ZK status:', e);
+            // ZK status fetch failed, continue without it
           }
         }
 
@@ -280,11 +278,9 @@ export default function AchievementsPage(): React.JSX.Element {
         }
       }
 
-      console.log('All achievements loaded:', allAchievements);
       setAchievements(allAchievements);
       setFilteredAchievements(allAchievements);
     } catch (err: any) {
-      console.error('Failed to load data:', err);
       setError(err.message || 'Failed to load achievements');
     } finally {
       setLoading(false);
@@ -456,7 +452,6 @@ export default function AchievementsPage(): React.JSX.Element {
       setSelectedAchievements(new Set());
 
     } catch (err: any) {
-      console.error('Error generating proofs:', err);
       setOperationError(err.message || 'Failed to generate proofs');
     } finally {
       setIsProcessing(false);

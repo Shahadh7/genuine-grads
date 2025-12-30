@@ -93,7 +93,7 @@ export function CertificateCard({ certificate, onClick }: CertificateCardProps) 
             setCertificateImageUrl(metadata.image);
           }
         } catch (err) {
-          console.error('Failed to fetch certificate image from IPFS:', err);
+          // Failed to fetch certificate image from IPFS
         } finally {
           setLoadingImage(false);
         }
@@ -121,7 +121,7 @@ export function CertificateCard({ certificate, onClick }: CertificateCardProps) 
       setQrCodeDataUrl(dataUrl);
       setShowQRCode(true);
     } catch (err) {
-      console.error('Failed to generate QR code:', err);
+      // Failed to generate QR code
     }
   };
 
@@ -135,17 +135,6 @@ export function CertificateCard({ certificate, onClick }: CertificateCardProps) 
     link.click();
     document.body.removeChild(link);
   };
-
-  // Debug: Log certificate data
-  console.log('Certificate data:', {
-    id: certificate.id,
-    badgeTitle: certificate.badgeTitle,
-    hasMetadata: !!certificate.metadata,
-    metadata: certificate.metadata,
-    ipfsMetadataUri: certificate.ipfsMetadataUri,
-    certificateImageUrl,
-    loadingImage,
-  });
 
   const getStatusIcon = () => {
     switch (certificate.status) {
@@ -219,10 +208,8 @@ export function CertificateCard({ certificate, onClick }: CertificateCardProps) 
                       alt={certificate.badgeTitle}
                       className="w-full h-full object-contain rounded-lg shadow-lg group-hover:scale-105 transition-transform duration-300"
                       onError={() => {
-                        console.error('Image failed to load:', certificateImageUrl);
                         setImageError(true);
                       }}
-                      onLoad={() => console.log('Image loaded successfully:', certificateImageUrl)}
                     />
                     <button
                       onClick={(e) => {

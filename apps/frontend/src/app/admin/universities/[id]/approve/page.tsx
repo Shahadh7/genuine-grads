@@ -74,7 +74,6 @@ export default function ApproveUniversityPage() {
 
       setUniversity(response.data.university);
     } catch (err: any) {
-      console.error('Failed to load university:', err);
       setError(err.message || 'Failed to load university details');
     } finally {
       setLoading(false);
@@ -88,7 +87,7 @@ export default function ApproveUniversityPage() {
         setSuperAdminWallet(response.data.getSuperAdminWallet);
       }
     } catch (err: any) {
-      console.error('Failed to load super admin wallet:', err);
+      // Silent fail
     }
   };
 
@@ -180,7 +179,6 @@ export default function ApproveUniversityPage() {
       }, 2000);
 
     } catch (err: any) {
-      console.error('Approval failed:', err);
       setTxError(err.message || 'Failed to approve university');
       toast.error({
         title: 'Approval failed',
@@ -210,7 +208,6 @@ export default function ApproveUniversityPage() {
       // Redirect to dashboard
       router.push('/admin/dashboard');
     } catch (err: any) {
-      console.error('Rejection failed:', err);
       setError(err.message || 'Failed to reject university');
     } finally {
       setProcessing(false);

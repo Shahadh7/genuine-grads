@@ -67,7 +67,7 @@ export default function SuspendUniversityPage() {
         setError('University not found');
       }
     } catch (err) {
-      console.error('Failed to load university:', err);
+      // Silent fail
       setError('Failed to load university details');
     } finally {
       setLoading(false);
@@ -81,7 +81,7 @@ export default function SuspendUniversityPage() {
         setSuperAdminWallet(response.data.getSuperAdminWallet);
       }
     } catch (err: any) {
-      console.error('Failed to load super admin wallet:', err);
+      // Silent fail
     }
   };
 
@@ -178,7 +178,6 @@ export default function SuspendUniversityPage() {
         router.push('/admin/dashboard');
       }, 2000);
     } catch (err: any) {
-      console.error('Suspension failed:', err);
       setTxError(err.message || 'Failed to suspend university');
       toast.error({
         title: 'Suspension failed',

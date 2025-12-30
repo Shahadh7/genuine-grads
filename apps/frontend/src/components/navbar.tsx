@@ -30,7 +30,7 @@ const Navbar = () => {
     try {
       await graphqlClient.logout();
     } catch (error) {
-      console.warn('Logout request failed, clearing session locally.', error);
+      // Silent fail - clear session anyway
     }
     clearSession();
     router.push('/login');

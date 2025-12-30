@@ -224,7 +224,6 @@ export default function CertificateDesignerPage(): React.JSX.Element {
       const templates = response.data?.certificateTemplates ?? [];
       setSavedTemplates(templates.map((template: any) => normalizeTemplate(template)));
     } catch (error: any) {
-      console.error('Failed to load templates', error);
       toast.error({
         title: 'Unable to load templates',
         description: error?.message || 'Please try again later.',
@@ -371,7 +370,6 @@ export default function CertificateDesignerPage(): React.JSX.Element {
         description: 'Certificate template stored in your university workspace.',
       });
     } catch (error: any) {
-      console.error('Failed to save template', error);
       toast.error({
         title: 'Failed to save template',
         description: error?.message || 'Please try again.',
@@ -494,13 +492,13 @@ export default function CertificateDesignerPage(): React.JSX.Element {
       canvasContainerRef.current?.requestFullscreen().then(() => {
         setIsFullscreen(true);
       }).catch((err: any) => {
-        console.error('Error attempting to enable fullscreen:', err);
+        // Silent fail
       });
     } else {
       document.exitFullscreen().then(() => {
         setIsFullscreen(false);
       }).catch((err: any) => {
-        console.error('Error attempting to exit fullscreen:', err);
+        // Silent fail
       });
     }
   };

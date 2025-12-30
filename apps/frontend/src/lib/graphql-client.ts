@@ -69,13 +69,8 @@ class GraphQLClient {
 
       const json: GraphQLResponse<T> = await response.json();
 
-      if (json.errors) {
-        console.error('GraphQL Errors:', json.errors);
-      }
-
       return json;
     } catch (error) {
-      console.error('GraphQL Request Failed:', error);
       throw error;
     }
   }
@@ -687,9 +682,6 @@ class GraphQLClient {
         error.message.includes('Cannot query field "rejectedReason"')
       )
     ) {
-      console.warn(
-        '[GraphQLClient] Falling back to legacy university query without rejectedReason field'
-      );
       const fallbackResponse = await this.request<{ university: any }>(legacyQuery, { id });
 
       // Preserve original errors if fallback also fails
