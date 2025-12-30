@@ -1,5 +1,5 @@
-import { GraphQLContext } from '../../context';
-import { notificationService } from '../../../services/notification/notification.service';
+import { GraphQLContext } from '../../context.js';
+import { notificationService } from '../../../services/notification/notification.service.js';
 import { GraphQLError } from 'graphql';
 
 export const notificationQueries = {
