@@ -535,7 +535,13 @@ export default function CertificateDesignerPage(): React.JSX.Element {
       return element.width || 100;
     }
     
-    const displayValue = getDisplayValue(element);
+    // Get the display value based on current mode (design or preview)
+    let displayValue = element.value;
+    if (element.type === 'placeholder') {
+      const key = element.value.replace(/[{}]/g, '');
+      displayValue = isPreviewMode ? (sampleData[key] || element.value) : element.value;
+    }
+    
     const fontSize = element.fontSize || 16;
     const fontWeight = element.fontWeight || 'normal';
     
@@ -912,7 +918,7 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                   <p>• Drag elements near center to snap with guides</p>
                   <p>• Use Quick Align buttons for precise positioning</p>
                   <p>• Toggle text bounds to see actual dimensions</p>
-                  <p>• Preview mode shows how text will render with real data</p>
+                  <p className="font-semibold text-amber-600">⚠️ Always check Preview mode to verify alignment with actual data!</p>
                 </div>
               </div>
 
@@ -953,7 +959,9 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                   {/* Show text dimensions for text elements */}
                   {(selectedElementData.type === 'placeholder' || selectedElementData.type === 'static_text') && (
                     <div className="p-3 bg-muted/50 rounded-lg border border-muted">
-                      <div className="text-xs font-medium text-muted-foreground mb-2">Text Dimensions</div>
+                      <div className="text-xs font-medium text-muted-foreground mb-2">
+                        Text Dimensions {isPreviewMode && <span className="text-blue-600">(Preview)</span>}
+                      </div>
                       <div className="space-y-1 text-xs">
                         <div className="flex justify-between">
                           <span>Measured Width:</span>
@@ -967,6 +975,13 @@ export default function CertificateDesignerPage(): React.JSX.Element {
                           <span>Position:</span>
                           <span className="font-mono">({Math.round(selectedElementData.x)}, {Math.round(selectedElementData.y)})</span>
                         </div>
+                        {selectedElementData.type === 'placeholder' && (
+                          <div className="mt-2 pt-2 border-t border-muted">
+                            <div className="text-muted-foreground">
+                              {isPreviewMode ? 'Showing actual data width' : 'Showing placeholder width'}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1253,7 +1268,7 @@ export default function CertificateDesignerPage(): React.JSX.Element {
               
               return (
               <div
-                key={element.id}
+                key={`${element.id}-${isPreviewMode ? 'preview' : 'design'}`}
                 className={`absolute select-none ${
                   selectedElement === element.id ? 'ring-2 ring-primary ring-offset-2' : ''
                 } ${isDragging && selectedElement === element.id ? 'z-50 cursor-grabbing shadow-lg' : 'cursor-grab'}`}
