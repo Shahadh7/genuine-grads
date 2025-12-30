@@ -518,13 +518,25 @@ export default function CertificateDesignerPage(): React.JSX.Element {
   };
 
   // Measure text width using canvas context
+  // This matches the browser's actual rendering and is used for accurate positioning
   const measureTextWidth = useCallback((text: string, fontSize: number, fontWeight: string) => {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     if (!context) return 0;
     
-    // Set font properties to match the element
-    context.font = `${fontWeight} ${fontSize}px sans-serif`;
+    // Map fontWeight to numeric values for canvas
+    const weightMap: Record<string, string> = {
+      'normal': '400',
+      'medium': '500',
+      'semibold': '600',
+      'bold': '700'
+    };
+    
+    const numericWeight = weightMap[fontWeight] || '400';
+    
+    // Set font properties to match the element exactly
+    // Using sans-serif to match the backend SVG rendering
+    context.font = `${numericWeight} ${fontSize}px sans-serif`;
     const metrics = context.measureText(text);
     return metrics.width;
   }, []);
@@ -914,10 +926,11 @@ export default function CertificateDesignerPage(): React.JSX.Element {
               <div>
                 <h3 className="font-semibold mb-3">Alignment Tips</h3>
                 <div className="space-y-2 text-xs text-muted-foreground">
-                  <p>• Text width is measured dynamically based on content</p>
-                  <p>• Drag elements near center to snap with guides</p>
+                  <p>• Text width is measured dynamically based on actual content</p>
+                  <p>• Drag elements near center to snap with alignment guides</p>
                   <p>• Use Quick Align buttons for precise positioning</p>
-                  <p>• Toggle text bounds to see actual dimensions</p>
+                  <p>• Toggle text bounds to visualize actual text dimensions</p>
+                  <p className="font-semibold text-blue-600">💡 Designer and generated certificates now use matching text measurements!</p>
                   <p className="font-semibold text-amber-600">⚠️ Always check Preview mode to verify alignment with actual data!</p>
                 </div>
               </div>

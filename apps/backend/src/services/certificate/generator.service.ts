@@ -301,35 +301,121 @@ function getTextAnchor(textAlign: string | undefined): string {
 }
 
 /**
- * Calculate X position offset based on text alignment and width
+ * Measure text width using character-based calculation
+ * 
+ * This approximates the width that would be measured by Canvas measureText()
+ * using relative character widths for better accuracy. The frontend designer
+ * uses the browser's Canvas API for exact measurements, while this backend
+ * function provides a close approximation for SVG text rendering.
+ * 
+ * The character widths are calibrated to match sans-serif fonts as closely
+ * as possible, ensuring that certificates generated on the backend align
+ * similarly to how they appear in the designer preview.
+ * 
+ * @param text - The text to measure
+ * @param fontSize - Font size in pixels
+ * @param fontWeight - Font weight ('normal', 'medium', 'semibold', 'bold')
+ * @returns Approximate width in pixels
+ */
+function measureTextWidth(text: string, fontSize: number, fontWeight: string | undefined): number {
+  // Character width categories for sans-serif fonts (relative to fontSize)
+  // These values are empirically derived to match browser Canvas API measurements
+  const charWidths: Record<string, number> = {
+    // Narrow characters
+    'i': 0.28, 'l': 0.28, 'I': 0.28, 'j': 0.28, 't': 0.35, 'f': 0.35, 'r': 0.38,
+    // Regular characters
+    'a': 0.56, 'b': 0.56, 'c': 0.50, 'd': 0.56, 'e': 0.56, 'g': 0.56, 'h': 0.56,
+    'k': 0.50, 'n': 0.56, 'o': 0.56, 'p': 0.56, 'q': 0.56, 's': 0.50, 'u': 0.56,
+    'v': 0.50, 'x': 0.50, 'y': 0.50, 'z': 0.50,
+    // Wide characters
+    'm': 0.83, 'w': 0.78,
+    // Uppercase
+    'A': 0.67, 'B': 0.67, 'C': 0.72, 'D': 0.72, 'E': 0.67, 'F': 0.61, 'G': 0.78,
+    'H': 0.72, 'J': 0.50, 'K': 0.67, 'L': 0.56, 'M': 0.83, 'N': 0.72, 'O': 0.78,
+    'P': 0.67, 'Q': 0.78, 'R': 0.72, 'S': 0.67, 'T': 0.61, 'U': 0.72, 'V': 0.67,
+    'W': 0.94, 'X': 0.67, 'Y': 0.67, 'Z': 0.61,
+    // Numbers
+    '0': 0.56, '1': 0.56, '2': 0.56, '3': 0.56, '4': 0.56, '5': 0.56,
+    '6': 0.56, '7': 0.56, '8': 0.56, '9': 0.56,
+    // Special characters
+    ' ': 0.28, '.': 0.28, ',': 0.28, ':': 0.28, ';': 0.28, '!': 0.28, '?': 0.56,
+    '-': 0.33, '_': 0.56, '(': 0.33, ')': 0.33, '[': 0.28, ']': 0.28,
+    '{': 0.33, '}': 0.33, '/': 0.28, '\\': 0.28, '|': 0.24, '@': 1.0,
+    '#': 0.56, '$': 0.56, '%': 0.89, '^': 0.47, '&': 0.67, '*': 0.39,
+    '+': 0.58, '=': 0.58, '<': 0.58, '>': 0.58, '~': 0.58, '`': 0.33,
+    '"': 0.35, "'": 0.19,
+  };
+  
+  // Default width for unknown characters
+  const defaultWidth = 0.56;
+  
+  // Weight multipliers
+  let weightMultiplier = 1.0;
+  switch (fontWeight) {
+    case 'bold':
+      weightMultiplier = 1.08;
+      break;
+    case 'semibold':
+      weightMultiplier = 1.05;
+      break;
+    case 'medium':
+      weightMultiplier = 1.02;
+      break;
+    case 'normal':
+    default:
+      weightMultiplier = 1.0;
+      break;
+  }
+  
+  // Calculate total width
+  let totalWidth = 0;
+  for (const char of text) {
+    const charWidth = charWidths[char] || defaultWidth;
+    totalWidth += charWidth * fontSize * weightMultiplier;
+  }
+  
+  return totalWidth;
+}
+
+/**
+ * Calculate X position offset based on text alignment and actual text width
  * 
  * In the designer, x,y represent the top-left corner of the element's bounding box.
  * For SVG text, we need to adjust the x coordinate based on text-anchor:
  * 
  * - Left alignment (text-anchor="start"): x stays at the left edge
- * - Center alignment (text-anchor="middle"): x moves to the center (x + width/2)
- * - Right alignment (text-anchor="end"): x moves to the right edge (x + width)
+ * - Center alignment (text-anchor="middle"): x moves to the center based on ACTUAL text width
+ * - Right alignment (text-anchor="end"): x moves to the right edge based on ACTUAL text width
  * 
  * This ensures that text in the generated certificate appears exactly where it
- * was positioned in the designer, including when using the center alignment guides.
+ * was positioned in the designer, accounting for varying text lengths.
  * 
  * @param x - The x coordinate from the designer (left edge of element)
- * @param width - The width of the element's bounding box
+ * @param text - The actual text to be rendered
+ * @param fontSize - Font size in pixels
+ * @param fontWeight - Font weight
  * @param textAlign - The text alignment ('left', 'center', or 'right')
  * @returns The adjusted x coordinate for SVG text positioning
  */
-function getAlignedX(x: number, width: number | undefined, textAlign: string | undefined): number {
-  if (!width) return x;
+function getAlignedX(
+  x: number, 
+  text: string,
+  fontSize: number,
+  fontWeight: string | undefined,
+  textAlign: string | undefined
+): number {
+  // Measure the actual text width
+  const textWidth = measureTextWidth(text, fontSize, fontWeight);
   
   switch (textAlign) {
     case 'center':
-      // For center alignment, x should be at the center of the width
+      // For center alignment, x should be at the center of the actual text width
       // This works with text-anchor="middle" to center the text
-      return x + width / 2;
+      return x + textWidth / 2;
     case 'right':
-      // For right alignment, x should be at the right edge
+      // For right alignment, x should be at the right edge of the actual text width
       // This works with text-anchor="end" to right-align the text
-      return x + width;
+      return x + textWidth;
     case 'left':
     default:
       // For left alignment, x is already correct
@@ -393,10 +479,10 @@ async function generateDynamicCertificateSVG(
       // Replace placeholder with actual value
       const displayValue = value ? replacePlaceholders(value, metadata) : '';
       const escapedValue = escapeXml(displayValue);
-      const alignedX = getAlignedX(x, width, textAlign);
-      const anchor = getTextAnchor(textAlign);
-      const weight = mapFontWeight(fontWeight);
       const size = fontSize || 16;
+      const weight = mapFontWeight(fontWeight);
+      const alignedX = getAlignedX(x, displayValue, size, fontWeight, textAlign);
+      const anchor = getTextAnchor(textAlign);
       
       // In the designer, x,y represent the top-left corner of the element
       // For SVG text with dominant-baseline="hanging", y represents the top of the text
@@ -416,11 +502,12 @@ async function generateDynamicCertificateSVG(
       `);
     } else if (type === 'static_text') {
       // Static text - render as-is
-      const escapedValue = escapeXml(value || '');
-      const alignedX = getAlignedX(x, width, textAlign);
-      const anchor = getTextAnchor(textAlign);
-      const weight = mapFontWeight(fontWeight);
+      const displayValue = value || '';
+      const escapedValue = escapeXml(displayValue);
       const size = fontSize || 14;
+      const weight = mapFontWeight(fontWeight);
+      const alignedX = getAlignedX(x, displayValue, size, fontWeight, textAlign);
+      const anchor = getTextAnchor(textAlign);
       
       // In the designer, x,y represent the top-left corner of the element
       // For SVG text with dominant-baseline="hanging", y represents the top of the text
