@@ -109,10 +109,13 @@ model Admin {
   totpEnabled       Boolean     @default(false)
   totpVerifiedAt    DateTime?   // When TOTP was first verified
 
+  // Relationships
+  notifications     AdminNotification[]
+
   // Metadata
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
-  
+
   @@index([email])
   @@index([universityId])
   @@map("admins")
@@ -214,20 +217,86 @@ model RevokedCertIndex {
 // Webhook logs from Helius
 model WebhookLog {
   id                    String      @id @default(cuid())
-  
+
   webhookType           String      // "mint", "burn", "transfer"
   signature             String      @unique
   mintAddress           String?
-  
+
   payload               String      @db.Text // JSON payload from Helius
   processed             Boolean     @default(false)
-  
+
   createdAt             DateTime    @default(now())
   processedAt           DateTime?
-  
+
   @@index([webhookType])
   @@index([processed])
   @@index([createdAt])
   @@map("webhook_logs")
+}
+
+// =============================================================================
+// In-App Notification System
+// =============================================================================
+
+enum NotificationType {
+  // Certificate events
+  CERTIFICATE_ISSUED
+  CERTIFICATE_MINTED
+  CERTIFICATE_REVOKED
+  BATCH_JOB_COMPLETED
+  BATCH_JOB_FAILED
+  // University events
+  UNIVERSITY_REGISTERED
+  UNIVERSITY_APPROVED
+  UNIVERSITY_REJECTED
+  UNIVERSITY_SUSPENDED
+  // ZK events
+  ZK_PROOF_VERIFIED
+  ZK_PROOF_FAILED
+  // Security events
+  SECURITY_LOGIN_FAILED
+  SECURITY_ACCOUNT_LOCKED
+  SECURITY_NEW_DEVICE
+  // System events
+  SYSTEM_ANNOUNCEMENT
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Notifications for Super Admins and University Admins
+model AdminNotification {
+  id              String               @id @default(cuid())
+
+  // Recipient
+  adminId         String
+  admin           Admin                @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  // Content
+  type            NotificationType
+  title           String
+  message         String               @db.Text
+  priority        NotificationPriority @default(NORMAL)
+
+  // Optional metadata (JSON for flexibility)
+  metadata        Json?                // { certificateId, universityId, studentWallet, etc. }
+  actionUrl       String?              // Deep link to relevant page
+
+  // Status
+  read            Boolean              @default(false)
+  readAt          DateTime?
+
+  // Timestamps
+  createdAt       DateTime             @default(now())
+  expiresAt       DateTime?            // Auto-cleanup old notifications
+
+  @@index([adminId, read])
+  @@index([adminId, createdAt])
+  @@index([type])
+  @@map("admin_notifications")
 }
 

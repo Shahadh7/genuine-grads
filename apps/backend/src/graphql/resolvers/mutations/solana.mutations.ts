@@ -3,6 +3,7 @@ import { PublicKey, Keypair, SystemProgram } from '@solana/web3.js';
 import { sharedDb } from '../../../db/shared.client.js';
 import { GraphQLContext, requireSuperAdmin, requireUniversityAdmin } from '../../context.js';
 import { logger } from '../../../utils/logger.js';
+import { notificationService } from '../../../services/notification/notification.service.js';
 import {
   buildRegisterUniversityInstruction,
   buildApproveUniversityInstruction,
@@ -2080,11 +2081,29 @@ async function confirmTransaction(
             );
           }
 
-          await uniDb.certificate.update({
+          const updatedCertificate = await uniDb.certificate.update({
             where: { id: metadata.certificateId },
             data: updateData,
+            include: { student: { select: { id: true, email: true } } },
           });
           logger.info({ certificateId: metadata.certificateId }, 'Updated certificate status to MINTED');
+
+          // Send notification to student about minted certificate
+          try {
+            await notificationService.createStudentNotificationFromTemplate(
+              updatedCertificate.studentId,
+              'CERTIFICATE_MINTED',
+              {
+                badgeTitle: updatedCertificate.badgeTitle,
+                universityName: university.name,
+                certificateNumber: updatedCertificate.certificateNumber,
+                certificateId: updatedCertificate.id,
+              },
+              uniDb
+            );
+          } catch (notifError) {
+            logger.warn({ error: notifError, studentId: updatedCertificate.studentId }, 'Failed to send minting notification to student');
+          }
 
           // Update MintActivityLog with the real mintAddress if cNFT details were extracted
           if (cnftDetails && metadata.certificateNumber) {

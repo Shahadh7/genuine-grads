@@ -10,6 +10,7 @@ import { createContext, GraphQLContext } from './graphql/context.js';
 import { env } from './env.js';
 import { logger } from './utils/logger.js';
 import uploadRoutes from './routes/upload.routes.js';
+import sseRoutes from './routes/sse.routes.js';
 
 /**
  * Create and configure the Apollo Server with Express
@@ -77,7 +78,7 @@ export async function createApolloServer() {
       origin: env.CORS_ORIGIN.split(',').map((origin) => origin.trim()),
       credentials: true,
       methods: ['GET', 'POST', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control'],
     })
   );
 
@@ -86,6 +87,9 @@ export async function createApolloServer() {
 
   // Upload routes
   app.use('/api/upload', uploadRoutes);
+
+  // SSE routes for real-time notifications
+  app.use('/api/notifications', sseRoutes);
 
   // GraphQL endpoint
   app.use(

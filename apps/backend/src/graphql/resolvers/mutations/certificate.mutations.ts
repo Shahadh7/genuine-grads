@@ -5,6 +5,7 @@ import { generateCertificateNumber } from '../../../utils/ids.js';
 import { logger } from '../../../utils/logger.js';
 import { generateCertificateFromTemplate, DesignTemplate } from '../../../services/certificate/generator.service.js';
 import { uploadFileToIPFS, uploadMetadataToIPFS } from '../../../services/ipfs/pinata.service.js';
+import { notificationService } from '../../../services/notification/notification.service.js';
 
 interface IssueCertificateInput {
   studentId: string;
@@ -596,6 +597,23 @@ export const certificateMutations = {
         'Certificate draft created'
       );
 
+      // Send notification to student about the new certificate
+      try {
+        await notificationService.createStudentNotificationFromTemplate(
+          student.id,
+          'CERTIFICATE_ISSUED',
+          {
+            badgeTitle,
+            universityName: university.name,
+            certificateNumber,
+            certificateId: certificate.id,
+          },
+          universityDb
+        );
+      } catch (notifError) {
+        logger.warn({ error: notifError, studentId: student.id }, 'Failed to send certificate notification');
+      }
+
       return certificate;
     } catch (error) {
       logger.error({ error, studentId }, 'Failed to create certificate draft');
@@ -756,6 +774,27 @@ export const certificateMutations = {
         },
         'Certificate revoked'
       );
+
+      // Send notification to student about the revoked certificate
+      try {
+        const university = await sharedDb.university.findUnique({
+          where: { id: context.admin!.universityId },
+        });
+        await notificationService.createStudentNotificationFromTemplate(
+          certificate.student.id,
+          'CERTIFICATE_REVOKED',
+          {
+            badgeTitle: certificate.badgeTitle,
+            universityName: university?.name || 'University',
+            reason,
+            certificateNumber: certificate.certificateNumber,
+            certificateId: certificate.id,
+          },
+          universityDb
+        );
+      } catch (notifError) {
+        logger.warn({ error: notifError, studentId: certificate.student.id }, 'Failed to send revocation notification');
+      }
 
       return updated;
     } catch (error) {

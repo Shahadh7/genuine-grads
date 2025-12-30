@@ -5,13 +5,9 @@ import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import {
   GraduationCap,
-  Award,
-  Trophy,
-  Shield,
   User,
   LogOut,
   Menu,
@@ -20,13 +16,14 @@ import {
   FileText,
   Star,
   History,
-  Settings,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
 import { graphqlClient } from '@/lib/graphql-client';
 import { clearSession } from '@/lib/session';
 import { useRoleGuard } from '@/hooks/useRoleGuard';
+import { NotificationProvider } from '@/contexts/NotificationContext';
+import { NotificationBell } from '@/components/notifications';
 
 const navigationItems = [
   {
@@ -110,10 +107,11 @@ export default function StudentLayout({children}): React.JSX.Element {
   }
 
   return (
+    <NotificationProvider role="student">
     <div className="flex h-screen bg-background">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -321,12 +319,19 @@ export default function StudentLayout({children}): React.JSX.Element {
             >
               <Menu className="h-4 w-4" />
             </Button>
-            
+
             <div className="flex items-center space-x-2">
               <GraduationCap className="h-5 w-5 text-primary" />
               <span className="font-semibold">Student Portal</span>
             </div>
+
+            <NotificationBell viewAllHref="/student/notifications" />
           </div>
+        </div>
+
+        {/* Desktop header with notifications */}
+        <div className="hidden lg:flex sticky top-0 z-30 bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/60 border-b items-center justify-end px-6 py-3">
+          <NotificationBell viewAllHref="/student/notifications" />
         </div>
 
         {/* Page content */}
@@ -337,5 +342,6 @@ export default function StudentLayout({children}): React.JSX.Element {
         </div>
       </div>
     </div>
+    </NotificationProvider>
   );
 } 

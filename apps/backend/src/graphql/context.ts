@@ -57,9 +57,21 @@ export async function createContext({ req, res }: { req: Request; res: Response 
           context.student = {
             id: globalStudent.id, // GlobalStudentIndex ID
             email: walletAddress, // Use wallet as "email" for consistency
-            universityId: undefined, // Students are not tied to a single university
+            universityId: globalStudent.createdByUniversityId || undefined, // Use the university that created the student
             walletAddress: walletAddress,
           };
+
+          // Get university database for the student's home university (where they were created)
+          if (globalStudent.createdByUniversityId) {
+            const university = await sharedDb.university.findUnique({
+              where: { id: globalStudent.createdByUniversityId },
+              select: { databaseUrl: true },
+            });
+
+            if (university?.databaseUrl) {
+              context.universityDb = getUniversityDb(university.databaseUrl);
+            }
+          }
         }
       } else {
         // Fetch admin details from database

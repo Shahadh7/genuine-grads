@@ -14,7 +14,8 @@ import { sharedDb } from '../src/db/shared.client.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const MIGRATION_FILE = join(__dirname, '../migrations/add_verification_log.sql');
+// Change this to the migration file you want to run
+const MIGRATION_FILE = join(__dirname, '../migrations/add_student_notifications.sql');
 
 async function runMigration(databaseUrl: string, universityName: string) {
   const pool = new Pool({ connectionString: databaseUrl });

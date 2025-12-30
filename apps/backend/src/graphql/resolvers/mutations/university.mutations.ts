@@ -7,6 +7,7 @@ import { logger } from '../../../utils/logger.js';
 import { env } from '../../../env.js';
 import { provisionUniversityDatabase } from '../../../services/database/provisioning.service.js';
 import { solanaService } from '../../../services/solana/solana.service.js';
+import { notificationService } from '../../../services/notification/notification.service.js';
 
 interface RegisterUniversityInput {
   name: string;
@@ -103,6 +104,17 @@ async function performUniversityDeactivation({
     },
     'University deactivated on-chain and indexed'
   );
+
+  // Notify university admins about suspension
+  try {
+    await notificationService.notifyUniversityAdmins(universityId, 'UNIVERSITY_SUSPENDED', {
+      universityName: university.name,
+      universityId,
+      reason: reason || 'Policy violation',
+    });
+  } catch (notifError) {
+    logger.warn({ error: notifError, universityId }, 'Failed to send suspension notification');
+  }
 
   return updated;
 }
@@ -239,6 +251,18 @@ export const universityMutations = {
       'University registration indexed after on-chain success'
     );
 
+    // Notify super admins about new university registration
+    try {
+      await notificationService.notifySuperAdmins('UNIVERSITY_REGISTERED', {
+        universityName: name,
+        universityId: result.id,
+        domain,
+        country,
+      });
+    } catch (notifError) {
+      logger.warn({ error: notifError, universityId: result.id }, 'Failed to send registration notification');
+    }
+
     return result;
   },
 
@@ -331,6 +355,16 @@ export const universityMutations = {
       '✅ University approval indexed after on-chain confirmation'
     );
 
+    // Notify university admins about approval
+    try {
+      await notificationService.notifyUniversityAdmins(universityId, 'UNIVERSITY_APPROVED', {
+        universityName: university.name,
+        universityId,
+      });
+    } catch (notifError) {
+      logger.warn({ error: notifError, universityId }, 'Failed to send approval notification');
+    }
+
     return updated;
   },
 
@@ -377,6 +411,17 @@ export const universityMutations = {
     });
 
     logger.info({ universityId, reason }, 'University rejected');
+
+    // Notify university admins about rejection
+    try {
+      await notificationService.notifyUniversityAdmins(universityId, 'UNIVERSITY_REJECTED', {
+        universityName: university.name,
+        universityId,
+        reason,
+      });
+    } catch (notifError) {
+      logger.warn({ error: notifError, universityId }, 'Failed to send rejection notification');
+    }
 
     return updated;
   },

@@ -35,6 +35,38 @@ export const typeDefs = gql`
     CANCELLED
   }
 
+  enum NotificationType {
+    CERTIFICATE_ISSUED
+    CERTIFICATE_MINTED
+    CERTIFICATE_REVOKED
+    CERTIFICATE_VERIFIED
+    BATCH_JOB_COMPLETED
+    BATCH_JOB_FAILED
+    UNIVERSITY_REGISTERED
+    UNIVERSITY_APPROVED
+    UNIVERSITY_REJECTED
+    UNIVERSITY_SUSPENDED
+    ZK_COMMITMENT_REGISTERED
+    ZK_PROOF_UPLOADED
+    ZK_PROOF_VERIFIED
+    ZK_PROOF_FAILED
+    ACHIEVEMENT_AWARDED
+    ENROLLMENT_ADDED
+    SECURITY_LOGIN_FAILED
+    SECURITY_ACCOUNT_LOCKED
+    SECURITY_NEW_DEVICE
+    SECURITY_NEW_LOGIN
+    SECURITY_WALLET_LINKED
+    SYSTEM_ANNOUNCEMENT
+  }
+
+  enum NotificationPriority {
+    LOW
+    NORMAL
+    HIGH
+    URGENT
+  }
+
   # ============================================
   # UNIVERSITY TYPES
   # ============================================
@@ -506,6 +538,35 @@ type StudentAchievement {
   }
 
   # ============================================
+  # NOTIFICATION TYPES
+  # ============================================
+
+  type Notification {
+    id: ID!
+    type: NotificationType!
+    title: String!
+    message: String!
+    priority: NotificationPriority!
+    metadata: JSON
+    actionUrl: String
+    read: Boolean!
+    readAt: DateTime
+    createdAt: DateTime!
+  }
+
+  type NotificationConnection {
+    nodes: [Notification!]!
+    pageInfo: NotificationPageInfo!
+    totalCount: Int!
+    unreadCount: Int!
+  }
+
+  type NotificationPageInfo {
+    hasNextPage: Boolean!
+    endCursor: String
+  }
+
+  # ============================================
   # ZKP TYPES (Legacy)
   # ============================================
 
@@ -672,6 +733,12 @@ type StudentAchievement {
     # ========== ZK VERIFICATION (PUBLIC) ==========
     getZkAchievementStatuses(credentialId: String!): [ZkAchievementStatus!]!
     verifyStoredAchievementProof(input: VerifyProofInput!): ZkVerificationResult!
+
+    # ========== NOTIFICATIONS ==========
+    notifications(first: Int, after: String): NotificationConnection! @auth(requires: ADMIN)
+    unreadNotificationCount: Int! @auth(requires: ADMIN)
+    studentNotifications(first: Int, after: String): NotificationConnection! @auth(requires: STUDENT)
+    studentUnreadNotificationCount: Int! @auth(requires: STUDENT)
   }
 
   # ============================================
@@ -774,6 +841,16 @@ type StudentAchievement {
     registerAchievementCommitmentsBatch(inputs: [RegisterCommitmentInput!]!): [ZkCommitmentResult!]! @auth(requires: STUDENT)
     uploadAchievementProof(input: UploadProofInput!): ZkProofUploadResult! @auth(requires: STUDENT)
     uploadAchievementProofsBatch(inputs: [UploadProofInput!]!): [ZkProofUploadResult!]! @auth(requires: STUDENT)
+
+    # ========== NOTIFICATIONS (ADMIN) ==========
+    markNotificationAsRead(id: ID!): Notification! @auth(requires: ADMIN)
+    markAllNotificationsAsRead: Boolean! @auth(requires: ADMIN)
+    deleteNotification(id: ID!): Boolean! @auth(requires: ADMIN)
+
+    # ========== NOTIFICATIONS (STUDENT) ==========
+    markStudentNotificationAsRead(id: ID!): Notification! @auth(requires: STUDENT)
+    markAllStudentNotificationsAsRead: Boolean! @auth(requires: STUDENT)
+    deleteStudentNotification(id: ID!): Boolean! @auth(requires: STUDENT)
   }
 
   # ============================================

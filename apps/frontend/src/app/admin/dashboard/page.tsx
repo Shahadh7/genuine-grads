@@ -13,16 +13,14 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  AlertCircle,
-  Users,
-  FileCheck,
-  TrendingUp,
   Loader2,
   Eye,
   Ban,
   Settings,
 } from 'lucide-react';
 import { useRoleGuard } from '@/hooks/useRoleGuard';
+import { NotificationBell } from '@/components/notifications';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function SuperAdminDashboard() {
   const router = useRouter();
@@ -108,13 +106,17 @@ export default function SuperAdminDashboard() {
           <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
           <p className="text-muted-foreground">Manage university registrations and approvals</p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => router.push('/admin/settings')}
-        >
-          <Settings className="h-4 w-4 mr-2" />
-          Settings
-        </Button>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <NotificationBell viewAllHref="/admin/notifications" />
+          <Button
+            variant="outline"
+            onClick={() => router.push('/admin/settings')}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}

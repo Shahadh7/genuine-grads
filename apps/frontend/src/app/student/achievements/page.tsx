@@ -255,8 +255,9 @@ export default function AchievementsPage(): React.JSX.Element {
         }
       }
 
-      // If we still have no achievements but student has achievements, add them without certificate link
-      if (allAchievements.length === 0 && studentAchievements.length > 0) {
+      // Only add standalone achievements if there's at least one valid (minted, non-revoked) certificate
+      // This ensures achievements are only shown when the student has active certificates
+      if (allAchievements.length === 0 && studentAchievements.length > 0 && certs.length > 0) {
         for (const sa of studentAchievements) {
           // AchievementCatalog uses 'title' field
           const title = sa.achievement?.title;

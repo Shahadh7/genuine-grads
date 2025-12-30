@@ -82,17 +82,24 @@ export default function StudentDashboard(): React.JSX.Element {
   }
 
   const allCertificates = studentData?.certificates || [];
-  const activeCertificates = allCertificates.filter((cert: any) => cert.revoked !== true);
+  // Only count certificates that are MINTED and not revoked as active
+  const activeCertificates = allCertificates.filter(
+    (cert: any) => cert.status === 'MINTED' && cert.revoked !== true
+  );
   const revokedCertificates = allCertificates.filter((cert: any) => cert.revoked === true);
   const certificatesCount = activeCertificates.length;
   const revokedCount = revokedCertificates.length;
 
-  // Count achievements from both StudentAchievement (student.achievements) and Enrollment.achievements
-  const studentAchievementsCount = studentData?.achievements?.length || 0;
-  const enrollmentAchievementsCount = (studentData?.enrollments || []).reduce(
-    (count: number, enrollment: any) => count + (enrollment.achievements?.length || 0),
-    0
-  );
+  // Only count achievements if student has at least one active (minted, non-revoked) certificate
+  // Achievements are only valid when attached to valid certificates
+  const hasActiveCertificates = activeCertificates.length > 0;
+  const studentAchievementsCount = hasActiveCertificates ? (studentData?.achievements?.length || 0) : 0;
+  const enrollmentAchievementsCount = hasActiveCertificates
+    ? (studentData?.enrollments || []).reduce(
+        (count: number, enrollment: any) => count + (enrollment.achievements?.length || 0),
+        0
+      )
+    : 0;
   const achievementsCount = studentAchievementsCount + enrollmentAchievementsCount;
   const enrollmentsCount = studentData?.enrollments?.length || 0;
 

@@ -2085,6 +2085,249 @@ class GraphQLClient {
       };
     }>(query, { input });
   }
+
+  // ============================================================================
+  // NOTIFICATION METHODS
+  // ============================================================================
+
+  /**
+   * Get notifications for admin (university admin or super admin)
+   */
+  async getNotifications(first: number = 5, after?: string) {
+    const query = `
+      query GetNotifications($first: Int, $after: String) {
+        notifications(first: $first, after: $after) {
+          nodes {
+            id
+            type
+            title
+            message
+            priority
+            metadata
+            actionUrl
+            read
+            readAt
+            createdAt
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          totalCount
+          unreadCount
+        }
+      }
+    `;
+
+    return this.request<{
+      notifications: {
+        nodes: Array<{
+          id: string;
+          type: string;
+          title: string;
+          message: string;
+          priority: string;
+          metadata: Record<string, unknown> | null;
+          actionUrl: string | null;
+          read: boolean;
+          readAt: string | null;
+          createdAt: string;
+        }>;
+        pageInfo: {
+          hasNextPage: boolean;
+          endCursor: string | null;
+        };
+        totalCount: number;
+        unreadCount: number;
+      };
+    }>(query, { first, after });
+  }
+
+  /**
+   * Get unread notification count for admin
+   */
+  async getUnreadNotificationCount() {
+    const query = `
+      query GetUnreadNotificationCount {
+        unreadNotificationCount
+      }
+    `;
+
+    return this.request<{ unreadNotificationCount: number }>(query);
+  }
+
+  /**
+   * Mark a notification as read
+   */
+  async markNotificationAsRead(id: string) {
+    const query = `
+      mutation MarkNotificationAsRead($id: ID!) {
+        markNotificationAsRead(id: $id) {
+          id
+          read
+          readAt
+        }
+      }
+    `;
+
+    return this.request<{
+      markNotificationAsRead: {
+        id: string;
+        read: boolean;
+        readAt: string | null;
+      };
+    }>(query, { id });
+  }
+
+  /**
+   * Mark all notifications as read
+   */
+  async markAllNotificationsAsRead() {
+    const query = `
+      mutation MarkAllNotificationsAsRead {
+        markAllNotificationsAsRead
+      }
+    `;
+
+    return this.request<{ markAllNotificationsAsRead: boolean }>(query);
+  }
+
+  /**
+   * Delete a notification
+   */
+  async deleteNotification(id: string) {
+    const query = `
+      mutation DeleteNotification($id: ID!) {
+        deleteNotification(id: $id)
+      }
+    `;
+
+    return this.request<{ deleteNotification: boolean }>(query, { id });
+  }
+
+  /**
+   * Get notifications for student
+   */
+  async getStudentNotifications(first: number = 5, after?: string) {
+    const query = `
+      query GetStudentNotifications($first: Int, $after: String) {
+        studentNotifications(first: $first, after: $after) {
+          nodes {
+            id
+            type
+            title
+            message
+            priority
+            metadata
+            actionUrl
+            read
+            readAt
+            createdAt
+          }
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
+          totalCount
+          unreadCount
+        }
+      }
+    `;
+
+    return this.request<{
+      studentNotifications: {
+        nodes: Array<{
+          id: string;
+          type: string;
+          title: string;
+          message: string;
+          priority: string;
+          metadata: Record<string, unknown> | null;
+          actionUrl: string | null;
+          read: boolean;
+          readAt: string | null;
+          createdAt: string;
+        }>;
+        pageInfo: {
+          hasNextPage: boolean;
+          endCursor: string | null;
+        };
+        totalCount: number;
+        unreadCount: number;
+      };
+    }>(query, { first, after });
+  }
+
+  /**
+   * Get unread notification count for student
+   */
+  async getStudentUnreadNotificationCount() {
+    const query = `
+      query GetStudentUnreadNotificationCount {
+        studentUnreadNotificationCount
+      }
+    `;
+
+    return this.request<{ studentUnreadNotificationCount: number }>(query);
+  }
+
+  /**
+   * Mark a student notification as read
+   */
+  async markStudentNotificationAsRead(id: string) {
+    const query = `
+      mutation MarkStudentNotificationAsRead($id: ID!) {
+        markStudentNotificationAsRead(id: $id) {
+          id
+          read
+          readAt
+        }
+      }
+    `;
+
+    return this.request<{
+      markStudentNotificationAsRead: {
+        id: string;
+        read: boolean;
+        readAt: string | null;
+      };
+    }>(query, { id });
+  }
+
+  /**
+   * Mark all student notifications as read
+   */
+  async markAllStudentNotificationsAsRead() {
+    const query = `
+      mutation MarkAllStudentNotificationsAsRead {
+        markAllStudentNotificationsAsRead
+      }
+    `;
+
+    return this.request<{ markAllStudentNotificationsAsRead: boolean }>(query);
+  }
+
+  /**
+   * Delete a student notification
+   */
+  async deleteStudentNotification(id: string) {
+    const query = `
+      mutation DeleteStudentNotification($id: ID!) {
+        deleteStudentNotification(id: $id)
+      }
+    `;
+
+    return this.request<{ deleteStudentNotification: boolean }>(query, { id });
+  }
+
+  /**
+   * Get SSE endpoint URL with token
+   */
+  getSSEEndpoint(): string {
+    const baseUrl = this.endpoint.replace('/graphql', '');
+    const token = this.token || '';
+    return `${baseUrl}/api/notifications/stream?token=${token}`;
+  }
 }
 
 export const graphqlClient = new GraphQLClient(GRAPHQL_ENDPOINT);

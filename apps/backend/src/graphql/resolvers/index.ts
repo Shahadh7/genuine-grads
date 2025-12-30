@@ -5,6 +5,7 @@ import { studentQueries } from './queries/student.queries.js';
 import { certificateQueries } from './queries/certificate.queries.js';
 import { publicQueries } from './queries/public.queries.js';
 import { zkQueries } from './queries/zk.queries.js';
+import { notificationQueries } from './queries/notification.queries.js';
 import { authMutations } from './mutations/auth.mutations.js';
 import { studentAuthMutations } from './mutations/student-auth.mutations.js';
 import { totpMutations } from './mutations/totp.mutations.js';
@@ -12,6 +13,7 @@ import { universityMutations } from './mutations/university.mutations.js';
 import { studentMutations } from './mutations/student.mutations.js';
 import { certificateMutations } from './mutations/certificate.mutations.js';
 import { zkMutations } from './mutations/zk.mutations.js';
+import { notificationMutations } from './mutations/notification.mutations.js';
 import { requireUniversityDb } from '../context.js';
 import { solanaMutations } from './mutations/solana.mutations.js';
 
@@ -39,6 +41,9 @@ export const resolvers: Record<string, any> = {
 
     // ZK Verification
     ...zkQueries,
+
+    // Notifications
+    ...notificationQueries,
   },
 
   // Mutations
@@ -62,6 +67,9 @@ export const resolvers: Record<string, any> = {
 
     // ZK Verification
     ...zkMutations,
+
+    // Notifications
+    ...notificationMutations,
   },
 
   // Field resolvers (for nested data)

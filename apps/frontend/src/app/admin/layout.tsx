@@ -1,4 +1,7 @@
+'use client';
+
 import SolanaWalletProvider from '@/components/wallet/wallet-provider';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 
 export default function AdminLayout({
   children,
@@ -7,9 +10,11 @@ export default function AdminLayout({
 }) {
   return (
     <SolanaWalletProvider>
-      <div className="min-h-screen bg-background">
-        {children}
-      </div>
+      <NotificationProvider role="admin">
+        <div className="min-h-screen bg-background">
+          {children}
+        </div>
+      </NotificationProvider>
     </SolanaWalletProvider>
   );
 }

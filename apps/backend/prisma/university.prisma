@@ -43,6 +43,7 @@ model Student {
   achievements     StudentAchievement[]
   zkpRequests      ZKPProofRequest[]
   verificationLogs VerificationLog[]
+  notifications    StudentNotification[]
 
   // Metadata
   createdAt DateTime @default(now())
@@ -505,4 +506,69 @@ model ZkProofAuditLog {
   @@index([proofHash])
   @@index([success])
   @@map("zk_proof_audit_logs")
+}
+
+// =============================================================================
+// In-App Notification System (Student Notifications)
+// =============================================================================
+
+enum StudentNotificationType {
+  // Certificate events
+  CERTIFICATE_ISSUED
+  CERTIFICATE_MINTED
+  CERTIFICATE_REVOKED
+  CERTIFICATE_VERIFIED
+  // ZK events
+  ZK_COMMITMENT_REGISTERED
+  ZK_PROOF_UPLOADED
+  ZK_PROOF_VERIFIED
+  ZK_PROOF_FAILED
+  // Achievement events
+  ACHIEVEMENT_AWARDED
+  // Enrollment events
+  ENROLLMENT_ADDED
+  // Security events
+  SECURITY_NEW_LOGIN
+  SECURITY_WALLET_LINKED
+  // System events
+  SYSTEM_ANNOUNCEMENT
+}
+
+enum StudentNotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+// Notifications for Students (stored per-university database)
+model StudentNotification {
+  id              String                      @id @default(cuid())
+
+  // Recipient
+  studentId       String
+  student         Student                     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // Content
+  type            StudentNotificationType
+  title           String
+  message         String                      @db.Text
+  priority        StudentNotificationPriority @default(NORMAL)
+
+  // Optional metadata (JSON for flexibility)
+  metadata        Json?                       // { certificateId, achievementId, etc. }
+  actionUrl       String?                     // Deep link to relevant page
+
+  // Status
+  read            Boolean                     @default(false)
+  readAt          DateTime?
+
+  // Timestamps
+  createdAt       DateTime                    @default(now())
+  expiresAt       DateTime?                   // Auto-cleanup old notifications
+
+  @@index([studentId, read])
+  @@index([studentId, createdAt])
+  @@index([type])
+  @@map("student_notifications")
 }
