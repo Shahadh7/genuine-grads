@@ -48,7 +48,7 @@ export async function createApolloServer() {
         },
       },
     ],
-    formatError: (formattedError, error) => {
+    formatError: (formattedError, _error) => {
       // Log error
       logger.error({ error: formattedError }, 'GraphQL error');
       
@@ -100,7 +100,7 @@ export async function createApolloServer() {
   );
 
   // Health check endpoint
-  app.get('/health', (req, res) => {
+  app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
       timestamp: new Date().toISOString(),
@@ -109,7 +109,7 @@ export async function createApolloServer() {
   });
 
   // Root endpoint
-  app.get('/', (req, res) => {
+  app.get('/', (_req, res) => {
     res.json({
       name: '@genuinegrads/backend',
       version: '1.0.0',
@@ -125,7 +125,7 @@ export async function createApolloServer() {
  * Start the server
  */
 export async function startServer() {
-  const { app, httpServer } = await createApolloServer();
+  const { httpServer } = await createApolloServer();
   
   const PORT = parseInt(env.PORT, 10) || 4000;
   

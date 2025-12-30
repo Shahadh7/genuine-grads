@@ -26,7 +26,7 @@ function bytesToHex(bytes: Uint8Array): string {
  */
 export async function stringToFieldElement(input: string): Promise<bigint> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(input);
+  const data = new Uint8Array(encoder.encode(input)).buffer;
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = new Uint8Array(hashBuffer);
   const hashHex = bytesToHex(hashArray);

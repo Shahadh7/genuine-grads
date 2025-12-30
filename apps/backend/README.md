@@ -2,21 +2,22 @@
 
 A fully modularized Node.js GraphQL API backend for the GenuineGrads platform - a Solana-based academic certificate verification system using compressed NFTs (cNFTs) and Zero-Knowledge Proofs.
 
-## 🚀 Features
+## Features
 
-- ✅ **GraphQL API** with Apollo Server
-- ✅ **Multi-tenant Architecture** with separate university databases
-- ✅ **JWT Authentication** with access and refresh tokens
-- ✅ **Role-Based Access Control** (Super Admin, University Admin)
-- ✅ **Prisma ORM** with PostgreSQL (Shared + University databases)
-- ✅ **Solana Integration** via Helius for cNFT minting/burning
-- ✅ **IPFS Metadata Storage** via Pinata
-- ✅ **Zero-Knowledge Proofs** for selective credential disclosure
-- ✅ **Public Certificate Verification** (no auth required)
-- ✅ **Comprehensive Logging** with Pino
-- ✅ **Type Safety** with TypeScript
+- **GraphQL API** with Apollo Server
+- **Multi-tenant Architecture** with separate university databases
+- **JWT Authentication** with access and refresh tokens
+- **Role-Based Access Control** (Super Admin, University Admin, Student)
+- **Prisma ORM** with PostgreSQL (Shared + University databases)
+- **Solana Integration** via Helius for cNFT minting/burning
+- **IPFS Metadata Storage** via Pinata
+- **Zero-Knowledge Proofs** for selective credential disclosure
+- **Real-time Notifications** via Server-Sent Events (SSE)
+- **Public Certificate Verification** (no auth required)
+- **Comprehensive Logging** with Pino
+- **Type Safety** with TypeScript
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 apps/backend/
@@ -24,46 +25,35 @@ apps/backend/
 │   ├── shared.prisma          # Shared central database schema
 │   └── university.prisma      # Private university database schema
 ├── src/
-│   ├── auth/                  # Authentication (JWT, password hashing)
-│   │   ├── jwt.ts
-│   │   └── password.ts
-│   ├── db/                    # Database clients
-│   │   ├── shared.client.ts
-│   │   └── university.client.ts
+│   ├── auth/                  # Authentication (JWT, password hashing, TOTP)
+│   ├── db/                    # Database clients (shared + university)
 │   ├── graphql/               # GraphQL schema and resolvers
 │   │   ├── schema.ts
 │   │   ├── context.ts
 │   │   └── resolvers/
-│   │       ├── mutations/     # All mutations
-│   │       │   ├── auth.mutations.ts
-│   │       │   ├── university.mutations.ts
-│   │       │   ├── student.mutations.ts
-│   │       │   └── certificate.mutations.ts
-│   │       ├── queries/       # All queries
-│   │       │   ├── auth.queries.ts
-│   │       │   ├── university.queries.ts
-│   │       │   ├── student.queries.ts
-│   │       │   ├── certificate.queries.ts
-│   │       │   └── public.queries.ts
-│   │       └── index.ts
+│   │       ├── mutations/     # Auth, university, student, certificate, ZK, solana
+│   │       └── queries/       # Auth, university, student, certificate, public
+│   ├── routes/                # REST endpoints
+│   │   ├── upload.routes.ts   # File uploads
+│   │   └── sse.routes.ts      # Real-time notifications
 │   ├── services/              # External integrations
-│   │   ├── helius/
-│   │   │   └── helius.client.ts
-│   │   └── zkp/
-│   │       └── zkp.service.ts
-│   ├── utils/                 # Utilities
-│   │   ├── logger.ts
-│   │   ├── crypto.ts
-│   │   └── ids.ts
-│   ├── env.ts                 # Environment config with validation
-│   ├── server.ts              # Apollo Server setup
+│   │   ├── certificate/       # Certificate generation
+│   │   ├── database/          # Database provisioning
+│   │   ├── helius/            # Solana blockchain indexer
+│   │   ├── ipfs/              # Pinata IPFS storage
+│   │   ├── notification/      # SSE notification service
+│   │   ├── solana/            # cNFT service, program interaction
+│   │   └── zkp/               # Zero-knowledge proof verification
+│   ├── utils/                 # Logger, crypto, ID generation
+│   ├── env.ts                 # Environment config with Zod validation
+│   ├── server.ts              # Apollo Server + Express setup
 │   └── index.ts               # Entry point
-├── package.json
-├── tsconfig.json
-└── ENV_SETUP.md
+├── zk-artifacts/              # ZK verification keys
+├── docs/                      # Documentation
+└── package.json
 ```
 
-## 🛠️ Setup Instructions
+## Setup Instructions
 
 ### 1. Prerequisites
 
@@ -148,7 +138,7 @@ yarn dev
 
 The server will start at `http://localhost:4000/graphql`
 
-## 🔑 Authentication Flow
+## Authentication Flow
 
 ### 1. Super Admin Login
 
@@ -226,7 +216,7 @@ mutation UniversityLogin {
 }
 ```
 
-## 📚 Main API Operations
+## Main API Operations
 
 ### For Super Admin
 
@@ -290,7 +280,7 @@ query VerifyCertificate {
 }
 ```
 
-## 🗄️ Database Architecture
+## Database Architecture
 
 ### Shared Central Database
 - **Universities** - All registered universities
@@ -311,7 +301,7 @@ Each university has its own isolated database:
 - **ZKPProofRequests** - Zero-knowledge proof requests
 - **BatchIssuanceJobs** - Bulk issuance jobs
 
-## 🔐 Security Features
+## Security Features
 
 - **JWT Authentication** with access (15 min) and refresh (7 days) tokens
 - **Argon2id Password Hashing** with memory-hard settings
@@ -322,7 +312,7 @@ Each university has its own isolated database:
 - **Rate Limiting** (recommended to add)
 - **CORS Protection**
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run tests
@@ -332,7 +322,7 @@ yarn test
 yarn test --coverage
 ```
 
-## 📊 Monitoring
+## Monitoring
 
 ### View Logs
 
@@ -354,7 +344,7 @@ yarn db:studio:shared
 yarn db:studio:university
 ```
 
-## 🚢 Deployment
+## Deployment
 
 ### Build for Production
 
@@ -391,7 +381,7 @@ Make sure to set:
 - Helius API key for mainnet
 - CORS_ORIGIN with actual frontend URL
 
-## 📝 API Documentation
+## API Documentation
 
 GraphQL Playground is available at:
 ```
@@ -400,22 +390,18 @@ http://localhost:4000/graphql
 
 (Disabled in production for security)
 
-## 🤝 Contributing
+## Contributing
 
 1. Create feature branch
 2. Make changes
 3. Run tests and linter
 4. Submit pull request
 
-## 📄 License
+## License
 
 MIT
 
-## 🆘 Support
+## Support
 
-For issues or questions, contact: support@genuinegrads.com
-
----
-
-Built with ❤️ by the GenuineGrads Team
+For issues or questions, open an issue on GitHub.
 

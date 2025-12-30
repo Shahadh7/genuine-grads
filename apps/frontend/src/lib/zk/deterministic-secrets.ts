@@ -56,21 +56,24 @@ async function deriveFieldElement(
   info: string
 ): Promise<bigint> {
   // Import signature as HKDF key material
+  const signatureBuffer = new Uint8Array(signature).buffer;
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
-    signature,
+    signatureBuffer,
     'HKDF',
     false,
     ['deriveBits']
   );
 
   // Derive 256 bits using HKDF-SHA256
+  const saltBuffer = new Uint8Array(new TextEncoder().encode(ZK_DOMAIN_SEPARATOR)).buffer;
+  const infoBuffer = new Uint8Array(new TextEncoder().encode(info)).buffer;
   const derivedBits = await crypto.subtle.deriveBits(
     {
       name: 'HKDF',
       hash: 'SHA-256',
-      salt: new TextEncoder().encode(ZK_DOMAIN_SEPARATOR),
-      info: new TextEncoder().encode(info),
+      salt: saltBuffer,
+      info: infoBuffer,
     },
     keyMaterial,
     256
@@ -79,8 +82,8 @@ async function deriveFieldElement(
   // Convert to bigint and reduce to field
   const derivedBytes = new Uint8Array(derivedBits);
   let hex = '';
-  for (const byte of derivedBytes) {
-    hex += byte.toString(16).padStart(2, '0');
+  for (let i = 0; i < derivedBytes.length; i++) {
+    hex += derivedBytes[i].toString(16).padStart(2, '0');
   }
   const bigIntValue = BigInt('0x' + hex);
 

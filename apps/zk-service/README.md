@@ -132,3 +132,7 @@ zk-service/
 ├── ptau/                        # Powers of Tau (gitignored)
 └── package.json
 ```
+
+## License
+
+MIT

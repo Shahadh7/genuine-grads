@@ -342,14 +342,14 @@ export const zkMutations = {
         credentialId,
         achievementCode,
         commitmentId: commitment.id,
-        proofJson: proof,
+        proofJson: JSON.parse(JSON.stringify(proof)),
         publicSignals: publicSignals,
         proofHash,
         circuitId: 'ach_member_v1',
         verified: false
       },
       update: {
-        proofJson: proof,
+        proofJson: JSON.parse(JSON.stringify(proof)),
         publicSignals: publicSignals,
         proofHash,
         verified: false,
