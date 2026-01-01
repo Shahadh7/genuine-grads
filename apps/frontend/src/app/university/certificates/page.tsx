@@ -601,7 +601,7 @@ export default function CertificatesPage(): React.JSX.Element {
 
       {/* Bulk Actions Bar */}
       {selectedCertIds.size > 0 && (
-        <Card className="bg-blue-50 border-blue-200">
+        <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
