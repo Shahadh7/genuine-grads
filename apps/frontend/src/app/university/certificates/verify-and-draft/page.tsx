@@ -366,18 +366,33 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
       const fetchedTemplates =
         (templatesRes.data?.certificateTemplates ?? []).filter((template: any) => template.isActive) ?? [];
 
+      console.log('=== DEBUG: Verify & Draft Page ===');
+      console.log('Fetched students:', fetchedStudents.length);
+      console.log('Students data:', JSON.stringify(fetchedStudents, null, 2));
+
       // Create student-enrollment pairs for each enrollment without a certificate
       const pairs: StudentEnrollmentPair[] = [];
       for (const student of fetchedStudents) {
         const enrollments = student.enrollments ?? [];
+        console.log(`Student ${student.fullName} has ${enrollments.length} enrollments`);
+        
         for (const enrollment of enrollments) {
+          const enrollmentCertificates = enrollment.certificates ?? [];
+          console.log(`  - Enrollment ${enrollment.id} (${enrollment.course?.name}) has ${enrollmentCertificates.length} certificates:`, enrollmentCertificates);
+          
           // Check if this enrollment already has a certificate
-          const hasCertificate = (enrollment.certificates ?? []).length > 0;
+          const hasCertificate = enrollmentCertificates.length > 0;
           if (!hasCertificate) {
+            console.log(`    -> Adding to pairs (no certificate)`);
             pairs.push({ student, enrollment });
+          } else {
+            console.log(`    -> Skipping (has certificate)`);
           }
         }
       }
+
+      console.log('Total pairs created:', pairs.length);
+      console.log('=== END DEBUG ===');
 
       setStudentEnrollmentPairs(pairs);
       setTemplates(fetchedTemplates);
