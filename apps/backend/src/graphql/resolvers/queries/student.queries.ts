@@ -87,16 +87,21 @@ export const studentQueries = {
     const take = Math.min(limit ?? 10, 50);
     const skip = offset ?? 0;
 
-    // Find students with enrollments that don't have certificates
+    // Find students with enrollments that don't have valid certificates
     // A student can have multiple enrollments, each needing its own certificate
+    // We only consider PENDING or MINTED certificates as valid (FAILED certificates are ignored)
     return universityDb.student.findMany({
       where: {
         isActive: true,
         enrollments: {
           some: {
-            // At least one enrollment without a certificate
+            // At least one enrollment without a valid certificate (PENDING or MINTED)
             certificates: {
-              none: {},
+              none: {
+                status: {
+                  in: ['PENDING', 'MINTED'],
+                },
+              },
             },
           },
         },
