@@ -1017,6 +1017,11 @@ class GraphQLClient {
             batchYear
             gpa
             grade
+            certificates {
+              id
+              certificateNumber
+              status
+            }
             achievements {
               id
               badgeTitle

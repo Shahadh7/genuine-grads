@@ -288,9 +288,15 @@ function hydrateTemplateMetadata(
   return derived;
 }
 
+// Student-enrollment pair interface for certificate processing
+interface StudentEnrollmentPair {
+  student: any;
+  enrollment: any;
+}
+
 export default function VerifyAndDraftPage(): React.JSX.Element {
   const toast = useToast();
-  const [students, setStudents] = useState<any[]>([]);
+  const [studentEnrollmentPairs, setStudentEnrollmentPairs] = useState<StudentEnrollmentPair[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [metadataForm, setMetadataForm] = useState<Record<string, string>>({});
@@ -302,7 +308,9 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const activeStudent = students[currentIndex] ?? null;
+  const activePair = studentEnrollmentPairs[currentIndex] ?? null;
+  const activeStudent = activePair?.student ?? null;
+  const activeEnrollment = activePair?.enrollment ?? null;
   const activeTemplate = useMemo(
     () => templates.find((template) => template.id === selectedTemplateId) ?? null,
     [templates, selectedTemplateId]
@@ -313,21 +321,27 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
   );
 
   const initializeForm = useCallback(
-    (student: any, template: any) => {
-      if (!student || !template) {
+    (student: any, enrollment: any, template: any) => {
+      if (!student || !enrollment || !template) {
         setMetadataForm({});
         return;
       }
 
       const fields = parseTemplateFields(template.templateFields);
-      const enrollment = student?.enrollments?.[0] ?? null;
       const defaultBadgeTitle = enrollment?.course?.name ?? template.name ?? '';
       const defaultDegreeType = template.degreeType ?? '';
 
       setBadgeTitle(defaultBadgeTitle);
       setDegreeType(defaultDegreeType);
+      
+      // Create a modified student object with only the active enrollment
+      const studentWithActiveEnrollment = {
+        ...student,
+        enrollments: [enrollment],
+      };
+      
       setMetadataForm(
-        hydrateTemplateMetadata(student, fields, {
+        hydrateTemplateMetadata(studentWithActiveEnrollment, fields, {
           template,
           degreeType: defaultDegreeType,
           badgeTitle: defaultBadgeTitle,
@@ -352,15 +366,28 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
       const fetchedTemplates =
         (templatesRes.data?.certificateTemplates ?? []).filter((template: any) => template.isActive) ?? [];
 
-      setStudents(fetchedStudents);
+      // Create student-enrollment pairs for each enrollment without a certificate
+      const pairs: StudentEnrollmentPair[] = [];
+      for (const student of fetchedStudents) {
+        const enrollments = student.enrollments ?? [];
+        for (const enrollment of enrollments) {
+          // Check if this enrollment already has a certificate
+          const hasCertificate = (enrollment.certificates ?? []).length > 0;
+          if (!hasCertificate) {
+            pairs.push({ student, enrollment });
+          }
+        }
+      }
+
+      setStudentEnrollmentPairs(pairs);
       setTemplates(fetchedTemplates);
 
       if (fetchedTemplates.length > 0) {
         const defaultTemplateId = fetchedTemplates[0].id;
         setSelectedTemplateId(defaultTemplateId);
 
-        if (fetchedStudents.length > 0) {
-          initializeForm(fetchedStudents[0], fetchedTemplates[0]);
+        if (pairs.length > 0) {
+          initializeForm(pairs[0].student, pairs[0].enrollment, fetchedTemplates[0]);
         } else {
           setMetadataForm({});
         }
@@ -385,16 +412,16 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
   }, [loadData]);
 
   useEffect(() => {
-    if (activeStudent && activeTemplate) {
-      initializeForm(activeStudent, activeTemplate);
+    if (activeStudent && activeEnrollment && activeTemplate) {
+      initializeForm(activeStudent, activeEnrollment, activeTemplate);
     }
-  }, [activeStudent, activeTemplate, initializeForm]);
+  }, [activeStudent, activeEnrollment, activeTemplate, initializeForm]);
 
   const handleTemplateChange = (templateId: string) => {
     setSelectedTemplateId(templateId);
     const template = templates.find((item) => item.id === templateId);
-    if (template && activeStudent) {
-      initializeForm(activeStudent, template);
+    if (template && activeStudent && activeEnrollment) {
+      initializeForm(activeStudent, activeEnrollment, template);
     }
   };
 
@@ -406,8 +433,8 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
   };
 
   const handleRefreshMetadata = () => {
-    if (activeStudent && activeTemplate) {
-      initializeForm(activeStudent, activeTemplate);
+    if (activeStudent && activeEnrollment && activeTemplate) {
+      initializeForm(activeStudent, activeEnrollment, activeTemplate);
       toast.success({
         title: 'Fields refreshed',
         description: 'Certificate metadata has been auto-filled with the latest student data.',
@@ -416,12 +443,12 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
   };
 
   const handleSkipStudent = () => {
-    if (students.length === 0) {
+    if (studentEnrollmentPairs.length === 0) {
       return;
     }
 
     const nextIndex = currentIndex + 1;
-    if (nextIndex >= students.length) {
+    if (nextIndex >= studentEnrollmentPairs.length) {
       setStatusMessage('No additional students awaiting certificates.');
       setCurrentIndex(0);
       setMetadataForm({});
@@ -429,9 +456,9 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
     }
 
     setCurrentIndex(nextIndex);
-    const nextStudent = students[nextIndex];
-    if (nextStudent && activeTemplate) {
-      initializeForm(nextStudent, activeTemplate);
+    const nextPair = studentEnrollmentPairs[nextIndex];
+    if (nextPair && activeTemplate) {
+      initializeForm(nextPair.student, nextPair.enrollment, activeTemplate);
     }
   };
 
@@ -452,8 +479,7 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
       return;
     }
 
-    const enrollment = activeStudent.enrollments?.[0];
-    if (!enrollment) {
+    if (!activeEnrollment) {
       toast.error({
         title: 'Missing enrollment',
         description: 'The selected student does not have an enrollment record. Please update their academic data.',
@@ -483,14 +509,14 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
       );
 
       const achievementIds =
-        enrollment.achievements?.map((achievement: any) => achievement.id).filter(Boolean) ?? [];
+        activeEnrollment.achievements?.map((achievement: any) => achievement.id).filter(Boolean) ?? [];
 
-      const courseDescription = activeStudent?.enrollments?.[0]?.course?.description ?? '';
+      const courseDescription = activeEnrollment?.course?.description ?? '';
 
       const response = await graphqlClient.issueCertificate({
         studentId: activeStudent.id,
         templateId: activeTemplate.id,
-        enrollmentId: enrollment.id,
+        enrollmentId: activeEnrollment.id,
         badgeTitle: badgeTitle.trim() || activeTemplate.name,
         description: courseDescription?.trim() || undefined,
         degreeType: degreeType.trim() || activeTemplate.degreeType,
@@ -503,9 +529,9 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
       }
 
       const issuedCertificate = response.data?.issueCertificate;
-      const remainingCount = students.length - 1;
+      const remainingCount = studentEnrollmentPairs.length - 1;
 
-      setStudents((prev) => {
+      setStudentEnrollmentPairs((prev) => {
         const next = [...prev];
         next.splice(currentIndex, 1);
         return next;
@@ -532,7 +558,7 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
     }
   };
 
-  const courseDescription = activeStudent?.enrollments?.[0]?.course?.description ?? '';
+  const courseDescription = activeEnrollment?.course?.description ?? '';
 
   if (fetching) {
     return (
@@ -578,10 +604,10 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
         </Alert>
       )}
 
-      {!error && templates.length > 0 && students.length === 0 && (
+      {!error && templates.length > 0 && studentEnrollmentPairs.length === 0 && (
         <Alert>
           <ShieldCheck className="h-4 w-4" />
-          <AlertDescription>Every registered student already has a certificate draft. Nothing left to issue!</AlertDescription>
+          <AlertDescription>Every registered student enrollment already has a certificate draft. Nothing left to issue!</AlertDescription>
         </Alert>
       )}
 
@@ -591,7 +617,7 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
         </Alert>
       )}
 
-      {!error && templates.length > 0 && activeStudent && (
+      {!error && templates.length > 0 && activeStudent && activeEnrollment && (
         <div className="grid gap-8 lg:grid-cols-2">
           <div className="space-y-6">
             <Card className="border-0 shadow-lg bg-card/60 backdrop-blur">
@@ -630,11 +656,11 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
 
                 <div className="space-y-2">
                   <p className="text-xs uppercase text-muted-foreground">Enrollment Summary</p>
-                  {activeStudent.enrollments?.length ? (
+                  {activeEnrollment ? (
                     <div className="space-y-2 rounded-lg border border-muted p-3">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">{activeStudent.enrollments[0].course?.name ?? 'Course'}</span>
-                        <Badge variant="outline">Batch {activeStudent.enrollments[0].batchYear}</Badge>
+                        <span className="font-medium">{activeEnrollment.course?.name ?? 'Course'}</span>
+                        <Badge variant="outline">Batch {activeEnrollment.batchYear}</Badge>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {courseDescription || 'No course description provided.'}
@@ -642,15 +668,15 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <span className="text-muted-foreground block">Course Code</span>
-                          <span className="font-medium">{activeStudent.enrollments[0].course?.code ?? '—'}</span>
+                          <span className="font-medium">{activeEnrollment.course?.code ?? '—'}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground block">GPA</span>
-                          <span className="font-medium">{activeStudent.enrollments[0].gpa ?? '—'}</span>
+                          <span className="font-medium">{activeEnrollment.gpa ?? '—'}</span>
                         </div>
                         <div>
                           <span className="text-muted-foreground block">Grade</span>
-                          <span className="font-medium">{activeStudent.enrollments[0].grade ?? '—'}</span>
+                          <span className="font-medium">{activeEnrollment.grade ?? '—'}</span>
                         </div>
                       </div>
                     </div>
@@ -827,7 +853,7 @@ export default function VerifyAndDraftPage(): React.JSX.Element {
                     variant="outline"
                     onClick={handleSkipStudent}
                     className="flex items-center gap-2"
-                    disabled={loading || students.length === 0}
+                    disabled={loading || studentEnrollmentPairs.length === 0}
                   >
                     <SkipForward className="h-4 w-4" />
                     Skip Student

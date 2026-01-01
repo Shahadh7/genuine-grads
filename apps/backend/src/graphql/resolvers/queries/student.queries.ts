@@ -87,11 +87,18 @@ export const studentQueries = {
     const take = Math.min(limit ?? 10, 50);
     const skip = offset ?? 0;
 
+    // Find students with enrollments that don't have certificates
+    // A student can have multiple enrollments, each needing its own certificate
     return universityDb.student.findMany({
       where: {
         isActive: true,
-        certificates: {
-          none: {},
+        enrollments: {
+          some: {
+            // At least one enrollment without a certificate
+            certificates: {
+              none: {},
+            },
+          },
         },
       },
       orderBy: {
@@ -100,11 +107,26 @@ export const studentQueries = {
       take,
       skip,
       include: {
-        certificates: true,
+        certificates: {
+          include: {
+            enrollment: {
+              include: {
+                course: true,
+              },
+            },
+          },
+        },
         enrollments: {
           include: {
             course: true,
             achievements: true,
+            certificates: {
+              where: {
+                status: {
+                  in: ['PENDING', 'MINTED'],
+                },
+              },
+            },
           },
           orderBy: {
             createdAt: 'asc',
