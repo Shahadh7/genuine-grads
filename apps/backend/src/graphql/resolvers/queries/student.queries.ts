@@ -90,7 +90,7 @@ export const studentQueries = {
     // Find students with enrollments that don't have valid certificates
     // A student can have multiple enrollments, each needing its own certificate
     // We only consider PENDING or MINTED certificates as valid (FAILED certificates are ignored)
-    const students = await universityDb.student.findMany({
+    return universityDb.student.findMany({
       where: {
         isActive: true,
         enrollments: {
@@ -147,23 +147,6 @@ export const studentQueries = {
         },
       },
     });
-
-    console.log('=== DEBUG: studentsWithoutCertificates query ===');
-    console.log('Found students:', students.length);
-    students.forEach((student: any) => {
-      console.log(`\nStudent: ${student.fullName} (${student.id})`);
-      console.log(`  Total enrollments: ${student.enrollments?.length ?? 0}`);
-      student.enrollments?.forEach((enrollment: any) => {
-        console.log(`    - Enrollment: ${enrollment.course?.name} (${enrollment.id})`);
-        console.log(`      Certificates: ${enrollment.certificates?.length ?? 0}`);
-        enrollment.certificates?.forEach((cert: any) => {
-          console.log(`        * ${cert.certificateNumber} - ${cert.status}`);
-        });
-      });
-    });
-    console.log('=== END DEBUG ===\n');
-
-    return students;
   },
 
   /**
