@@ -531,9 +531,9 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
             </div>
             <Progress value={progressPercentage} className="h-2" />
             <div className="flex gap-4 text-sm">
-              <span className="text-green-600">✓ Success: {successCount}</span>
-              <span className="text-red-600">✗ Failed: {failedCount}</span>
-              <span className="text-gray-600">⏳ Remaining: {progress.length - currentIndex}</span>
+              <span className="text-green-600 dark:text-green-400">✓ Success: {successCount}</span>
+              <span className="text-red-600 dark:text-red-400">✗ Failed: {failedCount}</span>
+              <span className="text-muted-foreground">⏳ Remaining: {progress.length - currentIndex}</span>
             </div>
           </div>
 
@@ -545,10 +545,10 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
                   key={cert.certificateId}
                   className={`flex items-center justify-between p-3 rounded border ${
                     cert.status === 'success'
-                      ? 'bg-green-50 border-green-200'
+                      ? 'bg-green-950/20 border-green-800 dark:bg-green-950/30 dark:border-green-900'
                       : cert.status === 'failed'
-                      ? 'bg-red-50 border-red-200'
-                      : 'bg-gray-50'
+                      ? 'bg-red-950/20 border-red-800 dark:bg-red-950/30 dark:border-red-900'
+                      : 'bg-muted/50 border-muted'
                   }`}
                 >
                   <div className="flex items-center gap-3 flex-1">
@@ -559,10 +559,10 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
                         {cert.certificateNumber} • {cert.badgeTitle}
                       </p>
                       {cert.error && (
-                        <p className="text-xs text-red-600 mt-1">{cert.error}</p>
+                        <p className="text-xs text-red-500 dark:text-red-400 mt-1">{cert.error}</p>
                       )}
                       {cert.signature && (
-                        <p className="text-xs text-green-600 mt-1 truncate">
+                        <p className="text-xs text-green-600 dark:text-green-400 mt-1 truncate">
                           Tx: {cert.signature.slice(0, 8)}...{cert.signature.slice(-8)}
                         </p>
                       )}
