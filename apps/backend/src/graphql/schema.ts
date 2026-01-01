@@ -341,6 +341,7 @@ export const typeDefs = gql`
     grade: String
     batchYear: Int!
     achievements: [Achievement!]!
+    certificates: [Certificate!]!
   }
   
   type Achievement {
