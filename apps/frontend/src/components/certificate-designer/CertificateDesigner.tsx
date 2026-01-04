@@ -182,17 +182,17 @@ export function CertificateDesigner({
   }, [data, template]);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       {/* Designer Form */}
-      <Card>
+      <Card className="order-2 lg:order-1">
         <CardHeader>
-          <CardTitle>Certificate Designer</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Certificate Designer</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 sm:space-y-4">
           <div>
-            <Label htmlFor="template">Template</Label>
+            <Label htmlFor="template" className="text-sm sm:text-base">Template</Label>
             <Select value={template} onValueChange={setTemplate}>
-              <SelectTrigger id="template">
+              <SelectTrigger id="template" className="h-12 sm:h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -203,7 +203,7 @@ export function CertificateDesigner({
           </div>
 
           <div>
-            <Label htmlFor="studentName">Student Name</Label>
+            <Label htmlFor="studentName" className="text-sm sm:text-base">Student Name</Label>
             <Input
               id="studentName"
               value={data.studentName}
@@ -213,7 +213,7 @@ export function CertificateDesigner({
           </div>
 
           <div>
-            <Label htmlFor="certificateTitle">Certificate Title</Label>
+            <Label htmlFor="certificateTitle" className="text-sm sm:text-base">Certificate Title</Label>
             <Input
               id="certificateTitle"
               value={data.certificateTitle}
@@ -223,7 +223,7 @@ export function CertificateDesigner({
           </div>
 
           <div>
-            <Label htmlFor="universityName">University Name</Label>
+            <Label htmlFor="universityName" className="text-sm sm:text-base">University Name</Label>
             <Input
               id="universityName"
               value={data.universityName}
@@ -233,12 +233,12 @@ export function CertificateDesigner({
           </div>
 
           <div>
-            <Label htmlFor="degreeType">Degree Type</Label>
+            <Label htmlFor="degreeType" className="text-sm sm:text-base">Degree Type</Label>
             <Select
               value={data.degreeType}
               onValueChange={(value) => updateData('degreeType', value)}
             >
-              <SelectTrigger id="degreeType">
+              <SelectTrigger id="degreeType" className="h-12 sm:h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -252,7 +252,7 @@ export function CertificateDesigner({
           </div>
 
           <div>
-            <Label htmlFor="issueDate">Issue Date</Label>
+            <Label htmlFor="issueDate" className="text-sm sm:text-base">Issue Date</Label>
             <Input
               id="issueDate"
               type="date"
@@ -262,33 +262,34 @@ export function CertificateDesigner({
           </div>
 
           <div>
-            <Label htmlFor="description">Description (Optional)</Label>
+            <Label htmlFor="description" className="text-sm sm:text-base">Description (Optional)</Label>
             <Textarea
               id="description"
               value={data.description}
               onChange={(e) => updateData('description', e.target.value)}
               placeholder="Additional details..."
               rows={3}
+              className="resize-none"
             />
           </div>
 
-          <Button onClick={handleExport} className="w-full">
+          <Button onClick={handleExport} className="w-full min-h-touch">
             Export Certificate
           </Button>
         </CardContent>
       </Card>
 
       {/* Preview */}
-      <Card>
+      <Card className="order-1 lg:order-2">
         <CardHeader>
-          <CardTitle>Preview</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Preview</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="border rounded-lg overflow-hidden">
+          <div className="scroll-container border rounded-lg overflow-auto">
             <canvas
               ref={canvasRef}
               className="w-full h-auto"
-              style={{ maxHeight: '600px', objectFit: 'contain' }}
+              style={{ maxHeight: '600px', objectFit: 'contain', minWidth: '300px' }}
             />
           </div>
         </CardContent>

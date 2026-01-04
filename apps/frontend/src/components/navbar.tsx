@@ -146,12 +146,12 @@ const Navbar = () => {
 
       {mobileMenuOpen && (
         <div className="lg:hidden">
-          <div className="space-y-1 px-4 pb-3 pt-2 bg-background/95 backdrop-blur border-t border-border/50">
+          <div className="space-y-1.5 px-4 pb-4 pt-2 bg-background/95 backdrop-blur border-t border-border/50">
             {session ? (
               <>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start"
+                  className="w-full justify-start min-h-touch tap-target px-4 text-base"
                   onClick={() => {
                     router.push(goToRoleHome());
                     setMobileMenuOpen(false);
@@ -161,7 +161,7 @@ const Navbar = () => {
                 </Button>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start text-destructive"
+                  className="w-full justify-start text-destructive min-h-touch tap-target px-4 text-base"
                   onClick={handleLogout}
                 >
                   Logout
@@ -171,7 +171,7 @@ const Navbar = () => {
               <>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start"
+                  className="w-full justify-start min-h-touch tap-target px-4 text-base"
                   onClick={() => {
                     router.push('/verify');
                     setMobileMenuOpen(false);
@@ -181,7 +181,7 @@ const Navbar = () => {
                 </Button>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start"
+                  className="w-full justify-start min-h-touch tap-target px-4 text-base"
                   onClick={() => {
                     router.push('/student-login');
                     setMobileMenuOpen(false);
@@ -191,7 +191,7 @@ const Navbar = () => {
                 </Button>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start"
+                  className="w-full justify-start min-h-touch tap-target px-4 text-base"
                   onClick={() => {
                     router.push('/login');
                     setMobileMenuOpen(false);
@@ -201,7 +201,7 @@ const Navbar = () => {
                 </Button>
                 <Button
                   variant="ghost"
-                  className="w-full justify-start"
+                  className="w-full justify-start min-h-touch tap-target px-4 text-base"
                   onClick={() => {
                     router.push('/admin/universities/register');
                     setMobileMenuOpen(false);
@@ -212,8 +212,8 @@ const Navbar = () => {
               </>
             )}
             <div className="pt-4 border-t border-border/50">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-foreground/60">Theme</span>
+              <div className="flex items-center justify-between px-2">
+                <span className="text-sm text-foreground/60 font-medium">Theme</span>
                 <ThemeToggle />
               </div>
             </div>

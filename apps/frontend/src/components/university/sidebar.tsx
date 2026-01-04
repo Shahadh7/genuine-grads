@@ -54,10 +54,10 @@ export default function Sidebar({session}): React.JSX.Element {
 
       {/* Mobile sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-50 w-80 bg-card border-r transform transition-transform duration-200 ease-in-out lg:hidden",
+        "fixed inset-y-0 left-0 z-50 w-full sm:w-80 bg-card border-r transform transition-transform duration-200 ease-in-out lg:hidden",
         sidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex items-center justify-between p-4 border-b">
+        <div className="flex items-center justify-between p-4 border-b min-h-touch">
           <div className="flex items-center space-x-2">
             <Building className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg">GenuineGrads</span>
@@ -66,9 +66,9 @@ export default function Sidebar({session}): React.JSX.Element {
             variant="ghost"
             size="sm"
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden"
+            className="lg:hidden min-h-touch tap-target"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </Button>
         </div>
         
@@ -81,13 +81,13 @@ export default function Sidebar({session}): React.JSX.Element {
                 href={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={cn(
-                  "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full",
+                  "flex items-center space-x-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors w-full min-h-touch",
                   isActive
                     ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
               >
-                <item.icon className="h-4 w-4 flex-shrink-0" />
+                <item.icon className="h-5 w-5 flex-shrink-0" />
                 <span className="flex-1">{item.name}</span>
               </Link>
             );
@@ -178,16 +178,16 @@ export default function Sidebar({session}): React.JSX.Element {
 
       {/* Mobile menu button */}
       <div className={cn(
-        "lg:hidden fixed top-4 left-4 z-50 transition-opacity duration-200",
+        "lg:hidden fixed top-20 left-4 z-50 transition-opacity duration-200",
         sidebarOpen ? "opacity-0 pointer-events-none" : "opacity-100"
       )}>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setSidebarOpen(true)}
-          className="bg-card/80 backdrop-blur"
+          className="bg-card/80 backdrop-blur min-h-touch tap-target shadow-lg"
         >
-          <Menu className="h-4 w-4" />
+          <Menu className="h-5 w-5" />
         </Button>
       </div>
     </>

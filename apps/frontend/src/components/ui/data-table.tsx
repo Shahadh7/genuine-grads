@@ -104,14 +104,14 @@ export function DataTable({
     <div className={className}>
       {/* Table Controls - Top Right */}
       {showPagination && totalPages > 1 && showItemsPerPage && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-3 mb-4">
-          <div className="flex items-center justify-between sm:justify-end space-x-2">
-            <p className="text-sm font-medium">Rows per page</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3 mb-3 sm:mb-4">
+          <div className="flex items-center justify-between sm:justify-end gap-2">
+            <p className="text-xs sm:text-sm font-medium">Rows per page</p>
             <Select
               value={pageSize.toString()}
               onValueChange={handlePageSizeChange}
             >
-              <SelectTrigger className="h-8 w-[70px]">
+              <SelectTrigger className="h-9 w-[70px] text-xs sm:text-sm">
                 <SelectValue placeholder={pageSize} />
               </SelectTrigger>
               <SelectContent side="bottom">
@@ -124,13 +124,13 @@ export function DataTable({
             </Select>
           </div>
           
-          <div className="flex items-center justify-between sm:justify-end space-x-2">
-            <p className="text-sm font-medium">Go to page</p>
+          <div className="flex items-center justify-between sm:justify-end gap-2">
+            <p className="text-xs sm:text-sm font-medium">Go to page</p>
             <Select
               value={currentPage.toString()}
               onValueChange={(value) => handlePageChange(parseInt(value))}
             >
-              <SelectTrigger className="h-8 w-[70px]">
+              <SelectTrigger className="h-9 w-[70px] text-xs sm:text-sm">
                 <SelectValue placeholder={currentPage} />
               </SelectTrigger>
               <SelectContent side="bottom">
@@ -145,8 +145,8 @@ export function DataTable({
         </div>
       )}
 
-      {/* Table */}
-      <div className="overflow-x-auto">
+      {/* Table - with horizontal scroll */}
+      <div className="scroll-container rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -171,7 +171,7 @@ export function DataTable({
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="text-center py-8">
-                  <div className="text-muted-foreground">{emptyMessage}</div>
+                  <div className="text-muted-foreground text-sm">{emptyMessage}</div>
                 </TableCell>
               </TableRow>
             )}
@@ -181,38 +181,38 @@ export function DataTable({
 
       {/* Pagination - Bottom */}
       {showPagination && totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between py-3 sm:py-4">
           {/* Summary */}
-          <div className="text-sm text-muted-foreground text-center sm:text-left">
+          <div className="text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
             Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
           </div>
 
           {/* Page Navigation */}
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            <div className="flex w-full sm:w-[100px] items-center justify-center text-sm font-medium">
+          <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
+            <div className="text-xs sm:text-sm font-medium">
               Page {currentPage} of {totalPages}
             </div>
             
             <Pagination>
-              <PaginationContent>
+              <PaginationContent className="gap-1">
                 <PaginationItem>
                   <PaginationPrevious
                     onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    className={`h-9 px-3 text-xs sm:text-sm ${currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
                   />
                 </PaginationItem>
 
                 {/* Hide page numbers on very small screens, show on sm and up */}
-                <div className="hidden sm:flex">
+                <div className="hidden sm:flex gap-1">
                   {getPageNumbers().map((page: any, index: any) => (
                     <PaginationItem key={index}>
                       {page === 'ellipsis' ? (
-                        <PaginationEllipsis />
+                        <PaginationEllipsis className="h-9 w-9" />
                       ) : (
                         <PaginationLink
                           onClick={() => handlePageChange(page)}
                           isActive={currentPage === page}
-                          className="cursor-pointer"
+                          className="cursor-pointer h-9 w-9 text-xs sm:text-sm"
                         >
                           {page}
                         </PaginationLink>
@@ -224,7 +224,7 @@ export function DataTable({
                 <PaginationItem>
                   <PaginationNext
                     onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    className={`h-9 px-3 text-xs sm:text-sm ${currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}`}
                   />
                 </PaginationItem>
               </PaginationContent>
@@ -235,7 +235,7 @@ export function DataTable({
 
       {/* Summary for single page */}
       {totalItems > 0 && (!showPagination || totalPages <= 1) && (
-        <div className="flex items-center justify-center sm:justify-between text-sm text-muted-foreground py-4">
+        <div className="flex items-center justify-center sm:justify-between text-xs sm:text-sm text-muted-foreground py-3 sm:py-4">
           <div>
             Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems} results
           </div>

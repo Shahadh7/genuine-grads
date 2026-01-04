@@ -57,7 +57,7 @@ const CTASection = () => {
               </div>
 
               {/* Headline */}
-              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black mb-4 sm:mb-6 leading-tight">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl font-black mb-3 sm:mb-4 md:mb-6 leading-tight">
                 <span className="block">Ready to</span>
                 <span className="block bg-gradient-to-r from-primary via-primary/90 to-primary/70 bg-clip-text text-transparent bg-300 animate-gradient-shift">
                   Transform
@@ -66,14 +66,14 @@ const CTASection = () => {
               </h2>
 
               {/* Description */}
-              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground mb-6 sm:mb-8 lg:mb-10 leading-relaxed max-w-xl">
+              <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl text-muted-foreground mb-4 sm:mb-6 md:mb-8 lg:mb-10 leading-relaxed max-w-xl">
                 Join <span className="text-primary font-bold">100+ universities</span> issuing blockchain-verified credentials. Setup takes <span className="text-primary font-bold">less than 10 minutes</span>.
               </p>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6 sm:mb-8 lg:mb-10">
+              <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 mb-6 sm:mb-8 lg:mb-10">
                 <Link href="/admin/universities/register" className="w-full sm:w-auto">
-                  <Button size="lg" className="relative group bg-primary hover:bg-primary/90 text-primary-foreground px-6 sm:px-10 lg:px-12 py-5 sm:py-6 lg:py-8 text-base sm:text-lg lg:text-xl font-black shadow-2xl shadow-primary/40 overflow-hidden w-full sm:w-auto">
+                  <Button size="lg" className="relative group bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 sm:px-10 sm:py-6 lg:px-12 lg:py-8 text-base sm:text-lg lg:text-xl font-black shadow-2xl shadow-primary/40 overflow-hidden w-full sm:w-auto min-h-touch">
                     <span className="relative z-10 flex items-center justify-center">
                       Get Started Free
                       <ArrowRight className="ml-2 sm:ml-3 h-5 w-5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 group-hover:translate-x-2 transition-transform" />
@@ -83,25 +83,25 @@ const CTASection = () => {
                 </Link>
 
                 <Link href="/verify" className="w-full sm:w-auto">
-                  <Button variant="outline" size="lg" className="border-2 border-border/50 hover:border-primary/50 hover:bg-primary/5 px-6 sm:px-10 lg:px-12 py-5 sm:py-6 lg:py-8 text-base sm:text-lg lg:text-xl font-bold transition-all w-full sm:w-auto">
+                  <Button variant="outline" size="lg" className="border-2 border-border/50 hover:border-primary/50 hover:bg-primary/5 px-8 py-6 sm:px-10 sm:py-6 lg:px-12 lg:py-8 text-base sm:text-lg lg:text-xl font-bold transition-all w-full sm:w-auto min-h-touch">
                     View Demo
                   </Button>
                 </Link>
               </div>
 
               {/* Trust indicators */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 lg:gap-8 pt-6 sm:pt-8 border-t border-border/30">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6 lg:gap-8 pt-4 sm:pt-6 md:pt-8 border-t border-border/30">
                 <div className="flex items-center gap-2">
                   <div className="flex -space-x-2">
                     {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border-2 border-card flex items-center justify-center">
-                        <Star className="h-3 w-3 sm:h-4 sm:w-4 text-primary fill-primary" />
+                      <div key={i} className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 border-2 border-card flex items-center justify-center">
+                        <Star className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-4 md:w-4 text-primary fill-primary" />
                       </div>
                     ))}
                   </div>
                   <div className="text-xs sm:text-sm">
                     <div className="font-bold">100+ Universities</div>
-                    <div className="text-muted-foreground text-xs">Already on board</div>
+                    <div className="text-muted-foreground text-[10px] sm:text-xs">Already on board</div>
                   </div>
                 </div>
 
@@ -109,18 +109,18 @@ const CTASection = () => {
 
                 <div className="text-xs sm:text-sm">
                   <div className="font-bold text-primary">50,000+</div>
-                  <div className="text-muted-foreground text-xs">Certificates issued</div>
+                  <div className="text-muted-foreground text-[10px] sm:text-xs">Certificates issued</div>
                 </div>
               </div>
 
             </div>
 
             {/* RIGHT SIDE - Feature highlights with bento */}
-            <div className="bg-gradient-to-br from-muted/30 to-muted/10 backdrop-blur-sm p-6 sm:p-10 lg:p-16 flex flex-col justify-center">
+            <div className="bg-gradient-to-br from-muted/30 to-muted/10 backdrop-blur-sm p-4 sm:p-6 md:p-8 lg:p-16 flex flex-col justify-center">
 
               <div className="space-y-3 sm:space-y-4">
 
-                <h3 className="text-xl sm:text-2xl font-black mb-4 sm:mb-6 lg:mb-8">What You Get:</h3>
+                <h3 className="text-lg sm:text-xl md:text-2xl font-black mb-3 sm:mb-4 md:mb-6 lg:mb-8">What You Get:</h3>
 
                 {/* Feature list with enhanced styling */}
                 {[
@@ -133,34 +133,34 @@ const CTASection = () => {
                   return (
                     <div
                       key={index}
-                      className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-card/60 border border-border/40 hover:bg-card hover:border-primary/20 transition-all duration-300 group"
+                      className="flex items-start gap-2 sm:gap-3 md:gap-4 p-2.5 sm:p-3 md:p-4 rounded-lg sm:rounded-xl md:rounded-2xl bg-card/60 border border-border/40 hover:bg-card hover:border-primary/20 transition-all duration-300 group"
                       style={{animationDelay: `${index * 0.1}s`}}
                     >
-                      <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
-                        <IconComponent className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-primary" />
+                      <div className="p-1.5 sm:p-2 md:p-3 rounded-md sm:rounded-lg md:rounded-xl bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 flex-shrink-0">
+                        <IconComponent className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 lg:h-6 lg:w-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-bold text-sm sm:text-base lg:text-lg mb-0.5 sm:mb-1">{feature.title}</div>
-                        <div className="text-xs sm:text-sm text-muted-foreground">{feature.desc}</div>
+                        <div className="font-bold text-xs sm:text-sm md:text-base lg:text-lg mb-0.5 sm:mb-1">{feature.title}</div>
+                        <div className="text-[10px] sm:text-xs md:text-sm text-muted-foreground">{feature.desc}</div>
                       </div>
-                      <Check className="h-4 w-4 sm:h-5 sm:w-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                      <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 md:h-5 md:w-5 text-primary opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                     </div>
                   )
                 })}
 
                 {/* Bottom stats */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-6 sm:pt-8 mt-4 sm:mt-8 border-t border-border/30">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 pt-4 sm:pt-6 md:pt-8 mt-3 sm:mt-4 md:mt-8 border-t border-border/30">
                   <div className="text-center">
-                    <div className="text-xl sm:text-2xl lg:text-3xl font-black text-primary mb-0.5 sm:mb-1">99.9%</div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground font-medium">Uptime</div>
+                    <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black text-primary mb-0.5 sm:mb-1">99.9%</div>
+                    <div className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground font-medium">Uptime</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xl sm:text-2xl lg:text-3xl font-black text-primary mb-0.5 sm:mb-1">&lt;1s</div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground font-medium">Verify Speed</div>
+                    <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black text-primary mb-0.5 sm:mb-1">&lt;1s</div>
+                    <div className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground font-medium">Verify Speed</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xl sm:text-2xl lg:text-3xl font-black text-primary mb-0.5 sm:mb-1">24/7</div>
-                    <div className="text-[10px] sm:text-xs text-muted-foreground font-medium">Support</div>
+                    <div className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black text-primary mb-0.5 sm:mb-1">24/7</div>
+                    <div className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground font-medium">Support</div>
                   </div>
                 </div>
 

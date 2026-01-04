@@ -10,12 +10,27 @@ module.exports = {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: {
+        DEFAULT: '1rem',
+        sm: '1.5rem',
+        lg: '2rem',
+        xl: '2rem',
+        '2xl': '2rem',
+      },
       screens: {
         "2xl": "1400px",
       },
     },
     extend: {
+      spacing: {
+        'touch': '44px',
+      },
+      minHeight: {
+        'touch': '44px',
+      },
+      minWidth: {
+        'touch': '44px',
+      },
       colors: {
         border: "var(--border)",
         input: "var(--input)",
