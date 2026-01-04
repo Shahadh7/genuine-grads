@@ -1,27 +1,22 @@
 "use client"
 import React from "react"
 
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { QRScanner } from '@/components/qr-scanner'
-import { Search, QrCode, FileText, Shield } from 'lucide-react'
-
-interface Props {
-  // Add props here
-}
+import { Search, ScanLine, ArrowRight } from 'lucide-react'
 
 export default function VerifyPage(): React.JSX.Element {
-  const [certificateId, setCertificateId] = useState<any>('')
-  const [isLoading, setIsLoading] = useState<any>(false)
-  const [error, setError] = useState<any>('')
+  const [certificateId, setCertificateId] = useState<string>('')
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [error, setError] = useState<string>('')
+  const [activeTab, setActiveTab] = useState<'manual' | 'scan'>('manual')
   const router = useRouter()
 
-  const handleVerify = async (e) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!certificateId.trim()) {
@@ -32,153 +27,137 @@ export default function VerifyPage(): React.JSX.Element {
     setIsLoading(true)
     setError('')
     
-    // Navigate to certificate verification page
     router.push(`/verify/${certificateId.trim()}`)
   }
 
-  const handleQRScan = (scannedCertificateId) => {
+  const handleQRScan = (scannedCertificateId: string) => {
     router.push(`/verify/${scannedCertificateId}`)
   }
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleVerify(e)
+      handleVerify(e as unknown as React.FormEvent)
     }
   }
 
   return (
-    <div className="min-h-screen bg-background py-20">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Subtle decorative background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-accent/30 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24">
+        <div className="mx-auto max-w-2xl">
           {/* Header */}
-          <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4 border-primary/30 text-primary bg-primary/10">
-              Certificate Verification
-            </Badge>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl mb-4">
-              Verify a Certificate
+          <div className="text-center mb-10 sm:mb-14">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-foreground mb-4">
+              Verify Certificate
             </h1>
-            <div className="w-24 h-1 bg-gradient-to-r from-primary to-primary/50 mx-auto mb-6"></div>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Verify the authenticity of academic credentials using certificate ID or QR code scanning
+            <p className="text-base sm:text-lg text-muted-foreground max-w-lg mx-auto leading-relaxed">
+              Enter the certificate ID or scan the QR code to verify authenticity on the blockchain.
             </p>
           </div>
 
-          {/* Main Content */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Certificate ID Input */}
-            <Card className="w-full">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  Enter Certificate ID
-                </CardTitle>
-                <CardDescription>
-                  Manually enter the certificate ID to verify
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <form onSubmit={handleVerify} className="space-y-4">
-                  <div className="space-y-2">
-                    <label htmlFor="certificateId" className="text-sm font-medium text-foreground">
-                      Certificate ID
-                    </label>
-                    <Input
-                      id="certificateId"
-                      type="text"
-                      placeholder="e.g., abc123"
-                      value={certificateId}
-                      onChange={(e: any) => setCertificateId(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      className="w-full"
-                      aria-label="Certificate ID input"
-                      tabIndex={0}
-                    />
-                  </div>
-                  
-                  {error && (
-                    <div className="text-sm text-destructive">
-                      {error}
+          {/* Main verification card */}
+          <Card className="border-0 shadow-xl bg-card/80 backdrop-blur-sm">
+            <CardContent className="p-6 sm:p-8 lg:p-10">
+              {/* Tab switcher */}
+              <div className="flex p-1 bg-muted/60 rounded-xl mb-8">
+                <button
+                  onClick={() => setActiveTab('manual')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeTab === 'manual'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <Search className="h-4 w-4" />
+                  <span>Enter ID</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('scan')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    activeTab === 'scan'
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <ScanLine className="h-4 w-4" />
+                  <span>Scan QR</span>
+                </button>
+              </div>
+
+              {/* Manual input section */}
+              {activeTab === 'manual' && (
+                <div className="space-y-6">
+                  <form onSubmit={handleVerify} className="space-y-5">
+                    <div className="space-y-2">
+                      <label 
+                        htmlFor="certificateId" 
+                        className="text-sm font-medium text-foreground"
+                      >
+                        Certificate ID
+                      </label>
+                      <Input
+                        id="certificateId"
+                        type="text"
+                        placeholder="e.g., abc123 or mint address"
+                        value={certificateId}
+                        onChange={(e) => {
+                          setCertificateId(e.target.value)
+                          if (error) setError('')
+                        }}
+                        onKeyDown={handleKeyDown}
+                        className="h-12 sm:h-14 text-base px-4 bg-background border-border/60 focus:border-primary/50"
+                        aria-label="Certificate ID input"
+                      />
+                      {error && (
+                        <p className="text-sm text-destructive mt-1">{error}</p>
+                      )}
                     </div>
-                  )}
-                  
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    disabled={isLoading}
-                    aria-label="Verify certificate"
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Verifying...
-                      </>
-                    ) : (
-                      <>
-                        <Search className="h-4 w-4 mr-2" />
-                        Verify Certificate
-                      </>
-                    )}
-                  </Button>
-                </form>
+                    
+                    <Button 
+                      type="submit" 
+                      className="w-full h-12 sm:h-14 text-base font-medium group" 
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                          Verifying...
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          Verify Certificate
+                          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                        </div>
+                      )}
+                    </Button>
+                  </form>
 
-                <div className="text-xs text-muted-foreground">
-                  <p>• Enter the certificate ID exactly as provided</p>
-                  <p>• Certificate IDs are case-sensitive</p>
-                  <p>• Example: abc123, def456, ghi789</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* QR Scanner */}
-            <div className="flex justify-center">
-              <QRScanner onScan={handleQRScan} />
-            </div>
-          </div>
-
-          {/* Features */}
-          <div className="mt-16">
-            <h2 className="text-2xl font-bold text-center mb-8">Why Verify with GenuineGrads?</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="text-center p-6">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-                    <Shield className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="font-semibold">Tamper-Proof</h3>
-                  <p className="text-sm text-muted-foreground">
-                    All certificates are stored as immutable NFTs on Solana blockchain
+                  <p className="text-xs text-muted-foreground text-center">
+                    Certificate IDs are case-sensitive. Enter exactly as shown on the certificate.
                   </p>
                 </div>
-              </Card>
-              
-              <Card className="text-center p-6">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-                    <QrCode className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="font-semibold">Instant Verification</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Verify certificates instantly with QR codes or certificate IDs
-                  </p>
+              )}
+
+              {/* QR Scanner section */}
+              {activeTab === 'scan' && (
+                <div className="space-y-4">
+                  <QRScanner onScan={handleQRScan} />
                 </div>
-              </Card>
-              
-              <Card className="text-center p-6">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 border border-primary/20">
-                    <FileText className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="font-semibold">Complete Details</h3>
-                  <p className="text-sm text-muted-foreground">
-                    View full certificate details including achievements and metadata
-                  </p>
-                </div>
-              </Card>
-            </div>
-          </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Trust indicator */}
+          <p className="text-center text-xs text-muted-foreground mt-8">
+            Secured by Solana blockchain technology
+          </p>
         </div>
       </div>
     </div>
   )
-} 
+}
