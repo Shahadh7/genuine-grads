@@ -99,28 +99,38 @@ export default function SuperAdminDashboard() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Super Admin Dashboard</h1>
-          <p className="text-muted-foreground">Manage university registrations and approvals</p>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Super Admin Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage university registrations and approvals</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <ThemeToggle />
           <NotificationBell viewAllHref="/admin/notifications" />
           <Button
             variant="outline"
+            size="sm"
             onClick={() => router.push('/admin/settings')}
+            className="hidden sm:flex"
           >
             <Settings className="h-4 w-4 mr-2" />
             Settings
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => router.push('/admin/settings')}
+            className="sm:hidden"
+          >
+            <Settings className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -189,12 +199,13 @@ export default function SuperAdminDashboard() {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="pending" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
-              <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected ({stats.rejected})</TabsTrigger>
-              <TabsTrigger value="suspended">Suspended ({stats.suspended})</TabsTrigger>
-              <TabsTrigger value="all">All ({stats.total})</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 h-auto">
+              <TabsTrigger value="pending" className="text-xs sm:text-sm py-2">Pending ({stats.pending})</TabsTrigger>
+              <TabsTrigger value="approved" className="text-xs sm:text-sm py-2">Approved ({stats.approved})</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs sm:text-sm py-2 sm:hidden">All ({stats.total})</TabsTrigger>
+              <TabsTrigger value="rejected" className="text-xs sm:text-sm py-2 hidden sm:flex">Rejected ({stats.rejected})</TabsTrigger>
+              <TabsTrigger value="suspended" className="text-xs sm:text-sm py-2 hidden sm:flex">Suspended ({stats.suspended})</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs sm:text-sm py-2 hidden sm:flex">All ({stats.total})</TabsTrigger>
             </TabsList>
 
             {/* Pending Tab */}
@@ -272,23 +283,23 @@ function UniversityList({
     <div className="space-y-3">
       {universities.map((university) => (
         <Card key={university.id} className="hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-lg font-semibold">{university.name}</h3>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                  <h3 className="text-sm sm:text-base lg:text-lg font-semibold truncate">{university.name}</h3>
                   {getStatusBadge(university.status)}
                 </div>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm text-muted-foreground">
-                  <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 sm:gap-x-8 gap-y-1 text-xs sm:text-sm text-muted-foreground">
+                  <div className="truncate">
                     <span className="font-medium">Domain:</span> {university.domain}
                   </div>
                   <div>
                     <span className="font-medium">Country:</span> {university.country}
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-1 sm:col-span-2 truncate">
                     <span className="font-medium">Wallet:</span>{' '}
-                    <code className="text-xs">{university.walletAddress}</code>
+                    <code className="text-[10px] sm:text-xs">{university.walletAddress?.slice(0, 20)}...</code>
                   </div>
                   <div>
                     <span className="font-medium">Registered:</span>{' '}
@@ -304,14 +315,15 @@ function UniversityList({
               </div>
 
               {showActions && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => router.push(`/admin/universities/${university.id}`)}
+                    className="text-xs sm:text-sm"
                   >
-                    <Eye className="h-4 w-4 mr-1" />
-                    View
+                    <Eye className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">View</span>
                   </Button>
 
                   {university.status === 'PENDING_APPROVAL' && (
@@ -319,9 +331,10 @@ function UniversityList({
                       variant="default"
                       size="sm"
                       onClick={() => router.push(`/admin/universities/${university.id}/approve`)}
+                      className="text-xs sm:text-sm"
                     >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Review
+                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Review</span>
                     </Button>
                   )}
 
@@ -330,9 +343,10 @@ function UniversityList({
                       variant="destructive"
                       size="sm"
                       onClick={() => router.push(`/admin/universities/${university.id}/suspend`)}
+                      className="text-xs sm:text-sm"
                     >
-                      <Ban className="h-4 w-4 mr-1" />
-                      Suspend
+                      <Ban className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Suspend</span>
                     </Button>
                   )}
                 </div>

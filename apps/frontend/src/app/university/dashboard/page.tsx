@@ -115,21 +115,22 @@ export default function UniversityDashboard(): React.JSX.Element {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="mb-8">
-        <div className="flex items-start justify-between">
+      <div className="mb-6 sm:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-0">
           <div>
-            <h1 className="text-3xl font-bold mb-2">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2">
               Welcome, {session?.fullName || session?.email}!
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm sm:text-base text-muted-foreground">
               {university.name} - Dashboard
             </p>
           </div>
           {university.status && (
-            <Badge 
-              variant={university.status === 'APPROVED' ? 'default' : 
-                       university.status === 'PENDING_APPROVAL' ? 'secondary' : 
+            <Badge
+              variant={university.status === 'APPROVED' ? 'default' :
+                       university.status === 'PENDING_APPROVAL' ? 'secondary' :
                        'destructive'}
+              className="w-fit"
             >
               {university.status.replace('_', ' ')}
             </Badge>
@@ -138,7 +139,7 @@ export default function UniversityDashboard(): React.JSX.Element {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:gap-6 grid-cols-2 lg:grid-cols-4">
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/50 dark:to-blue-900/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Students</CardTitle>
@@ -203,44 +204,44 @@ export default function UniversityDashboard(): React.JSX.Element {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Link href="/university/certificates/verify-and-draft">
           <Button
             variant="outline"
-            className="h-20 w-full flex flex-col items-center justify-center space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+            className="h-16 sm:h-20 w-full flex flex-col items-center justify-center space-y-1 sm:space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors"
           >
-            <Plus className="h-6 w-6" />
-            <span>Verify & Draft</span>
+            <Plus className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-xs sm:text-sm">Verify & Draft</span>
           </Button>
         </Link>
-        
+
         <Link href="/university/students">
-          <Button 
-            variant="outline" 
-            className="h-20 w-full flex flex-col items-center justify-center space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+          <Button
+            variant="outline"
+            className="h-16 sm:h-20 w-full flex flex-col items-center justify-center space-y-1 sm:space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors"
           >
-            <Users className="h-6 w-6" />
-            <span>Manage Students</span>
+            <Users className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-xs sm:text-sm">Manage Students</span>
           </Button>
         </Link>
-        
+
         <Link href="/university/certificates">
-          <Button 
-            variant="outline" 
-            className="h-20 w-full flex flex-col items-center justify-center space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+          <Button
+            variant="outline"
+            className="h-16 sm:h-20 w-full flex flex-col items-center justify-center space-y-1 sm:space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors"
           >
-            <FileText className="h-6 w-6" />
-            <span>View Certificates</span>
+            <FileText className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-xs sm:text-sm">View Certificates</span>
           </Button>
         </Link>
-        
+
         <Link href="/university/analytics">
-          <Button 
-            variant="outline" 
-            className="h-20 w-full flex flex-col items-center justify-center space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors"
+          <Button
+            variant="outline"
+            className="h-16 sm:h-20 w-full flex flex-col items-center justify-center space-y-1 sm:space-y-2 hover:bg-primary hover:text-primary-foreground transition-colors"
           >
-            <TrendingUp className="h-6 w-6" />
-            <span>Analytics</span>
+            <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6" />
+            <span className="text-xs sm:text-sm">Analytics</span>
           </Button>
         </Link>
       </div>
@@ -274,10 +275,10 @@ export default function UniversityDashboard(): React.JSX.Element {
               {recentActivities.slice(0, 5).map((activity) => (
                 <div
                   key={activity.id}
-                  className="flex items-center justify-between py-3 border-b last:border-0"
+                  className="flex items-center justify-between py-3 border-b last:border-0 gap-2"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-full ${
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className={`p-1.5 sm:p-2 rounded-full flex-shrink-0 ${
                       activity.status === 'SUCCESS'
                         ? 'bg-green-100 dark:bg-green-900/30'
                         : activity.status === 'PENDING'
@@ -285,19 +286,19 @@ export default function UniversityDashboard(): React.JSX.Element {
                         : 'bg-red-100 dark:bg-red-900/30'
                     }`}>
                       {activity.status === 'SUCCESS' ? (
-                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 text-green-600 dark:text-green-400" />
                       ) : activity.status === 'PENDING' ? (
-                        <Clock className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                        <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600 dark:text-orange-400" />
                       ) : (
-                        <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                        <AlertTriangle className="h-3 w-3 sm:h-4 sm:w-4 text-red-600 dark:text-red-400" />
                       )}
                     </div>
-                    <div>
-                      <p className="font-medium text-sm">{activity.studentName}</p>
-                      <p className="text-xs text-muted-foreground">{activity.badgeTitle}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium text-xs sm:text-sm truncate">{activity.studentName}</p>
+                      <p className="text-xs text-muted-foreground truncate">{activity.badgeTitle}</p>
                     </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <Badge
                       variant={
                         activity.status === 'SUCCESS'
@@ -306,11 +307,11 @@ export default function UniversityDashboard(): React.JSX.Element {
                           ? 'secondary'
                           : 'destructive'
                       }
-                      className="text-xs"
+                      className="text-[10px] sm:text-xs"
                     >
                       {activity.status === 'SUCCESS' ? 'Minted' : activity.status}
                     </Badge>
-                    <p className="text-xs text-muted-foreground mt-1">
+                    <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
                       {new Date(activity.timestamp).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',

@@ -289,7 +289,7 @@ export default function LoginPage(): React.JSX.Element {
                   </div>
 
                   {/* TOTP Code Input */}
-                  <div className="flex justify-center gap-2">
+                  <div className="flex justify-center gap-1.5 sm:gap-2">
                     {totpCode.map((digit, index) => (
                       <Input
                         key={index}
@@ -301,7 +301,7 @@ export default function LoginPage(): React.JSX.Element {
                         onChange={(e) => handleTotpChange(index, e.target.value)}
                         onKeyDown={(e) => handleTotpKeyDown(index, e)}
                         onPaste={handleTotpPaste}
-                        className={`w-12 h-14 text-center text-2xl font-mono ${
+                        className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-mono ${
                           errors.totp ? 'border-red-500' : ''
                         }`}
                         disabled={loading}

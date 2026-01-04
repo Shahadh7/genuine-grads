@@ -68,8 +68,8 @@ const HeroSection = () => {
             </div>
 
             {/* Massive headline */}
-            <div className="space-y-4 animate-fade-in" style={{animationDelay: '0.1s'}}>
-              <h1 className="text-6xl sm:text-7xl lg:text-8xl font-black tracking-tight leading-none">
+            <div className="space-y-3 sm:space-y-4 animate-fade-in" style={{animationDelay: '0.1s'}}>
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tight leading-none">
                 <span className="block text-foreground">Your</span>
                 <span className="block text-foreground">Credentials.</span>
                 <span className="block bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent bg-300 animate-gradient-shift">
@@ -77,50 +77,50 @@ const HeroSection = () => {
                 </span>
               </h1>
 
-              <p className="text-xl sm:text-2xl text-muted-foreground max-w-lg leading-relaxed font-light">
+              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-lg leading-relaxed font-light">
                 Issue tamper-proof NFT certificates with <span className="text-primary font-semibold">zero-knowledge proofs</span>. Verify instantly at <span className="text-primary font-semibold">$0.01</span> per certificate.
               </p>
             </div>
 
             {/* CTA Group */}
-            <div className="flex flex-col sm:flex-row gap-4 animate-scale-in" style={{animationDelay: '0.2s'}}>
-              <Link href="/admin/universities/register" className="sm:w-auto">
-                <Button size="lg" className="relative group bg-primary hover:bg-primary/90 text-primary-foreground px-10 py-7 text-lg font-bold shadow-2xl shadow-primary/40 overflow-hidden w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 animate-scale-in" style={{animationDelay: '0.2s'}}>
+              <Link href="/admin/universities/register" className="w-full sm:w-auto">
+                <Button size="lg" className="relative group bg-primary hover:bg-primary/90 text-primary-foreground px-6 sm:px-10 py-5 sm:py-7 text-base sm:text-lg font-bold shadow-2xl shadow-primary/40 overflow-hidden w-full sm:w-auto">
                   <span className="relative z-10 flex items-center justify-center">
                     Start Issuing
-                    <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-2 transition-transform" />
+                    <ArrowRight className="ml-2 sm:ml-3 h-5 w-5 sm:h-6 sm:w-6 group-hover:translate-x-2 transition-transform" />
                   </span>
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
                 </Button>
               </Link>
 
-              <Link href="/verify" className="sm:w-auto">
-                <Button variant="outline" size="lg" className="border-2 px-10 py-7 text-lg font-bold hover:bg-primary/5 hover:border-primary/50 transition-all w-full sm:w-auto">
-                  <QrCode className="mr-3 h-5 w-5" />
+              <Link href="/verify" className="w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="border-2 px-6 sm:px-10 py-5 sm:py-7 text-base sm:text-lg font-bold hover:bg-primary/5 hover:border-primary/50 transition-all w-full sm:w-auto">
+                  <QrCode className="mr-2 sm:mr-3 h-4 w-4 sm:h-5 sm:w-5" />
                   Verify Certificate
                 </Button>
               </Link>
             </div>
 
             {/* Trust metrics */}
-            <div className="grid grid-cols-3 gap-6 pt-8 border-t border-border/30 animate-fade-in" style={{animationDelay: '0.3s'}}>
-              <div>
-                <div className="text-4xl font-black text-primary mb-1">50K+</div>
-                <div className="text-sm text-muted-foreground font-medium">Certificates</div>
+            <div className="grid grid-cols-3 gap-3 sm:gap-6 pt-6 sm:pt-8 border-t border-border/30 animate-fade-in" style={{animationDelay: '0.3s'}}>
+              <div className="text-center sm:text-left">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-black text-primary mb-1">50K+</div>
+                <div className="text-xs sm:text-sm text-muted-foreground font-medium">Certificates</div>
               </div>
-              <div>
-                <div className="text-4xl font-black text-primary mb-1">&lt;1s</div>
-                <div className="text-sm text-muted-foreground font-medium">Verification</div>
+              <div className="text-center sm:text-left">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-black text-primary mb-1">&lt;1s</div>
+                <div className="text-xs sm:text-sm text-muted-foreground font-medium">Verification</div>
               </div>
-              <div>
-                <div className="text-4xl font-black text-primary mb-1">100+</div>
-                <div className="text-sm text-muted-foreground font-medium">Universities</div>
+              <div className="text-center sm:text-left">
+                <div className="text-2xl sm:text-3xl md:text-4xl font-black text-primary mb-1">100+</div>
+                <div className="text-xs sm:text-sm text-muted-foreground font-medium">Universities</div>
               </div>
             </div>
           </div>
 
-          {/* RIGHT: 3D Showcase Bento Grid */}
-          <div className="relative animate-scale-in" style={{animationDelay: '0.2s'}}>
+          {/* RIGHT: 3D Showcase Bento Grid - Hidden on mobile, shown on lg */}
+          <div className="hidden lg:block relative animate-scale-in" style={{animationDelay: '0.2s'}}>
             {/* Main container with perspective */}
             <div className="relative h-[600px] lg:h-[700px]">
 
@@ -201,6 +201,32 @@ const HeroSection = () => {
                 </div>
               </div>
 
+            </div>
+          </div>
+
+          {/* Mobile-only simplified showcase */}
+          <div className="lg:hidden mt-8 animate-scale-in" style={{animationDelay: '0.2s'}}>
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+              {/* Cost card */}
+              <div className="relative bg-gradient-to-br from-card via-card/95 to-card/90 backdrop-blur-md border border-border/50 rounded-xl p-3 sm:p-4 shadow-lg">
+                <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-primary mb-2" />
+                <div className="text-lg sm:text-xl font-black text-primary">$0.01</div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground">Per cert</div>
+              </div>
+
+              {/* Security card */}
+              <div className="relative bg-gradient-to-br from-card via-card/95 to-card/90 backdrop-blur-md border border-border/50 rounded-xl p-3 sm:p-4 shadow-lg">
+                <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-primary mb-2" />
+                <div className="text-lg sm:text-xl font-black text-primary">100%</div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground">Secure</div>
+              </div>
+
+              {/* Blockchain card */}
+              <div className="relative bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 backdrop-blur-md border border-primary/30 rounded-xl p-3 sm:p-4 shadow-lg">
+                <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-primary mb-2" />
+                <div className="text-base sm:text-lg font-black text-primary">Solana</div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground">Chain</div>
+              </div>
             </div>
           </div>
 

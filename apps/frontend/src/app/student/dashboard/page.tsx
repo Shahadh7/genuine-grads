@@ -105,66 +105,66 @@ export default function StudentDashboard(): React.JSX.Element {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent backdrop-blur-sm border border-primary/20 rounded-3xl p-8 shadow-xl hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500">
-        <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
+      <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent backdrop-blur-sm border border-primary/20 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xl hover:shadow-2xl hover:shadow-primary/10 transition-all duration-500">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold mb-1 sm:mb-2 bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
           Welcome back, {studentData?.fullName || 'Student'}!
         </h1>
-        <p className="text-muted-foreground text-lg">
+        <p className="text-muted-foreground text-sm sm:text-base lg:text-lg">
           Your academic credentials dashboard
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <Link href="/student/certificates">
-          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-6 hover:border-primary/30 hover:shadow-xl transition-all duration-500 group cursor-pointer">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 inline-block group-hover:scale-110 transition-transform">
-                <FileText className="h-6 w-6 text-primary" />
+          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 hover:border-primary/30 hover:shadow-xl transition-all duration-500 group cursor-pointer">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 inline-block group-hover:scale-110 transition-transform">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-primary" />
               </div>
             </div>
-            <div className="text-4xl font-bold text-primary mb-2">{certificatesCount}</div>
-            <p className="text-sm text-muted-foreground">
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary mb-1 sm:mb-2">{certificatesCount}</div>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Active {certificatesCount === 1 ? 'Certificate' : 'Certificates'}
             </p>
           </div>
         </Link>
 
-        <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-6 hover:border-red-500/30 hover:shadow-xl transition-all duration-500 group">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-red-500/20 to-red-500/10 inline-block group-hover:scale-110 transition-transform">
-              <Ban className="h-6 w-6 text-red-500" />
+        <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 hover:border-red-500/30 hover:shadow-xl transition-all duration-500 group">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-red-500/20 to-red-500/10 inline-block group-hover:scale-110 transition-transform">
+              <Ban className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-red-500" />
             </div>
           </div>
-          <div className="text-4xl font-bold text-red-500 mb-2">{revokedCount}</div>
-          <p className="text-sm text-muted-foreground">
+          <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-red-500 mb-1 sm:mb-2">{revokedCount}</div>
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Revoked {revokedCount === 1 ? 'Certificate' : 'Certificates'}
           </p>
         </div>
 
         <Link href="/student/achievements">
-          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-6 hover:border-primary/30 hover:shadow-xl transition-all duration-500 group cursor-pointer">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 inline-block group-hover:scale-110 transition-transform">
-                <Award className="h-6 w-6 text-primary" />
+          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 hover:border-primary/30 hover:shadow-xl transition-all duration-500 group cursor-pointer">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 inline-block group-hover:scale-110 transition-transform">
+                <Award className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-primary" />
               </div>
             </div>
-            <div className="text-4xl font-bold text-primary mb-2">{achievementsCount}</div>
-            <p className="text-sm text-muted-foreground">
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary mb-1 sm:mb-2">{achievementsCount}</div>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {achievementsCount === 1 ? 'Achievement' : 'Achievements'} earned
             </p>
           </div>
         </Link>
 
         <Link href="/student/account">
-          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-6 hover:border-primary/30 hover:shadow-xl transition-all duration-500 group cursor-pointer">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 inline-block group-hover:scale-110 transition-transform">
-                <User className="h-6 w-6 text-primary" />
+          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 hover:border-primary/30 hover:shadow-xl transition-all duration-500 group cursor-pointer">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 inline-block group-hover:scale-110 transition-transform">
+                <User className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 text-primary" />
               </div>
             </div>
-            <div className="text-4xl font-bold text-primary mb-2">{enrollmentsCount}</div>
-            <p className="text-sm text-muted-foreground">
+            <div className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary mb-1 sm:mb-2">{enrollmentsCount}</div>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               {enrollmentsCount === 1 ? 'Course' : 'Courses'} enrolled
             </p>
           </div>
@@ -173,23 +173,23 @@ export default function StudentDashboard(): React.JSX.Element {
 
       {/* Recent Certificates */}
       {certificatesCount > 0 && (
-        <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-8 hover:shadow-xl transition-all duration-500">
-          <h2 className="text-2xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
+        <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 hover:shadow-xl transition-all duration-500">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-bold mb-4 sm:mb-6 bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
             Recent Certificates
           </h2>
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             {activeCertificates.slice(0, 3).map((cert: any) => (
               <div
                 key={cert.id}
-                className="flex items-center justify-between p-4 border border-border/50 rounded-2xl hover:bg-primary/5 hover:border-primary/30 transition-all duration-300"
+                className="flex items-center justify-between p-3 sm:p-4 border border-border/50 rounded-xl sm:rounded-2xl hover:bg-primary/5 hover:border-primary/30 transition-all duration-300 gap-2"
               >
-                <div>
-                  <p className="font-semibold text-foreground">{cert.badgeTitle}</p>
-                  <p className="text-sm text-muted-foreground mt-1">{cert.certificateNumber}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground text-sm sm:text-base truncate">{cert.badgeTitle}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate">{cert.certificateNumber}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right flex-shrink-0">
                   <span
-                    className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold ${
+                    className={`inline-flex items-center px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-semibold ${
                       cert.status === 'MINTED'
                         ? 'bg-green-500/10 text-green-600 border border-green-500/20'
                         : cert.status === 'PENDING'
@@ -206,7 +206,7 @@ export default function StudentDashboard(): React.JSX.Element {
           {certificatesCount > 3 && (
             <Link
               href="/student/certificates"
-              className="block text-center text-primary hover:text-primary/80 mt-6 text-sm font-semibold transition-colors"
+              className="block text-center text-primary hover:text-primary/80 mt-4 sm:mt-6 text-xs sm:text-sm font-semibold transition-colors"
             >
               View all {certificatesCount} certificates →
             </Link>
@@ -216,10 +216,10 @@ export default function StudentDashboard(): React.JSX.Element {
 
       {/* No certificates message */}
       {certificatesCount === 0 && (
-        <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-3xl p-12 text-center">
-          <FileText className="h-16 w-16 mx-auto mb-4 text-primary/30" />
-          <p className="text-lg font-semibold text-foreground mb-2">No certificates issued yet</p>
-          <p className="text-sm text-muted-foreground">Your certificates will appear here once they are issued</p>
+        <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl sm:rounded-3xl p-8 sm:p-12 text-center">
+          <FileText className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-3 sm:mb-4 text-primary/30" />
+          <p className="text-base sm:text-lg font-semibold text-foreground mb-1 sm:mb-2">No certificates issued yet</p>
+          <p className="text-xs sm:text-sm text-muted-foreground">Your certificates will appear here once they are issued</p>
         </div>
       )}
     </div>
