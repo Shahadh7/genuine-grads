@@ -177,7 +177,7 @@ const FeaturesSection = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 sm:gap-6">
 
           {/* Stats card - 3 columns */}
-          <div className="sm:col-span-1 lg:col-span-3 relative bg-gradient-to-br from-card via-card/95 to-card/90 backdrop-blur-sm border border-border/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 overflow-hidden group hover:shadow-xl hover:border-primary/30 transition-all duration-500 animate-scale-in" style={{animationDelay: '0.2s'}}>
+          <div className="order-2 lg:order-1 sm:col-span-1 lg:col-span-3 relative bg-gradient-to-br from-card via-card/95 to-card/90 backdrop-blur-sm border border-border/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 overflow-hidden group hover:shadow-xl hover:border-primary/30 transition-all duration-500 animate-scale-in" style={{animationDelay: '0.2s'}}>
             <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-colors"></div>
             <div className="relative z-10 text-center">
               <div className="inline-flex p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-primary/10 mb-2 sm:mb-3 md:mb-4 group-hover:scale-110 transition-transform">
@@ -193,7 +193,7 @@ const FeaturesSection = () => {
           </div>
 
           {/* Employers card - 6 columns */}
-          <div className="sm:col-span-2 lg:col-span-6 relative bg-gradient-to-br from-green-500/10 via-emerald-500/5 to-transparent backdrop-blur-sm border border-border/50 rounded-xl sm:rounded-2xl lg:rounded-[2.5rem] p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden group hover:shadow-2xl hover:shadow-green-500/10 transition-all duration-500 animate-scale-in" style={{animationDelay: '0.3s'}}>
+          <div className="order-1 lg:order-2 sm:col-span-2 lg:col-span-6 relative bg-gradient-to-br from-green-500/10 via-emerald-500/5 to-transparent backdrop-blur-sm border border-border/50 rounded-xl sm:rounded-2xl lg:rounded-[2.5rem] p-4 sm:p-6 md:p-8 lg:p-10 overflow-hidden group hover:shadow-2xl hover:shadow-green-500/10 transition-all duration-500 animate-scale-in" style={{animationDelay: '0.3s'}}>
             <div className="absolute top-0 left-0 w-80 h-80 bg-green-500/10 rounded-full blur-3xl group-hover:bg-green-500/20 transition-colors duration-500"></div>
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-green-500/5 to-transparent opacity-0 group-hover:opacity-100 animate-shimmer"></div>
 
@@ -226,7 +226,7 @@ const FeaturesSection = () => {
           </div>
 
           {/* Verification stat - 3 columns */}
-          <div className="sm:col-span-1 lg:col-span-3 relative bg-gradient-to-br from-card via-card/95 to-card/90 backdrop-blur-sm border border-border/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 overflow-hidden group hover:shadow-xl hover:border-primary/30 transition-all duration-500 animate-scale-in" style={{animationDelay: '0.4s'}}>
+          <div className="order-3 lg:order-3 sm:col-span-1 lg:col-span-3 relative bg-gradient-to-br from-card via-card/95 to-card/90 backdrop-blur-sm border border-border/50 rounded-xl sm:rounded-2xl p-4 sm:p-6 md:p-8 overflow-hidden group hover:shadow-xl hover:border-primary/30 transition-all duration-500 animate-scale-in" style={{animationDelay: '0.4s'}}>
             <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary/10 rounded-full blur-2xl group-hover:bg-primary/20 transition-colors"></div>
             <div className="relative z-10 text-center">
               <div className="inline-flex p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-primary/10 mb-2 sm:mb-3 md:mb-4 group-hover:scale-110 transition-transform">
