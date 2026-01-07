@@ -124,7 +124,7 @@ const CTASection = () => {
 
                 {/* Feature list with enhanced styling */}
                 {[
-                  { icon: Zap, title: "$0.01 per certificate", desc: "The lowest cost in the industry" },
+                  { icon: Zap, title: "<$0.001 per certificate", desc: "The lowest cost in the industry" },
                   { icon: Shield, title: "Zero-knowledge proofs", desc: "Privacy-preserving verification" },
                   { icon: Check, title: "Instant verification", desc: "Real-time credential checking" },
                   { icon: Sparkles, title: "Custom branding", desc: "Design certificates your way" }

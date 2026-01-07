@@ -78,7 +78,7 @@ const HeroSection = () => {
               </h1>
 
               <p className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl text-muted-foreground max-w-lg leading-relaxed font-light">
-                Issue tamper-proof NFT certificates with <span className="text-primary font-semibold">zero-knowledge proofs</span>. Verify instantly at <span className="text-primary font-semibold">$0.01</span> per certificate.
+                Issue tamper-proof NFT certificates with <span className="text-primary font-semibold">zero-knowledge proofs</span> for under <span className="text-primary font-semibold">$0.001</span> each. Verify instantly for <span className="text-primary font-semibold">free</span>.
               </p>
             </div>
 
@@ -157,7 +157,7 @@ const HeroSection = () => {
                   <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full blur-2xl group-hover:bg-blue-500/20 transition-colors"></div>
                   <div className="relative z-10">
                     <Zap className="h-8 w-8 text-primary mb-4 animate-pulse" />
-                    <div className="text-3xl font-black text-primary mb-1">$0.01</div>
+                    <div className="text-3xl font-black text-primary mb-1">&lt;$0.001</div>
                     <div className="text-xs text-muted-foreground font-medium">Per cert</div>
                   </div>
                 </div>
@@ -210,7 +210,7 @@ const HeroSection = () => {
               {/* Cost card */}
               <div className="relative bg-gradient-to-br from-card via-card/95 to-card/90 backdrop-blur-md border border-border/50 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-lg">
                 <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-primary mb-2" />
-                <div className="text-base sm:text-lg md:text-xl font-black text-primary">$0.01</div>
+                <div className="text-base sm:text-lg md:text-xl font-black text-primary">&lt;$0.001</div>
                 <div className="text-[9px] sm:text-[10px] md:text-xs text-muted-foreground">Per cert</div>
               </div>
 

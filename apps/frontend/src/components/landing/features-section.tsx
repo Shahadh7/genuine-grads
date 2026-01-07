@@ -143,14 +143,15 @@ const FeaturesSection = () => {
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 animate-shimmer"></div>
 
             <div className="relative z-10">
-              <div className="p-2 sm:p-3 md:p-4 lg:p-5 rounded-xl sm:rounded-2xl lg:rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm inline-block group-hover:scale-110 group-hover:rotate-3 transition-all duration-300 mb-3 sm:mb-4 md:mb-6">
-                <GraduationCap className="h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 text-primary" />
+              <div className="flex items-start justify-between mb-3 sm:mb-4 md:mb-6">
+                <div className="p-2 sm:p-3 md:p-4 lg:p-5 rounded-xl sm:rounded-2xl lg:rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 backdrop-blur-sm group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
+                  <GraduationCap className="h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10 lg:h-12 lg:w-12 text-primary" />
+                </div>
+                <Badge className="bg-purple-500/10 border-purple-500/20 text-purple-600 text-xs sm:text-sm mt-1 sm:mt-2">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  Students
+                </Badge>
               </div>
-
-              <Badge className="bg-purple-500/10 border-purple-500/20 text-purple-600 mb-3 sm:mb-4 md:mb-6 text-xs sm:text-sm">
-                <Sparkles className="h-3 w-3 mr-1" />
-                Students
-              </Badge>
 
               <h3 className="text-xl sm:text-2xl md:text-3xl font-black mb-2 sm:mb-3 md:mb-4 group-hover:text-primary transition-colors">
                 Own Your Achievements
