@@ -54,11 +54,11 @@ EOF
 
 # Stop existing nginx if running
 echo -e "${YELLOW}Stopping existing services...${NC}"
-docker compose down nginx 2>/dev/null || true
+sudo docker compose down nginx 2>/dev/null || true
 
 # Start temporary nginx for certificate validation
 echo -e "${YELLOW}Starting temporary nginx for domain validation...${NC}"
-docker run -d --name nginx-temp \
+sudo docker run -d --name nginx-temp \
     -p 80:80 \
     -v $(pwd)/nginx-temp.conf:/etc/nginx/nginx.conf:ro \
     -v $(pwd)/certbot/www:/var/www/certbot:ro \
@@ -69,7 +69,7 @@ sleep 3
 
 # Request certificate
 echo -e "${YELLOW}Requesting SSL certificate from Let's Encrypt...${NC}"
-docker run --rm \
+sudo docker run --rm \
     -v $(pwd)/certbot/conf:/etc/letsencrypt \
     -v $(pwd)/certbot/www:/var/www/certbot \
     certbot/certbot certonly \
@@ -87,16 +87,16 @@ if [ -f "certbot/conf/live/$DOMAIN/fullchain.pem" ]; then
     echo -e "${GREEN}SSL certificate obtained successfully!${NC}"
 else
     echo -e "${RED}Failed to obtain SSL certificate${NC}"
-    docker stop nginx-temp 2>/dev/null || true
-    docker rm nginx-temp 2>/dev/null || true
+    sudo docker stop nginx-temp 2>/dev/null || true
+    sudo docker rm nginx-temp 2>/dev/null || true
     rm nginx-temp.conf
     exit 1
 fi
 
 # Stop temporary nginx
 echo -e "${YELLOW}Cleaning up temporary nginx...${NC}"
-docker stop nginx-temp 2>/dev/null || true
-docker rm nginx-temp 2>/dev/null || true
+sudo docker stop nginx-temp 2>/dev/null || true
+sudo docker rm nginx-temp 2>/dev/null || true
 rm nginx-temp.conf
 
 echo ""
