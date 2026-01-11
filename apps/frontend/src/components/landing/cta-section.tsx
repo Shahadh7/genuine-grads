@@ -82,7 +82,7 @@ const CTASection = () => {
                   </Button>
                 </Link>
 
-                <Link href="/verify/UOM-2025-FACULTYOFC-00008" className="w-full sm:w-auto">
+                <Link href="/verify/UOM-2026-FACULTYOFI-00001" className="w-full sm:w-auto">
                   <Button variant="outline" size="lg" className="border-2 border-border/50 hover:border-primary/50 hover:bg-primary/5 px-8 py-6 sm:px-10 sm:py-6 lg:px-12 lg:py-8 text-base sm:text-lg lg:text-xl font-bold transition-all w-full sm:w-auto min-h-touch">
                     View Demo
                   </Button>
