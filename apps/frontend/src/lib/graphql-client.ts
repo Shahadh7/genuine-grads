@@ -2318,12 +2318,19 @@ class GraphQLClient {
   }
 
   /**
-   * Get SSE endpoint URL with token
+   * Get SSE endpoint URL (without token - use Authorization header instead)
    */
   getSSEEndpoint(): string {
     const baseUrl = this.endpoint.replace('/graphql', '');
-    const token = this.token || '';
-    return `${baseUrl}/api/notifications/stream?token=${token}`;
+    return `${baseUrl}/api/notifications/stream`;
+  }
+
+  /**
+   * Get the current access token for SSE connections
+   * SECURITY: Token should be passed via Authorization header, not URL
+   */
+  getAccessToken(): string | null {
+    return this.token;
   }
 }
 

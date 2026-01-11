@@ -1,25 +1,31 @@
 import { PrismaClient as UniversityPrismaClient } from '../../node_modules/.prisma/university/index.js';
 import { logger } from '../utils/logger.js';
 import { env } from '../env.js';
+import { decryptDatabaseUrl } from '../utils/crypto.js';
 
 // Connection pool for university databases (multi-tenancy)
+// Key is the original (potentially encrypted) URL for cache lookup
 const universityDbPool = new Map<string, UniversityPrismaClient>();
 
 /**
  * Get university database client for a specific university
  * Creates a new connection if not exists, otherwise returns cached connection
+ * SECURITY: Handles both encrypted and plain URLs for backwards compatibility
  */
 export function getUniversityDb(databaseUrl: string): UniversityPrismaClient {
-  // Check if connection already exists
+  // Check if connection already exists (use original URL as cache key)
   if (universityDbPool.has(databaseUrl)) {
     return universityDbPool.get(databaseUrl)!;
   }
 
-  // Create new connection
+  // SECURITY: Decrypt the URL if it's encrypted
+  const decryptedUrl = decryptDatabaseUrl(databaseUrl);
+
+  // Create new connection with decrypted URL
   const db = new UniversityPrismaClient({
     datasources: {
       db: {
-        url: databaseUrl,
+        url: decryptedUrl,
       },
     },
     log: [
@@ -44,9 +50,10 @@ export function getUniversityDb(databaseUrl: string): UniversityPrismaClient {
     logger.error({ target: e.target, message: e.message }, 'University DB Error');
   });
 
-  // Cache the connection
+  // Cache the connection (use original URL as key for consistent lookup)
   universityDbPool.set(databaseUrl, db);
-  logger.info({ databaseUrl: maskDbUrl(databaseUrl) }, 'Created new University DB connection');
+  // SECURITY: Only log masked decrypted URL, never the encrypted or raw URL
+  logger.info({ databaseUrl: maskDbUrl(decryptedUrl) }, 'Created new University DB connection');
 
   return db;
 }
@@ -71,27 +78,31 @@ export async function getUniversityDbById(universityId: string): Promise<Univers
 
 /**
  * Connect to a university database
+ * SECURITY: Handles encrypted URLs
  */
 export async function connectUniversityDb(databaseUrl: string): Promise<void> {
   try {
     const db = getUniversityDb(databaseUrl);
     await db.$connect();
-    logger.info({ databaseUrl: maskDbUrl(databaseUrl) }, '✅ Connected to University Database');
+    // SECURITY: Decrypt for logging only
+    const decryptedUrl = decryptDatabaseUrl(databaseUrl);
+    logger.info({ databaseUrl: maskDbUrl(decryptedUrl) }, '✅ Connected to University Database');
   } catch (error) {
-    logger.error({ error, databaseUrl: maskDbUrl(databaseUrl) }, '❌ Failed to connect to University Database');
+    logger.error({ error }, '❌ Failed to connect to University Database');
     throw error;
   }
 }
 
 /**
  * Disconnect from a specific university database
+ * SECURITY: Handles encrypted URLs
  */
 export async function disconnectUniversityDb(databaseUrl: string): Promise<void> {
   const db = universityDbPool.get(databaseUrl);
   if (db) {
     await db.$disconnect();
     universityDbPool.delete(databaseUrl);
-    logger.info({ databaseUrl: maskDbUrl(databaseUrl) }, 'Disconnected from University Database');
+    logger.info('Disconnected from University Database');
   }
 }
 
@@ -99,18 +110,19 @@ export async function disconnectUniversityDb(databaseUrl: string): Promise<void>
  * Disconnect from all university databases
  */
 export async function disconnectAllUniversityDbs(): Promise<void> {
-  const disconnectPromises = Array.from(universityDbPool.entries()).map(async ([url, db]) => {
+  const disconnectPromises = Array.from(universityDbPool.entries()).map(async ([_url, db]) => {
     await db.$disconnect();
-    logger.info({ databaseUrl: maskDbUrl(url) }, 'Disconnected from University Database');
   });
 
   await Promise.all(disconnectPromises);
+  const count = universityDbPool.size;
   universityDbPool.clear();
-  logger.info('Disconnected from all University Databases');
+  logger.info({ count }, 'Disconnected from all University Databases');
 }
 
 /**
  * Health check for a university database
+ * SECURITY: Handles encrypted URLs
  */
 export async function checkUniversityDbHealth(databaseUrl: string): Promise<boolean> {
   try {
@@ -118,7 +130,7 @@ export async function checkUniversityDbHealth(databaseUrl: string): Promise<bool
     await db.$queryRaw`SELECT 1`;
     return true;
   } catch (error) {
-    logger.error({ error, databaseUrl: maskDbUrl(databaseUrl) }, 'University DB health check failed');
+    logger.error({ error }, 'University DB health check failed');
     return false;
   }
 }

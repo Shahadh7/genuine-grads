@@ -1,8 +1,53 @@
 // @ts-ignore - generated Prisma client path is valid at runtime
-import { PrismaClient as SharedPrismaClient } from '../../../node_modules/.prisma/shared/index.js';
-import { execSync } from 'child_process';
+import { PrismaClient as SharedPrismaClient, Prisma } from '../../../node_modules/.prisma/shared/index.js';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { env } from '../../env.js';
 import { logger } from '../../utils/logger.js';
+import { encryptDatabaseUrl } from '../../utils/crypto.js';
+
+const execFileAsync = promisify(execFile);
+
+/**
+ * Validate and sanitize university domain
+ * Prevents SQL injection and command injection attacks
+ */
+function validateUniversityDomain(domain: string): { valid: boolean; error?: string; sanitized?: string } {
+  // Check for empty or null
+  if (!domain || typeof domain !== 'string') {
+    return { valid: false, error: 'Domain is required' };
+  }
+
+  // Trim and lowercase
+  const sanitized = domain.trim().toLowerCase();
+
+  // Length validation (PostgreSQL identifier limit is 63 chars, minus prefix)
+  if (sanitized.length < 4 || sanitized.length > 50) {
+    return { valid: false, error: 'Domain must be between 4 and 50 characters' };
+  }
+
+  // Strict domain pattern: only alphanumeric, hyphens, and dots
+  // Must start and end with alphanumeric, no consecutive dots or hyphens
+  const domainRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/;
+  if (!domainRegex.test(sanitized)) {
+    return { valid: false, error: 'Invalid domain format. Use format like: university.edu' };
+  }
+
+  // Prevent SQL/shell metacharacters (extra safety layer)
+  const dangerousChars = /['"`;$\\|&<>(){}[\]!#%^*~]/;
+  if (dangerousChars.test(sanitized)) {
+    return { valid: false, error: 'Domain contains invalid characters' };
+  }
+
+  // Reserved words check
+  const reserved = ['postgres', 'template0', 'template1', 'genuinegrads_shared', 'admin', 'root'];
+  const dbName = `genuinegrads_${sanitized.replace(/\./g, '_')}`;
+  if (reserved.includes(dbName) || reserved.includes(sanitized)) {
+    return { valid: false, error: 'Domain name is reserved' };
+  }
+
+  return { valid: true, sanitized };
+}
 
 /**
  * Provision a new database for a university
@@ -14,8 +59,20 @@ export async function provisionUniversityDatabase(universityDomain: string): Pro
   success: boolean;
   error?: string;
 }> {
-  // Generate database name from domain (e.g., mit.edu -> genuinegrads_mit_edu)
-  const databaseName = `genuinegrads_${universityDomain.replace(/\./g, '_').toLowerCase()}`;
+  // SECURITY: Validate and sanitize domain input
+  const validation = validateUniversityDomain(universityDomain);
+  if (!validation.valid || !validation.sanitized) {
+    logger.warn({ universityDomain }, `Invalid domain rejected: ${validation.error}`);
+    return {
+      databaseName: '',
+      databaseUrl: '',
+      success: false,
+      error: validation.error,
+    };
+  }
+
+  // Generate database name from sanitized domain (e.g., mit.edu -> genuinegrads_mit_edu)
+  const databaseName = `genuinegrads_${validation.sanitized.replace(/\./g, '_')}`;
 
   logger.info({ universityDomain, databaseName }, 'Provisioning university database');
 
@@ -30,11 +87,14 @@ export async function provisionUniversityDatabase(universityDomain: string): Pro
     // Step 3: Initialize schema in the new database
     await initializeDatabaseSchema(databaseUrl);
 
-    logger.info({ databaseName, databaseUrl }, 'University database provisioned successfully');
+    // Step 4: Encrypt the database URL for secure storage
+    const encryptedDatabaseUrl = encryptDatabaseUrl(databaseUrl);
+
+    logger.info({ databaseName }, 'University database provisioned successfully');
 
     return {
       databaseName,
-      databaseUrl,
+      databaseUrl: encryptedDatabaseUrl, // Return encrypted URL for storage
       success: true,
     };
   } catch (error) {
@@ -73,9 +133,10 @@ async function createPostgresDatabase(databaseName: string): Promise<void> {
 
   try {
     // Check if database already exists
-    const result = (await prisma.$queryRawUnsafe(
-      `SELECT datname FROM pg_database WHERE datname = '${databaseName}'`
-    )) as Array<{ datname: string }>;
+    // SECURITY: Using parameterized query to prevent SQL injection
+    const result = await prisma.$queryRaw<Array<{ datname: string }>>`
+      SELECT datname FROM pg_database WHERE datname = ${databaseName}
+    `;
 
     if (result.length > 0) {
       logger.info({ databaseName }, 'Database already exists, skipping creation');
@@ -84,6 +145,8 @@ async function createPostgresDatabase(databaseName: string): Promise<void> {
     }
 
     // Create the database
+    // Note: Database names cannot be parameterized in CREATE DATABASE
+    // We rely on the strict validation above to ensure safety
     await prisma.$executeRawUnsafe(`CREATE DATABASE "${databaseName}"`);
     logger.info({ databaseName }, 'Database created successfully');
   } catch (error) {
@@ -104,30 +167,38 @@ async function initializeDatabaseSchema(databaseUrl: string): Promise<void> {
     // Step 1: Push the database schema
     // Use Prisma's schema push to create tables
     logger.info('Pushing database schema...');
-    
-    const pushCommand = `npx prisma db push --schema=prisma/university.prisma --skip-generate --accept-data-loss`;
-    
-    execSync(pushCommand, {
+
+    // SECURITY: Using execFile with array arguments to prevent command injection
+    // execFile does NOT use shell, so metacharacters cannot be injected
+    await execFileAsync('npx', [
+      'prisma',
+      'db',
+      'push',
+      '--schema=prisma/university.prisma',
+      '--skip-generate',
+      '--accept-data-loss'
+    ], {
       env: {
         ...process.env,
         UNIVERSITY_DATABASE_URL: databaseUrl,
       },
-      stdio: 'pipe', // Capture output instead of inheriting
     });
 
     logger.info('Database schema pushed successfully');
 
     // Step 2: Generate Prisma client for the university schema
     logger.info('Generating Prisma client for university database...');
-    
-    const generateCommand = `npx prisma generate --schema=prisma/university.prisma`;
-    
-    execSync(generateCommand, {
+
+    // SECURITY: Using execFile with array arguments to prevent command injection
+    await execFileAsync('npx', [
+      'prisma',
+      'generate',
+      '--schema=prisma/university.prisma'
+    ], {
       env: {
         ...process.env,
         UNIVERSITY_DATABASE_URL: databaseUrl,
       },
-      stdio: 'pipe',
     });
 
     logger.info('Prisma client generated successfully');
@@ -166,15 +237,25 @@ export async function dropUniversityDatabase(databaseName: string): Promise<void
   });
 
   try {
+    // SECURITY: Validate database name before operations
+    // Only allow database names that match our pattern
+    const dbNameRegex = /^genuinegrads_[a-z0-9_]+$/;
+    if (!dbNameRegex.test(databaseName)) {
+      throw new Error('Invalid database name format');
+    }
+
     // Terminate existing connections
-    await prisma.$executeRawUnsafe(`
+    // SECURITY: Using parameterized query to prevent SQL injection
+    await prisma.$executeRaw`
       SELECT pg_terminate_backend(pg_stat_activity.pid)
       FROM pg_stat_activity
-      WHERE pg_stat_activity.datname = '${databaseName}'
+      WHERE pg_stat_activity.datname = ${databaseName}
         AND pid <> pg_backend_pid()
-    `);
+    `;
 
     // Drop the database
+    // Note: Database names cannot be parameterized in DROP DATABASE
+    // We rely on the strict validation above to ensure safety
     await prisma.$executeRawUnsafe(`DROP DATABASE IF EXISTS "${databaseName}"`);
     logger.info({ databaseName }, 'Database dropped successfully');
   } catch (error) {
@@ -205,9 +286,10 @@ export async function checkDatabaseExists(databaseName: string): Promise<boolean
   });
 
   try {
-    const result = (await prisma.$queryRawUnsafe(
-      `SELECT datname FROM pg_database WHERE datname = '${databaseName}'`
-    )) as Array<{ datname: string }>;
+    // SECURITY: Using parameterized query to prevent SQL injection
+    const result = await prisma.$queryRaw<Array<{ datname: string }>>`
+      SELECT datname FROM pg_database WHERE datname = ${databaseName}
+    `;
     return result.length > 0;
   } catch (error) {
     logger.error({ error, databaseName }, 'Failed to check database existence');

@@ -54,10 +54,63 @@ export function verifyHMACSignature(payload: string, signature: string, secret: 
     .createHmac('sha256', secret)
     .update(payload)
     .digest('hex');
-  
+
   return crypto.timingSafeEqual(
     Buffer.from(signature),
     Buffer.from(expectedSignature)
   );
+}
+
+// Prefix to identify encrypted database URLs
+const ENCRYPTED_DB_URL_PREFIX = 'enc:v1:';
+
+/**
+ * Check if a database URL is encrypted
+ */
+export function isEncryptedDbUrl(value: string): boolean {
+  return value.startsWith(ENCRYPTED_DB_URL_PREFIX);
+}
+
+/**
+ * Encrypt a database URL for secure storage
+ * Returns prefixed encrypted string for identification
+ */
+export function encryptDatabaseUrl(databaseUrl: string): string {
+  if (!databaseUrl) {
+    throw new Error('Database URL is required');
+  }
+
+  // Don't double-encrypt
+  if (isEncryptedDbUrl(databaseUrl)) {
+    return databaseUrl;
+  }
+
+  const encrypted = encrypt(databaseUrl);
+  return `${ENCRYPTED_DB_URL_PREFIX}${encrypted}`;
+}
+
+/**
+ * Decrypt a database URL for use
+ * Handles both encrypted and plain URLs for backwards compatibility
+ */
+export function decryptDatabaseUrl(encryptedUrl: string): string {
+  if (!encryptedUrl) {
+    throw new Error('Encrypted URL is required');
+  }
+
+  // If not encrypted (legacy data), return as-is
+  if (!isEncryptedDbUrl(encryptedUrl)) {
+    return encryptedUrl;
+  }
+
+  // Remove prefix and decrypt
+  const encryptedPart = encryptedUrl.slice(ENCRYPTED_DB_URL_PREFIX.length);
+  const decrypted = decrypt(encryptedPart);
+
+  if (!decrypted) {
+    throw new Error('Failed to decrypt database URL - invalid encryption key or corrupted data');
+  }
+
+  return decrypted;
 }
 

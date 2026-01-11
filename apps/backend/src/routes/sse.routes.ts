@@ -10,19 +10,33 @@ const router = Router();
  * GET /api/notifications/stream
  *
  * Server-Sent Events endpoint for real-time notifications.
- * Supports authentication via:
- * 1. Authorization header: Bearer <token>
- * 2. Query parameter: ?token=<token>
+ *
+ * SECURITY: Only accepts tokens via Authorization header.
+ * Query parameter tokens are explicitly NOT supported because:
+ * - They are logged in server access logs
+ * - They appear in browser history
+ * - They are visible in referer headers
+ * - They can be cached by proxies
  */
 router.get('/stream', (req: Request, res: Response) => {
   try {
-    // Extract token from header or query param
-    const headerToken = extractTokenFromHeader(req.headers.authorization);
-    const queryToken = req.query.token as string | undefined;
-    const token = headerToken || queryToken;
+    // SECURITY: Only extract token from Authorization header
+    // Query parameter tokens are NOT supported for security reasons
+    const token = extractTokenFromHeader(req.headers.authorization);
+
+    // Log warning if someone tries to use query parameter (potential attack or old client)
+    if (req.query.token) {
+      logger.warn(
+        { ip: req.ip, userAgent: req.headers['user-agent'] },
+        'Attempted SSE connection with token in query parameter (deprecated and blocked)'
+      );
+    }
 
     if (!token) {
-      res.status(401).json({ error: 'Authentication required' });
+      res.status(401).json({
+        error: 'Authentication required. Use Authorization: Bearer <token> header.',
+        hint: 'Query parameter tokens are not supported for security reasons.'
+      });
       return;
     }
 

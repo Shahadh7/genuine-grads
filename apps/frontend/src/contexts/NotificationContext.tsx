@@ -55,7 +55,6 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
   const [isConnected, setIsConnected] = useState(false);
   const [endCursor, setEndCursor] = useState<string | null>(null);
 
-  const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const toast = useToastContext();
 
@@ -166,55 +165,112 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
     }
   }, [role, notifications]);
 
-  // Setup SSE connection
+  // Abort controller ref for fetch-based SSE
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Setup SSE connection using fetch with proper Authorization header
+  // SECURITY: Using fetch instead of EventSource to support Authorization header
+  // EventSource doesn't support custom headers, which is a security risk
   const setupSSE = useCallback(() => {
     // Close existing connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
 
-    const sseUrl = graphqlClient.getSSEEndpoint();
-    if (!sseUrl.includes('token=') || sseUrl.endsWith('token=')) {
+    const token = graphqlClient.getAccessToken();
+    if (!token) {
       // No token available, don't connect
       return;
     }
 
-    try {
-      const eventSource = new EventSource(sseUrl, { withCredentials: false });
-      eventSourceRef.current = eventSource;
+    const sseUrl = graphqlClient.getSSEEndpoint();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
-      eventSource.addEventListener('connected', () => {
+    // Use fetch with ReadableStream for SSE with Authorization header
+    const connectSSE = async () => {
+      try {
+        const response = await fetch(sseUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+          },
+          signal: abortController.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`SSE connection failed: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body');
+        }
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
         setIsConnected(true);
         setError(null);
-      });
 
-      eventSource.addEventListener('notification', (event) => {
-        try {
-          const notification = JSON.parse(event.data) as Notification;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-          // Add to beginning of list
-          setNotifications(prev => [notification, ...prev]);
-          setUnreadCount(prev => prev + 1);
+          buffer += decoder.decode(value, { stream: true });
 
-          // Show toast for high priority notifications
-          if (notification.priority === 'HIGH' || notification.priority === 'URGENT') {
-            toast.info({
-              title: notification.title,
-              description: notification.message,
-            });
+          // Process complete events (events are separated by double newlines)
+          const events = buffer.split('\n\n');
+          buffer = events.pop() || ''; // Keep incomplete event in buffer
+
+          for (const eventData of events) {
+            if (!eventData.trim()) continue;
+
+            // Parse SSE format: "event: type\ndata: json"
+            const lines = eventData.split('\n');
+            let eventType = 'message';
+            let data = '';
+
+            for (const line of lines) {
+              if (line.startsWith('event:')) {
+                eventType = line.slice(6).trim();
+              } else if (line.startsWith('data:')) {
+                data = line.slice(5).trim();
+              }
+            }
+
+            // Handle different event types
+            if (eventType === 'connected') {
+              setIsConnected(true);
+              setError(null);
+            } else if (eventType === 'notification' && data) {
+              try {
+                const notification = JSON.parse(data) as Notification;
+                setNotifications(prev => [notification, ...prev]);
+                setUnreadCount(prev => prev + 1);
+
+                if (notification.priority === 'HIGH' || notification.priority === 'URGENT') {
+                  toast.info({
+                    title: notification.title,
+                    description: notification.message,
+                  });
+                }
+              } catch {
+                // Silent fail - malformed notification
+              }
+            }
+            // heartbeat events are just ignored (keep-alive)
           }
-        } catch (err) {
-          // Silent fail - malformed notification
         }
-      });
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') {
+          // Connection was intentionally closed
+          return;
+        }
 
-      eventSource.addEventListener('heartbeat', () => {
-        // Heartbeat received, connection is alive
-      });
-
-      eventSource.onerror = () => {
         setIsConnected(false);
-        eventSource.close();
 
         // Attempt to reconnect after 5 seconds
         if (reconnectTimeoutRef.current) {
@@ -223,15 +279,13 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
         reconnectTimeoutRef.current = setTimeout(() => {
           setupSSE();
         }, 5000);
-      };
-    } catch (err) {
-      setIsConnected(false);
-    }
+      }
+    };
+
+    connectSSE();
 
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
+      abortController.abort();
     };
   }, [toast]);
 
@@ -241,8 +295,9 @@ export function NotificationProvider({ children, role }: NotificationProviderPro
     setupSSE();
 
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+      // SECURITY: Clean up connections properly
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);

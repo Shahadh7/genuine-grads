@@ -10,8 +10,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U genuinegrads -d genuinegrads_shared"]
       interval: 10s
@@ -47,8 +47,8 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD}
-    ports:
-      - "4000:4000"
+    expose:
+      - "4000"
     volumes:
       - ./backend/src:/app/src
     healthcheck:
@@ -72,8 +72,8 @@ services:
       NEXT_PUBLIC_PROGRAM_ID: ${SOLANA_PROGRAM_ID}
       NEXT_PUBLIC_HELIUS_API_KEY: ${HELIUS_API_KEY}
       NEXT_PUBLIC_SUPER_ADMIN_PUBKEY: ${SOLANA_SUPER_ADMIN_PUBKEY}
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
 
   nginx:
     image: nginx:alpine

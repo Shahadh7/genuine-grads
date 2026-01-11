@@ -17,7 +17,7 @@ This program enables universities to issue, manage, and revoke academic certific
 ## Program ID
 
 ```
-J9Bsd3MSutBQDqsaXc5otLvDmrrN7vEynx2fYaH296FX
+5CBnkDYCPPu9tzNqdgYJkjQpsFgeiTkdR2R64TP9HQUZ
 ```
 
 ## Instructions
@@ -151,7 +151,7 @@ The IDL is output to `target/idl/genuinegrads.json`
 ### Upgrade Program
 
 ```bash
-anchor upgrade target/deploy/genuinegrads.so --program-id J9Bsd3MSutBQDqsaXc5otLvDmrrN7vEynx2fYaH296FX
+anchor upgrade target/deploy/genuinegrads.so --program-id 5CBnkDYCPPu9tzNqdgYJkjQpsFgeiTkdR2R64TP9HQUZ
 ```
 
 ## Networks

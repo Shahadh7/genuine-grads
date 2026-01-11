@@ -6,6 +6,63 @@ import { env } from '../env.js';
 const router = Router();
 
 /**
+ * SECURITY: Validate IPFS URL against allowed gateways
+ * Uses proper URL parsing to prevent SSRF bypass attacks
+ */
+function isAllowedIpfsUrl(urlString: string): { valid: boolean; error?: string } {
+  // Parse the URL properly to prevent bypass attacks
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(urlString);
+  } catch {
+    return { valid: false, error: 'Invalid URL format' };
+  }
+
+  // Must be HTTPS
+  if (parsedUrl.protocol !== 'https:') {
+    return { valid: false, error: 'Only HTTPS URLs are allowed' };
+  }
+
+  // Define allowed gateway hostnames (exact match, not prefix)
+  const allowedHosts = new Set([
+    new URL(env.PINATA_GATEWAY).hostname,
+    'gateway.pinata.cloud',
+    'ipfs.io',
+    'cloudflare-ipfs.com',
+  ]);
+
+  // Check exact hostname match
+  if (!allowedHosts.has(parsedUrl.hostname)) {
+    return { valid: false, error: 'URL must be from an allowed IPFS gateway' };
+  }
+
+  // Prevent localhost/internal IP bypass via DNS rebinding or similar
+  // Block private IP ranges that might be resolved via DNS
+  const blockedPatterns = [
+    /^localhost$/i,
+    /^127\./,
+    /^10\./,
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+    /^192\.168\./,
+    /^0\./,
+    /^169\.254\./,  // Link-local
+    /^\[::1\]$/,    // IPv6 localhost
+  ];
+
+  if (blockedPatterns.some(pattern => pattern.test(parsedUrl.hostname))) {
+    return { valid: false, error: 'Access to internal addresses is not allowed' };
+  }
+
+  // Validate path contains IPFS hash pattern (CIDv0 or CIDv1)
+  const ipfsPathRegex = /^\/ipfs\/[a-zA-Z0-9]+/;
+  if (!ipfsPathRegex.test(parsedUrl.pathname)) {
+    return { valid: false, error: 'URL must contain a valid IPFS path' };
+  }
+
+  return { valid: true };
+}
+
+/**
  * GET /api/ipfs/proxy
  * Proxy requests to IPFS gateway to avoid CORS issues
  * Query params: url (the full IPFS URL to fetch)
@@ -21,22 +78,13 @@ router.get('/proxy', async (req: Request, res: Response) => {
       });
     }
 
-    // Validate that the URL is from an allowed IPFS gateway
-    const allowedGateways = [
-      env.PINATA_GATEWAY,
-      'https://gateway.pinata.cloud',
-      'https://ipfs.io',
-      'https://cloudflare-ipfs.com',
-    ];
-
-    const isAllowedGateway = allowedGateways.some((gateway) =>
-      url.startsWith(gateway)
-    );
-
-    if (!isAllowedGateway) {
+    // SECURITY: Validate URL using proper URL parsing
+    const validation = isAllowedIpfsUrl(url);
+    if (!validation.valid) {
+      logger.warn({ url, error: validation.error }, 'Blocked IPFS proxy request');
       return res.status(403).json({
         success: false,
-        error: 'URL must be from an allowed IPFS gateway',
+        error: validation.error,
       });
     }
 
@@ -76,6 +124,20 @@ router.get('/proxy', async (req: Request, res: Response) => {
 });
 
 /**
+ * SECURITY: Validate IPFS hash format (CIDv0 or CIDv1)
+ */
+function isValidIpfsHash(hash: string): boolean {
+  // CIDv0: starts with Qm, 46 characters, base58
+  const cidV0Regex = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/;
+  // CIDv1: starts with b (base32) or z (base58btc), variable length
+  const cidV1Regex = /^[bz][a-zA-Z0-9]{50,}$/;
+  // Simple alphanumeric pattern for backwards compatibility
+  const simpleRegex = /^[a-zA-Z0-9]{46,64}$/;
+
+  return cidV0Regex.test(hash) || cidV1Regex.test(hash) || simpleRegex.test(hash);
+}
+
+/**
  * GET /api/ipfs/metadata/:hash
  * Fetch metadata JSON from IPFS by hash
  */
@@ -87,6 +149,15 @@ router.get('/metadata/:hash', async (req: Request, res: Response) => {
       return res.status(400).json({
         success: false,
         error: 'IPFS hash is required',
+      });
+    }
+
+    // SECURITY: Validate IPFS hash format to prevent path traversal
+    if (!isValidIpfsHash(hash)) {
+      logger.warn({ hash }, 'Invalid IPFS hash format rejected');
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid IPFS hash format',
       });
     }
 
@@ -121,4 +192,7 @@ router.get('/metadata/:hash', async (req: Request, res: Response) => {
 });
 
 export default router;
+
+
+
 

@@ -7,7 +7,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 
 // Program ID from IDL
-export const GENUINEGRADS_PROGRAM_ID = new PublicKey('J9Bsd3MSutBQDqsaXc5otLvDmrrN7vEynx2fYaH296FX');
+export const GENUINEGRADS_PROGRAM_ID = new PublicKey('5CBnkDYCPPu9tzNqdgYJkjQpsFgeiTkdR2R64TP9HQUZ');
 
 // Well-known program IDs
 export const MPL_CORE_PROGRAM_ID = new PublicKey('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
