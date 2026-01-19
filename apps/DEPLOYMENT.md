@@ -46,14 +46,14 @@ ssh root@YOUR_DROPLET_IP
 ### Update system and install Docker
 ```bash
 # Update packages
-apt update && apt upgrade -y
+sudo apt update && sudo apt upgrade -y
 
 # Install Docker
-curl -fsSL https://get.docker.com -o get-docker.sh
-sh get-docker.sh
+sudo curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
 
 # Install Docker Compose
-apt install docker-compose-plugin -y
+sudo apt install docker-compose-plugin -y
 
 # Verify installation
 docker --version
@@ -94,7 +94,7 @@ JWT_SECRET=your_64_char_hex_secret
 JWT_REFRESH_SECRET=your_64_char_hex_secret
 SOLANA_NETWORK=devnet
 SOLANA_RPC_URL=https://devnet.helius-rpc.com/?api-key=YOUR_KEY
-SOLANA_PROGRAM_ID=J9Bsd3MSutBQDqsaXc5otLvDmrrN7vEynx2fYaH296FX
+SOLANA_PROGRAM_ID=5CBnkDYCPPu9tzNqdgYJkjQpsFgeiTkdR2R64TP9HQUZ
 SOLANA_SUPER_ADMIN_PUBKEY=YOUR_WALLET_PUBKEY
 HELIUS_API_KEY=YOUR_HELIUS_KEY
 PINATA_JWT=YOUR_PINATA_JWT
