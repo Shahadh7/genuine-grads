@@ -19,10 +19,10 @@ function loadKeypair(fromPath?: string): Keypair {
   const resolved =
     fromPath ||
     process.env.KEYPAIR_PATH ||
-    path.join(process.env.HOME || process.env.USERPROFILE || "", ".config", "solana", "id.json");
+    path.join(__dirname, "..", "..", "..", "main-deploy-wallet.json");
   if (!fs.existsSync(resolved)) {
     throw new Error(
-      `Keypair not found at ${resolved}. Set KEYPAIR_PATH or place your key at ~/.config/solana/id.json`
+      `Keypair not found at ${resolved}. Set KEYPAIR_PATH or ensure main-deploy-wallet.json exists`
     );
   }
   const secret = JSON.parse(fs.readFileSync(resolved, "utf-8"));

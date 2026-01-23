@@ -17,6 +17,8 @@ import { graphqlClient } from '@/lib/graphql-client';
 import { useToast } from '@/hooks/useToast';
 import { ArrowLeft, Loader2, Search, UserPlus } from 'lucide-react';
 import Link from 'next/link';
+import { enrollStudentSchema } from '@/lib/validation/schemas/student';
+import { validateFormData } from '@/lib/validation/utils';
 
 interface Student {
   id: string;
@@ -52,10 +54,11 @@ export default function EnrollStudentPage() {
     courseCredits: '',
     courseDepartment: '',
     degreeType: 'Bachelor',
-    batchYear: new Date().getFullYear(),
+    batchYear: new Date().getFullYear().toString(),
     gpa: '',
     grade: '',
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadStudents();
@@ -89,14 +92,18 @@ export default function EnrollStudentPage() {
       return;
     }
 
-    if (!formData.courseCode || !formData.courseName || !formData.courseDepartment) {
+    // Validate form using Yup schema
+    const { isValid, errors: validationErrors } = await validateFormData(enrollStudentSchema, formData);
+    if (!isValid) {
+      setErrors(validationErrors);
       toast.error({
-        title: 'Missing required fields',
-        description: 'Please fill in course code, name, and department.',
+        title: 'Validation error',
+        description: 'Please fix the validation errors before submitting.',
       });
       return;
     }
 
+    setErrors({});
     setLoading(true);
 
     try {
@@ -110,7 +117,7 @@ export default function EnrollStudentPage() {
           department: formData.courseDepartment,
           degreeType: formData.degreeType,
         },
-        batchYear: formData.batchYear,
+        batchYear: parseInt(formData.batchYear),
         gpa: formData.gpa ? parseFloat(formData.gpa) : undefined,
         grade: formData.grade || undefined,
       };
@@ -135,10 +142,11 @@ export default function EnrollStudentPage() {
         courseCredits: '',
         courseDepartment: '',
         degreeType: 'Bachelor',
-        batchYear: new Date().getFullYear(),
+        batchYear: new Date().getFullYear().toString(),
         gpa: '',
         grade: '',
       });
+      setErrors({});
 
       // Optionally navigate back to students list
       setTimeout(() => {
@@ -266,11 +274,18 @@ export default function EnrollStudentPage() {
                 <Input
                   id="courseCode"
                   value={formData.courseCode}
-                  onChange={(e) => setFormData({ ...formData, courseCode: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, courseCode: e.target.value });
+                    if (errors.courseCode) setErrors(prev => { const next = {...prev}; delete next.courseCode; return next; });
+                  }}
                   placeholder="e.g., CS201"
+                  className={errors.courseCode ? 'border-destructive' : ''}
                   disabled={!selectedStudent || loading}
                   required
                 />
+                {errors.courseCode && (
+                  <p className="text-sm text-destructive">{errors.courseCode}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -280,11 +295,18 @@ export default function EnrollStudentPage() {
                 <Input
                   id="courseName"
                   value={formData.courseName}
-                  onChange={(e) => setFormData({ ...formData, courseName: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, courseName: e.target.value });
+                    if (errors.courseName) setErrors(prev => { const next = {...prev}; delete next.courseName; return next; });
+                  }}
                   placeholder="e.g., Data Structures"
+                  className={errors.courseName ? 'border-destructive' : ''}
                   disabled={!selectedStudent || loading}
                   required
                 />
+                {errors.courseName && (
+                  <p className="text-sm text-destructive">{errors.courseName}</p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -294,11 +316,18 @@ export default function EnrollStudentPage() {
                 <Input
                   id="courseDepartment"
                   value={formData.courseDepartment}
-                  onChange={(e) => setFormData({ ...formData, courseDepartment: e.target.value })}
+                  onChange={(e) => {
+                    setFormData({ ...formData, courseDepartment: e.target.value });
+                    if (errors.courseDepartment) setErrors(prev => { const next = {...prev}; delete next.courseDepartment; return next; });
+                  }}
                   placeholder="e.g., Computer Science"
+                  className={errors.courseDepartment ? 'border-destructive' : ''}
                   disabled={!selectedStudent || loading}
                   required
                 />
+                {errors.courseDepartment && (
+                  <p className="text-sm text-destructive">{errors.courseDepartment}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -356,10 +385,14 @@ export default function EnrollStudentPage() {
                     id="batchYear"
                     type="number"
                     value={formData.batchYear}
-                    onChange={(e) => setFormData({ ...formData, batchYear: parseInt(e.target.value) })}
+                    onChange={(e) => setFormData({ ...formData, batchYear: e.target.value })}
+                    className={errors.batchYear ? 'border-destructive' : ''}
                     disabled={!selectedStudent || loading}
                     required
                   />
+                  {errors.batchYear && (
+                    <p className="text-sm text-destructive">{errors.batchYear}</p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mt-4">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,17 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import PasswordStrengthBar from '@/components/admin/password-strength-bar';
 import SuccessDialog from '@/components/admin/success-dialog';
-import { 
-  Building, 
-  Mail, 
-  Globe, 
-  User, 
-  Lock, 
+import {
+  Building,
+  User,
   CheckCircle,
   AlertTriangle,
   ArrowRight,
-  GraduationCap,
-  MapPin,
   Wallet
 } from 'lucide-react';
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
@@ -27,10 +22,8 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { graphqlClient } from '@/lib/graphql-client';
 import { registerUniversityOnChain } from '@/lib/solana/university';
 import { useToast } from '@/hooks/useToast';
-
-const UNIVERSITY_NAME_MIN = 3;
-const UNIVERSITY_NAME_MAX = 64;
-const UNIVERSITY_URI_MAX = 60;
+import { useYupValidation } from '@/lib/validation/hooks';
+import { universityRegistrationSchema, UniversityRegistrationFormData } from '@/lib/validation/schemas/university';
 
 export default function UniversityRegistrationPage(): React.JSX.Element {
   const router = useRouter();
@@ -38,20 +31,29 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
   const wallet = useWallet();
   const { publicKey, connected } = wallet;
   const toast = useToast();
-  
-  const [formData, setFormData] = useState({
-    universityName: '',
-    email: '',
-    domain: '',
-    country: '',
-    logoUrl: '',
-    websiteUrl: '',
-    adminName: '',
-    password: '',
-    confirmPassword: ''
+
+  const {
+    formData,
+    errors,
+    setErrors,
+    handleInputChange,
+    validateForm: validateYupForm,
+  } = useYupValidation<UniversityRegistrationFormData>({
+    schema: universityRegistrationSchema,
+    initialValues: {
+      universityName: '',
+      email: '',
+      domain: '',
+      country: '',
+      logoUrl: '',
+      websiteUrl: '',
+      adminName: '',
+      password: '',
+      confirmPassword: ''
+    },
+    clearErrorOnChange: true,
   });
 
-  const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [loading, setLoading] = useState(false);
   const [signingTransaction, setSigningTransaction] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -61,86 +63,17 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  // Validate form fields
-  const validateForm = () => {
-    const newErrors: {[key: string]: string} = {};
+  // Validate form fields (Yup + wallet check)
+  const validateForm = async () => {
+    const isYupValid = await validateYupForm();
 
-    // University Name validation
-    if (!formData.universityName.trim()) {
-      newErrors.universityName = 'University name is required';
-    } else if (formData.universityName.trim().length < UNIVERSITY_NAME_MIN) {
-      newErrors.universityName = `University name must be at least ${UNIVERSITY_NAME_MIN} characters`;
-    } else if (formData.universityName.trim().length > UNIVERSITY_NAME_MAX) {
-      newErrors.universityName = `University name must be ${UNIVERSITY_NAME_MAX} characters or fewer`;
-    }
-
-    // Email validation
-    if (!formData.email.trim()) {
-      newErrors.email = 'Admin email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-
-    // Domain validation
-    if (!formData.domain.trim()) {
-      newErrors.domain = 'University domain is required';
-    } else if (!/^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/.test(formData.domain)) {
-      newErrors.domain = 'Please enter a valid domain (e.g., university.edu)';
-    }
-
-    // Country validation
-    if (!formData.country.trim()) {
-      newErrors.country = 'Country is required';
-    }
-
-    // Admin Name validation
-    if (!formData.adminName.trim()) {
-      newErrors.adminName = 'Admin full name is required';
-    }
-
-    // Password validation
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
-    }
-
-    // Confirm Password validation
-    if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm the password';
-    } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-    }
-
-    // Wallet validation
+    // Also validate wallet connection (not part of Yup schema)
     if (!connected || !publicKey) {
-      newErrors.wallet = 'Wallet connection is required';
+      setErrors(prev => ({ ...prev, wallet: 'Wallet connection is required' }));
+      return false;
     }
 
-    // Website URL validation (optional)
-    if (formData.websiteUrl) {
-      if (!/^https?:\/\/.+/.test(formData.websiteUrl)) {
-        newErrors.websiteUrl = 'Please enter a valid URL (e.g., https://university.edu)';
-      } else if (formData.websiteUrl.length > UNIVERSITY_URI_MAX) {
-        newErrors.websiteUrl = `Website URL must be ${UNIVERSITY_URI_MAX} characters or fewer to fit on-chain metadata`;
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-
-    // Clear error when user types
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
+    return isYupValid;
   };
 
   const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -216,12 +149,12 @@ export default function UniversityRegistrationPage(): React.JSX.Element {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    const isValid = await validateForm();
+    if (!isValid) {
       return;
     }
 
     setLoading(true);
-    setErrors({});
 
     try {
       if (!publicKey || !connection) {

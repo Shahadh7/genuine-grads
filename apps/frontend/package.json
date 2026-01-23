@@ -44,7 +44,8 @@
 		"react-qr-code": "^2.0.18",
 		"snarkjs": "^0.7.5",
 		"tailwind-merge": "^3.3.1",
-		"tailwindcss-animate": "^1.0.7"
+		"tailwindcss-animate": "^1.0.7",
+		"yup": "^1.7.1"
 	},
 	"devDependencies": {
 		"@tailwindcss/postcss": "^4",

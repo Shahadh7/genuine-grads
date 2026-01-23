@@ -9,12 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '@/components/ui/select';
 import { graphqlClient } from '@/lib/graphql-client';
 import { useRoleGuard } from '@/hooks/useRoleGuard';
@@ -23,6 +23,8 @@ import Link from 'next/link';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/useToast';
 import { validateNIC } from '@/lib/validators';
+import { addStudentSchema } from '@/lib/validation/schemas/student';
+import { validateFormData } from '@/lib/validation/utils';
 
 interface AchievementOption {
   id: string;
@@ -329,19 +331,16 @@ export default function AddStudentPage(): React.JSX.Element {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
-    // Validate NIC before submission
-    const nicValidation = validateNIC(formData.nationalId.trim());
-    if (!nicValidation.isValid) {
-      setErrors((prev) => ({
-        ...prev,
-        nationalId: nicValidation.error || 'Invalid NIC format',
-      }));
+    // Validate form using Yup schema
+    const { isValid, errors: validationErrors } = await validateFormData(addStudentSchema, formData);
+    if (!isValid) {
+      setErrors(validationErrors);
       setError('Please fix the validation errors before submitting');
-      setLoading(false);
       return;
     }
+
+    setLoading(true);
 
     try {
       const response = await graphqlClient.registerStudent({

@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { graphqlClient } from '@/lib/graphql-client';
 import { useToast } from '@/hooks/useToast';
+import { totpCodeSchema } from '@/lib/validation/schemas/common';
 
 interface TwoFactorSettingsProps {
   totpEnabled: boolean;
@@ -126,8 +127,12 @@ export default function TwoFactorSettings({ totpEnabled, onStatusChange }: TwoFa
 
   const handleVerifyAndEnable = async () => {
     const code = verifyCode.join('');
-    if (code.length !== 6) {
-      setVerifyError('Please enter the complete 6-digit code');
+
+    // Validate using Yup schema
+    try {
+      await totpCodeSchema.validate(code);
+    } catch (err: any) {
+      setVerifyError(err.message || 'Please enter the complete 6-digit code');
       return;
     }
 

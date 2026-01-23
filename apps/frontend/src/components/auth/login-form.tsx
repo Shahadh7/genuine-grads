@@ -7,21 +7,38 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { loginSchema } from '@/lib/validation/schemas/auth';
+import { validateFormData } from '@/lib/validation/utils';
 
-const LoginForm = ({ onSubmit, error, loading = false }) => {
-  const [email, setEmail] = useState<any>('');
-  const [password, setPassword] = useState<any>('');
-  const [showPassword, setShowPassword] = useState<any>(false);
+interface LoginFormProps {
+  onSubmit: (email: string, password: string) => void;
+  error?: string;
+  loading?: boolean;
+}
 
-  const handleSubmit = (e) => {
+const LoginForm = ({ onSubmit, error, loading = false }: LoginFormProps) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim() || !password.trim()) return;
+
+    // Validate using Yup schema
+    const { isValid, errors: validationErrors } = await validateFormData(loginSchema, { email, password });
+    if (!isValid) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setErrors({});
     onSubmit(email.trim(), password);
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleSubmit(e);
+      handleSubmit(e as unknown as React.FormEvent);
     }
   };
 
@@ -54,14 +71,20 @@ const LoginForm = ({ onSubmit, error, loading = false }) => {
                 type="email"
                 placeholder="Enter your email"
                 value={email}
-                onChange={(e: any) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors(prev => { const next = {...prev}; delete next.email; return next; });
+                }}
                 onKeyDown={handleKeyDown}
-                className="pl-10"
+                className={`pl-10 ${errors.email ? 'border-destructive' : ''}`}
                 disabled={loading}
                 aria-label="Email address"
                 required
               />
             </div>
+            {errors.email && (
+              <p className="text-sm text-destructive">{errors.email}</p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -75,9 +98,12 @@ const LoginForm = ({ onSubmit, error, loading = false }) => {
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Enter your password"
                 value={password}
-                onChange={(e: any) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (errors.password) setErrors(prev => { const next = {...prev}; delete next.password; return next; });
+                }}
                 onKeyDown={handleKeyDown}
-                className="pl-10 pr-10"
+                className={`pl-10 pr-10 ${errors.password ? 'border-destructive' : ''}`}
                 disabled={loading}
                 aria-label="Password"
                 required
@@ -97,12 +123,15 @@ const LoginForm = ({ onSubmit, error, loading = false }) => {
                 )}
               </Button>
             </div>
+            {errors.password && (
+              <p className="text-sm text-destructive">{errors.password}</p>
+            )}
           </div>
 
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || !email.trim() || !password.trim()}
+            disabled={loading}
           >
             {loading ? (
               <div className="flex items-center space-x-2">

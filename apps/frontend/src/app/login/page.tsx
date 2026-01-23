@@ -20,18 +20,26 @@ import {
 } from 'lucide-react';
 import { graphqlClient } from '@/lib/graphql-client';
 import { createSessionFromAdmin, setSession } from '@/lib/session';
+import { useYupValidation } from '@/lib/validation/hooks';
+import { loginSchema, LoginFormData } from '@/lib/validation/schemas/auth';
 
 export default function LoginPage(): React.JSX.Element {
   const router = useRouter();
 
-  const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+  const {
+    formData,
+    errors,
+    setErrors,
+    handleInputChange,
+    validateForm,
+  } = useYupValidation<LoginFormData>({
+    schema: loginSchema,
+    initialValues: { email: '', password: '' },
+    clearErrorOnChange: true,
   });
 
   const [totpCode, setTotpCode] = useState(['', '', '', '', '', '']);
   const [requiresTOTP, setRequiresTOTP] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
   const totpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -42,21 +50,6 @@ export default function LoginPage(): React.JSX.Element {
       totpInputRefs.current[0].focus();
     }
   }, [requiresTOTP]);
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
-  };
 
   const handleTotpChange = (index: number, value: string) => {
     // Only allow digits
@@ -107,24 +100,11 @@ export default function LoginPage(): React.JSX.Element {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Basic validation
-    const newErrors: Record<string, string> = {};
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
-    }
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    }
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+    // Validate using Yup schema
+    const isValid = await validateForm();
+    if (!isValid) return;
 
     setLoading(true);
-    setErrors({});
 
     try {
       const response = await graphqlClient.login(
@@ -359,7 +339,7 @@ export default function LoginPage(): React.JSX.Element {
                     type="email"
                     placeholder="admin@university.edu"
                     value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    onChange={(e) => handleInputChange('email', e.target.value as string)}
                     className={errors.email ? 'border-red-500' : ''}
                     disabled={loading}
                   />
@@ -379,7 +359,7 @@ export default function LoginPage(): React.JSX.Element {
                     type="password"
                     placeholder="Enter your password"
                     value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    onChange={(e) => handleInputChange('password', e.target.value as string)}
                     className={errors.password ? 'border-red-500' : ''}
                     disabled={loading}
                   />

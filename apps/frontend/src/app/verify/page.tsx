@@ -8,26 +8,34 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { QRScanner } from '@/components/qr-scanner'
 import { Search, ScanLine, ArrowRight } from 'lucide-react'
+import { useYupValidation } from '@/lib/validation/hooks'
+import { certificateVerificationSchema, CertificateVerificationFormData } from '@/lib/validation/schemas/certificate'
 
 export default function VerifyPage(): React.JSX.Element {
-  const [certificateId, setCertificateId] = useState<string>('')
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [error, setError] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'manual' | 'scan'>('manual')
   const router = useRouter()
 
+  const {
+    formData,
+    errors,
+    handleInputChange,
+    validateForm,
+  } = useYupValidation<CertificateVerificationFormData>({
+    schema: certificateVerificationSchema,
+    initialValues: { certificateId: '' },
+    clearErrorOnChange: true,
+  })
+
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault()
-    
-    if (!certificateId.trim()) {
-      setError('Please enter a certificate ID')
-      return
-    }
+
+    const isValid = await validateForm()
+    if (!isValid) return
 
     setIsLoading(true)
-    setError('')
-    
-    router.push(`/verify/${certificateId.trim()}`)
+
+    router.push(`/verify/${formData.certificateId.trim()}`)
   }
 
   const handleQRScan = (scannedCertificateId: string) => {
@@ -104,17 +112,14 @@ export default function VerifyPage(): React.JSX.Element {
                         id="certificateId"
                         type="text"
                         placeholder="e.g., abc123 or mint address"
-                        value={certificateId}
-                        onChange={(e) => {
-                          setCertificateId(e.target.value)
-                          if (error) setError('')
-                        }}
+                        value={formData.certificateId}
+                        onChange={(e) => handleInputChange('certificateId', e.target.value)}
                         onKeyDown={handleKeyDown}
-                        className="h-12 sm:h-14 text-base px-4 bg-background border-border/60 focus:border-primary/50"
+                        className={`h-12 sm:h-14 text-base px-4 bg-background border-border/60 focus:border-primary/50 ${errors.certificateId ? 'border-destructive' : ''}`}
                         aria-label="Certificate ID input"
                       />
-                      {error && (
-                        <p className="text-sm text-destructive mt-1">{error}</p>
+                      {errors.certificateId && (
+                        <p className="text-sm text-destructive mt-1">{errors.certificateId}</p>
                       )}
                     </div>
                     
