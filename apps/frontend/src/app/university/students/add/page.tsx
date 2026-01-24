@@ -961,26 +961,6 @@ export default function AddStudentPage(): React.JSX.Element {
             </CardContent>
           </Card>
 
-          {/* Stats Card */}
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-green-500/5 to-green-600/10">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Quick Stats</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Total Students</span>
-                <Badge variant="secondary">1,247</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">This Month</span>
-                <Badge variant="default">+12</Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Active Programs</span>
-                <Badge variant="outline">8</Badge>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
