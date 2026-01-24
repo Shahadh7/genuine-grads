@@ -538,8 +538,8 @@ export function BulkMintDialog({ open, onClose, certificateIds, onComplete }: Bu
           </div>
 
           {/* Certificate List */}
-          <ScrollArea className="flex-1 border rounded-lg p-4">
-            <div className="space-y-2">
+          <ScrollArea className="flex-1 border rounded-lg p-4 min-h-0">
+            <div className="space-y-2 pr-4">
               {progress.map((cert, index) => (
                 <div
                   key={cert.certificateId}
