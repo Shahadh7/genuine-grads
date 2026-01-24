@@ -47,7 +47,6 @@ export const addStudentSchema = yup.object({
   studentNumber: requiredString('Student number'),
   nationalId: nicSchema,
   email: emailSchema,
-  program: requiredString('Program'),
   department: requiredString('Department'),
   enrollmentYear: yearStringSchema,
   walletAddress: walletAddressSchema,

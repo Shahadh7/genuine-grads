@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -46,23 +45,24 @@ export default function AddStudentPage(): React.JSX.Element {
   const router = useRouter();
   const { loading: guardLoading } = useRoleGuard(['university_admin']);
   const toast = useToast();
-  interface ProgramData {
-    program: string;
-    courseCode: string;
-    courseName: string;
-    degreeType: string;
-    department: string;
+  interface Course {
+    id: string;
+    name: string;
+    code: string;
+    description?: string;
     credits?: number;
+    department?: string;
+    level?: string;
+    isActive: boolean;
   }
-  const [programs, setPrograms] = useState<string[]>([]);
-  const [programDataMap, setProgramDataMap] = useState<Map<string, ProgramData>>(new Map());
-  const [programsLoading, setProgramsLoading] = useState<boolean>(true);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [coursesLoading, setCoursesLoading] = useState<boolean>(true);
+  const [selectedCourseId, setSelectedCourseId] = useState<string>('');
   const [formData, setFormData] = useState({
     fullName: '',
     studentNumber: '',
     nationalId: '',
     email: '',
-    program: '',
     department: '',
     enrollmentYear: new Date().getFullYear().toString(),
     walletAddress: '',
@@ -117,61 +117,16 @@ export default function AddStudentPage(): React.JSX.Element {
   }, [availableAchievements, achievementSearch, selectedAchievements]);
 
   useEffect(() => {
-    const loadPrograms = async () => {
-      interface StudentRecord {
-        program?: string | null;
-        department?: string | null;
-        enrollments?: Array<{
-          course?: {
-            code?: string | null;
-            name?: string | null;
-            level?: string | null;
-            department?: string | null;
-            credits?: number | null;
-          } | null;
-        }> | null;
-      }
+    const loadCourses = async () => {
       try {
-        const response = await graphqlClient.getStudents({ limit: 200 });
-        const students = (response.data?.students ?? []) as StudentRecord[];
-
-        // Build a map of program -> course data (use the first enrollment's course)
-        const dataMap = new Map<string, ProgramData>();
-
-        for (const student of students) {
-          const program = student.program?.trim();
-          if (!program || dataMap.has(program)) continue;
-
-          const firstEnrollment = student.enrollments?.[0];
-          const course = firstEnrollment?.course;
-
-          if (course) {
-            dataMap.set(program, {
-              program,
-              courseCode: course.code?.trim() ?? '',
-              courseName: course.name?.trim() ?? '',
-              degreeType: course.level?.trim() ?? '',
-              department: course.department?.trim() ?? student.department?.trim() ?? '',
-              credits: course.credits ?? undefined,
-            });
-          }
-        }
-
-        setProgramDataMap(dataMap);
-
-        const uniquePrograms = Array.from(
-          new Set(
-            students
-              .map((student) => student.program?.trim())
-              .filter((program): program is string => !!program)
-          )
-        ).sort((a, b) => a.localeCompare(b));
-
-        setPrograms(uniquePrograms);
+        setCoursesLoading(true);
+        const response = await graphqlClient.getCourses({ isActive: true });
+        const fetchedCourses = (response.data?.courses ?? []) as Course[];
+        setCourses(fetchedCourses);
       } catch (loadError) {
         // Silent fail
       } finally {
-        setProgramsLoading(false);
+        setCoursesLoading(false);
       }
     };
 
@@ -188,7 +143,7 @@ export default function AddStudentPage(): React.JSX.Element {
       }
     };
 
-    loadPrograms();
+    loadCourses();
     loadAchievements();
   }, []);
 
@@ -218,20 +173,25 @@ export default function AddStudentPage(): React.JSX.Element {
       }
     }
 
-    // Auto-fill course fields when program is selected from existing programs
-    if (field === 'program' && value.trim()) {
-      const programData = programDataMap.get(value.trim());
-      if (programData) {
-        setFormData((prev) => ({
-          ...prev,
-          program: value,
-          courseCode: programData.courseCode || prev.courseCode,
-          courseName: programData.courseName || prev.courseName,
-          degreeType: programData.degreeType || prev.degreeType,
-          department: programData.department || prev.department,
-          courseCredits: programData.credits?.toString() ?? prev.courseCredits,
-        }));
-      }
+    // Clear selected course when manually editing course fields
+    if (['courseCode', 'courseName', 'degreeType'].includes(field)) {
+      setSelectedCourseId('');
+    }
+  };
+
+  const handleCourseSelect = (courseId: string) => {
+    setSelectedCourseId(courseId);
+    const selectedCourse = courses.find((course) => course.id === courseId);
+    if (selectedCourse) {
+      setFormData((prev) => ({
+        ...prev,
+        courseCode: selectedCourse.code,
+        courseName: selectedCourse.name,
+        courseDescription: selectedCourse.description || '',
+        courseCredits: selectedCourse.credits?.toString() ?? '',
+        degreeType: selectedCourse.level || '',
+        department: selectedCourse.department || prev.department,
+      }));
     }
   };
 
@@ -349,7 +309,7 @@ export default function AddStudentPage(): React.JSX.Element {
         studentNumber: formData.studentNumber.trim(),
         nationalId: formData.nationalId.trim(),
         walletAddress: formData.walletAddress.trim(),
-        program: formData.program.trim(),
+        program: formData.courseName.trim(),
         department: formData.department.trim(),
         enrollmentYear: Number(formData.enrollmentYear),
         primaryEnrollment: {
@@ -412,7 +372,6 @@ export default function AddStudentPage(): React.JSX.Element {
     validateNIC(formData.nationalId.trim()).isValid &&
     !errors.nationalId &&
     formData.email.trim().length > 0 &&
-    formData.program.trim().length > 0 &&
     formData.department.trim().length > 0 &&
     formData.enrollmentYear.trim().length > 0 &&
     !Number.isNaN(Number(formData.enrollmentYear)) &&
@@ -487,9 +446,14 @@ export default function AddStudentPage(): React.JSX.Element {
                       placeholder="Enter student's full name"
                       value={formData.fullName}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('fullName', e.target.value)}
-                      className="h-11 bg-background/50 border-muted focus:border-primary"
+                      className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                        errors.fullName ? 'border-destructive focus:border-destructive' : ''
+                      }`}
                       required
                     />
+                    {errors.fullName && (
+                      <p className="text-sm text-destructive">{errors.fullName}</p>
+                    )}
                   </div>
 
                   <div className="space-y-3">
@@ -501,9 +465,14 @@ export default function AddStudentPage(): React.JSX.Element {
                       placeholder="e.g. STU-2025-001"
                       value={formData.studentNumber}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('studentNumber', e.target.value)}
-                      className="h-11 bg-background/50 border-muted focus:border-primary"
+                      className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                        errors.studentNumber ? 'border-destructive focus:border-destructive' : ''
+                      }`}
                       required
                     />
+                    {errors.studentNumber && (
+                      <p className="text-sm text-destructive">{errors.studentNumber}</p>
+                    )}
                   </div>
                 </div>
 
@@ -547,96 +516,92 @@ export default function AddStudentPage(): React.JSX.Element {
                     placeholder="Enter student's email address"
                     value={formData.email}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('email', e.target.value)}
-                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                    className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                      errors.email ? 'border-destructive focus:border-destructive' : ''
+                    }`}
                     required
                   />
-                </div>
-
-                {/* Program */}
-                <div className="space-y-3">
-                  <Label htmlFor="program" className="text-sm font-medium">
-                    Program Enrolled <span className="text-destructive">*</span>
-                  </Label>
-                  {programsLoading ? (
-                    <Input
-                      id="program"
-                      placeholder="Loading programs..."
-                      disabled
-                      className="h-11 bg-background/50 border-muted"
-                    />
-                  ) : programs.length > 0 ? (
-                    <>
-                      <Select
-                        value={formData.program}
-                        onValueChange={(value) => handleInputChange('program', value)}
-                      >
-                        <SelectTrigger className="h-11 bg-background/50 border-muted focus:border-primary">
-                          <SelectValue placeholder="Select an existing program" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {programs.map((program) => (
-                            <SelectItem key={program} value={program}>
-                              {program}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Select from existing programs, or enter a new one below
-                      </p>
-                      <Input
-                        id="program-custom"
-                        placeholder="Or enter a new program name"
-                        value={programs.includes(formData.program) ? '' : formData.program}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('program', e.target.value)}
-                        className="h-11 bg-background/50 border-muted focus:border-primary"
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <Input
-                        id="program"
-                        placeholder="Enter the program name"
-                        value={formData.program}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('program', e.target.value)}
-                        className="h-11 bg-background/50 border-muted focus:border-primary"
-                        required
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Enter the program name
-                      </p>
-                    </>
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email}</p>
                   )}
                 </div>
 
-            {/* Primary Course Details */}
+            {/* Course Selection */}
             <div className="space-y-6">
+              <div className="space-y-3">
+                <Label htmlFor="courseSelect" className="text-sm font-medium">
+                  Select Course <span className="text-destructive">*</span>
+                </Label>
+                {coursesLoading ? (
+                  <div className="h-11 flex items-center justify-center bg-background/50 border border-muted rounded-md">
+                    <p className="text-sm text-muted-foreground">Loading courses...</p>
+                  </div>
+                ) : courses.length > 0 ? (
+                  <>
+                    <Select
+                      value={selectedCourseId}
+                      onValueChange={handleCourseSelect}
+                    >
+                      <SelectTrigger id="courseSelect" className="w-full h-11 bg-background/50 border-muted focus:border-primary">
+                        <SelectValue placeholder="Select a course from the list" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {courses.map((course) => (
+                          <SelectItem key={course.id} value={course.id}>
+                            {course.code} - {course.name} ({course.level})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Select an existing course or enter course details manually below
+                    </p>
+                  </>
+                ) : (
+                  <div className="p-3 bg-muted/50 border border-muted rounded-md">
+                    <p className="text-sm text-muted-foreground">
+                      No courses available. Please enter course details manually below.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="grid gap-6 md:grid-cols-3">
                 <div className="space-y-3">
                   <Label htmlFor="courseCode" className="text-sm font-medium">
-                    Primary Course Code <span className="text-destructive">*</span>
+                    Course Code <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="courseCode"
-                    placeholder="e.g. CSC-401"
+                    placeholder="e.g. BIT-001"
                     value={formData.courseCode}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('courseCode', e.target.value)}
-                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                    className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                      errors.courseCode ? 'border-destructive focus:border-destructive' : ''
+                    }`}
                     required
                   />
+                  {errors.courseCode && (
+                    <p className="text-sm text-destructive">{errors.courseCode}</p>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <Label htmlFor="courseName" className="text-sm font-medium">
-                    Primary Course Name <span className="text-destructive">*</span>
+                    Course Name <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="courseName"
-                    placeholder="e.g. Bachelor of Science in Computer Science"
+                    placeholder="e.g. Bachelor of Information Technology"
                     value={formData.courseName}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('courseName', e.target.value)}
-                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                    className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                      errors.courseName ? 'border-destructive focus:border-destructive' : ''
+                    }`}
                     required
                   />
+                  {errors.courseName && (
+                    <p className="text-sm text-destructive">{errors.courseName}</p>
+                  )}
                 </div>
                 <div className="space-y-3">
                   <Label htmlFor="degreeType" className="text-sm font-medium">
@@ -647,9 +612,14 @@ export default function AddStudentPage(): React.JSX.Element {
                     placeholder="e.g. Bachelor"
                     value={formData.degreeType}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('degreeType', e.target.value)}
-                    className="h-11 bg-background/50 border-muted focus:border-primary"
+                    className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                      errors.degreeType ? 'border-destructive focus:border-destructive' : ''
+                    }`}
                     required
                   />
+                  {errors.degreeType && (
+                    <p className="text-sm text-destructive">{errors.degreeType}</p>
+                  )}
                 </div>
               </div>
               <div className="grid gap-6 md:grid-cols-2">
@@ -695,9 +665,14 @@ export default function AddStudentPage(): React.JSX.Element {
                       placeholder="e.g. Faculty of Engineering"
                       value={formData.department}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('department', e.target.value)}
-                      className="h-11 bg-background/50 border-muted focus:border-primary"
+                      className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                        errors.department ? 'border-destructive focus:border-destructive' : ''
+                      }`}
                       required
                     />
+                    {errors.department && (
+                      <p className="text-sm text-destructive">{errors.department}</p>
+                    )}
                   </div>
 
                   <div className="space-y-3">
@@ -712,9 +687,14 @@ export default function AddStudentPage(): React.JSX.Element {
                       placeholder="e.g. 2025"
                       value={formData.enrollmentYear}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('enrollmentYear', e.target.value)}
-                      className="h-11 bg-background/50 border-muted focus:border-primary"
+                      className={`h-11 bg-background/50 border-muted focus:border-primary ${
+                        errors.enrollmentYear ? 'border-destructive focus:border-destructive' : ''
+                      }`}
                       required
                     />
+                    {errors.enrollmentYear && (
+                      <p className="text-sm text-destructive">{errors.enrollmentYear}</p>
+                    )}
                   </div>
                 </div>
 
@@ -759,13 +739,20 @@ export default function AddStudentPage(): React.JSX.Element {
                     placeholder="Enter student's Solana wallet address"
                     value={formData.walletAddress}
                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('walletAddress', e.target.value)}
-                    className="h-11 bg-background/50 border-muted focus:border-primary font-mono text-sm"
+                    className={`h-11 bg-background/50 border-muted focus:border-primary font-mono text-sm ${
+                      errors.walletAddress ? 'border-destructive focus:border-destructive' : ''
+                    }`}
                     required
                   />
-                  <p className="text-sm text-muted-foreground flex items-center gap-2">
-                    <Info className="h-3 w-3" />
-                    Student must have a connected Solana wallet to be registered
-                  </p>
+                  {errors.walletAddress && (
+                    <p className="text-sm text-destructive">{errors.walletAddress}</p>
+                  )}
+                  {!errors.walletAddress && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <Info className="h-3 w-3" />
+                      Student must have a connected Solana wallet to be registered
+                    </p>
+                  )}
                 </div>
 
               {/* Achievements */}

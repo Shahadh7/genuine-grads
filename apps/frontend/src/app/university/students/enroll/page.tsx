@@ -15,10 +15,29 @@ import {
 } from '@/components/ui/select';
 import { graphqlClient } from '@/lib/graphql-client';
 import { useToast } from '@/hooks/useToast';
-import { ArrowLeft, Loader2, Search, UserPlus } from 'lucide-react';
+import { ArrowLeft, Loader2, Search, UserPlus, Trophy, Plus, X } from 'lucide-react';
 import Link from 'next/link';
 import { enrollStudentSchema } from '@/lib/validation/schemas/student';
 import { validateFormData } from '@/lib/validation/utils';
+import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { useMemo } from 'react';
+
+interface AchievementOption {
+  id: string;
+  title: string;
+  description?: string | null;
+  category?: string | null;
+}
+
+interface SelectedAchievement {
+  id?: string;
+  title: string;
+  description?: string | null;
+  category?: string | null;
+  notes?: string | null;
+  awardedAt?: string | null;
+}
 
 interface Student {
   id: string;
@@ -60,8 +79,47 @@ export default function EnrollStudentPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  const [availableAchievements, setAvailableAchievements] = useState<AchievementOption[]>([]);
+  const [achievementsLoading, setAchievementsLoading] = useState<boolean>(false);
+  const [achievementSearch, setAchievementSearch] = useState('');
+  const [selectedAchievements, setSelectedAchievements] = useState<SelectedAchievement[]>([]);
+  const [newAchievement, setNewAchievement] = useState({
+    title: '',
+    description: '',
+    category: '',
+  });
+
+  const filteredAchievements = useMemo(() => {
+    if (!achievementSearch) {
+      return availableAchievements.filter(
+        (item) =>
+          !selectedAchievements.some(
+            (selected) =>
+              selected.id === item.id || selected.title.toLowerCase() === item.title.toLowerCase()
+          )
+      );
+    }
+
+    const searchValue = achievementSearch.toLowerCase();
+
+    return availableAchievements.filter((item) => {
+      const alreadySelected = selectedAchievements.some(
+        (selected) =>
+          selected.id === item.id || selected.title.toLowerCase() === item.title.toLowerCase()
+      );
+      if (alreadySelected) {
+        return false;
+      }
+      return (
+        item.title.toLowerCase().includes(searchValue) ||
+        (item.description ?? '').toLowerCase().includes(searchValue)
+      );
+    });
+  }, [availableAchievements, achievementSearch, selectedAchievements]);
+
   useEffect(() => {
     loadStudents();
+    loadAchievements();
   }, []);
 
   const loadStudents = async () => {
@@ -79,6 +137,111 @@ export default function EnrollStudentPage() {
     } finally {
       setSearching(false);
     }
+  };
+
+  const loadAchievements = async () => {
+    try {
+      setAchievementsLoading(true);
+      const response = await graphqlClient.getAchievementCatalog();
+      setAvailableAchievements(response.data?.achievementCatalog ?? []);
+    } catch (error) {
+      // Silent fail - achievements are optional
+    } finally {
+      setAchievementsLoading(false);
+    }
+  };
+
+  const handleAddExistingAchievement = (achievementId: string) => {
+    const achievement = availableAchievements.find((item) => item.id === achievementId);
+    if (!achievement) {
+      return;
+    }
+
+    const alreadySelected = selectedAchievements.some(
+      (item) => item.id === achievement.id || item.title.toLowerCase() === achievement.title.toLowerCase()
+    );
+
+    if (alreadySelected) {
+      toast.info(`"${achievement.title}" is already selected.`);
+      return;
+    }
+
+    setSelectedAchievements((prev) => [
+      ...prev,
+      {
+        id: achievement.id,
+        title: achievement.title,
+        description: achievement.description ?? undefined,
+        category: achievement.category ?? undefined,
+      },
+    ]);
+
+    toast.success({
+      title: 'Achievement added',
+      description: `"${achievement.title}" linked to this enrollment.`,
+    });
+  };
+
+  const handleRemoveAchievement = (identifier: string) => {
+    setSelectedAchievements((prev) => {
+      const target = prev.find((item) => (item.id ?? item.title.toLowerCase()) === identifier);
+      const next = prev.filter((item) => {
+        const key = item.id ?? item.title.toLowerCase();
+        return key !== identifier;
+      });
+
+      if (target) {
+        toast.info({
+          title: 'Achievement removed',
+          description: `"${target.title}" will not be linked to this enrollment.`,
+        });
+      }
+
+      return next;
+    });
+  };
+
+  const handleCreateAchievement = () => {
+    const title = newAchievement.title.trim();
+    if (!title) {
+      toast.error({
+        title: 'Achievement title required',
+        description: 'Provide a title before adding a new achievement.',
+      });
+      return;
+    }
+
+    const duplicate = selectedAchievements.some(
+      (item) => item.title.toLowerCase() === title.toLowerCase()
+    );
+
+    if (duplicate) {
+      toast.warning({
+        title: 'Duplicate achievement',
+        description: `"${title}" has already been added.`,
+      });
+      return;
+    }
+
+    setSelectedAchievements((prev) => [
+      ...prev,
+      {
+        title,
+        description: newAchievement.description.trim() || undefined,
+        category: newAchievement.category.trim() || undefined,
+      },
+    ]);
+
+    setNewAchievement({
+      title: '',
+      description: '',
+      category: '',
+    });
+
+    toast.success({
+      title: 'New achievement added',
+      description: `"${title}" will be created for this enrollment.`,
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -120,6 +283,21 @@ export default function EnrollStudentPage() {
         batchYear: parseInt(formData.batchYear),
         gpa: formData.gpa ? parseFloat(formData.gpa) : undefined,
         grade: formData.grade || undefined,
+        achievements: selectedAchievements.map((achievement) =>
+          achievement.id
+            ? {
+                id: achievement.id,
+                notes: achievement.notes ?? undefined,
+                awardedAt: achievement.awardedAt ?? undefined,
+              }
+            : {
+                title: achievement.title,
+                description: achievement.description ?? undefined,
+                category: achievement.category ?? undefined,
+                notes: achievement.notes ?? undefined,
+                awardedAt: achievement.awardedAt ?? undefined,
+              }
+        ),
       };
 
       const response = await graphqlClient.enrollStudentInCourse(input);
@@ -147,6 +325,12 @@ export default function EnrollStudentPage() {
         grade: '',
       });
       setErrors({});
+      setSelectedAchievements([]);
+      setNewAchievement({
+        title: '',
+        description: '',
+        category: '',
+      });
 
       // Optionally navigate back to students list
       setTimeout(() => {
@@ -419,6 +603,122 @@ export default function EnrollStudentPage() {
                       disabled={!selectedStudent || loading}
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Achievements Section */}
+              <div className="pt-4 border-t space-y-4">
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-primary" />
+                  <h3 className="font-medium">Achievements (Optional)</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Add achievements or honors related to this course enrollment.
+                </p>
+
+                <div className="space-y-3">
+                  <Label htmlFor="achievement-search" className="text-sm">
+                    Search Existing Achievements
+                  </Label>
+                  <Input
+                    id="achievement-search"
+                    placeholder="Search by title or keyword"
+                    value={achievementSearch}
+                    onChange={(e) => setAchievementSearch(e.target.value)}
+                    disabled={!selectedStudent || loading}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {achievementsLoading ? (
+                      <p className="text-xs text-muted-foreground">Loading achievements…</p>
+                    ) : filteredAchievements.slice(0, 6).map((achievement) => (
+                      <Button
+                        key={achievement.id}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full border-primary/30 text-primary hover:bg-primary/10"
+                        onClick={() => handleAddExistingAchievement(achievement.id)}
+                        disabled={!selectedStudent || loading}
+                      >
+                        <Trophy className="h-3 w-3 mr-1" />
+                        {achievement.title}
+                      </Button>
+                    ))}
+                    {!achievementsLoading && filteredAchievements.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        No achievements match your search.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {selectedAchievements.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm">Selected Achievements</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedAchievements.map((achievement) => {
+                        const identifier = achievement.id ?? achievement.title.toLowerCase();
+                        return (
+                          <Badge
+                            key={identifier}
+                            variant="secondary"
+                            className="inline-flex items-center gap-1 px-3 py-1"
+                          >
+                            <span>{achievement.title}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAchievement(identifier)}
+                              className="p-0.5 rounded-full hover:bg-muted transition-colors"
+                              aria-label={`Remove ${achievement.title}`}
+                              disabled={loading}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3 pt-3 border-t">
+                  <Label className="text-sm">Add New Achievement</Label>
+                  <Input
+                    placeholder="Achievement title (required)"
+                    value={newAchievement.title}
+                    onChange={(e) =>
+                      setNewAchievement((prev) => ({ ...prev, title: e.target.value }))
+                    }
+                    disabled={!selectedStudent || loading}
+                  />
+                  <Textarea
+                    placeholder="Description (optional)"
+                    value={newAchievement.description}
+                    onChange={(e) =>
+                      setNewAchievement((prev) => ({ ...prev, description: e.target.value }))
+                    }
+                    rows={2}
+                    disabled={!selectedStudent || loading}
+                  />
+                  <Input
+                    placeholder="Category (optional)"
+                    value={newAchievement.category}
+                    onChange={(e) =>
+                      setNewAchievement((prev) => ({ ...prev, category: e.target.value }))
+                    }
+                    disabled={!selectedStudent || loading}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                    onClick={handleCreateAchievement}
+                    disabled={!selectedStudent || loading}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Achievement
+                  </Button>
                 </div>
               </div>
 

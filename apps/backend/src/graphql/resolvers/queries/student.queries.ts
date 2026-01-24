@@ -134,7 +134,7 @@ export const studentQueries = {
             },
           },
           orderBy: {
-            createdAt: 'asc',
+            createdAt: 'desc',
           },
         },
         achievements: {

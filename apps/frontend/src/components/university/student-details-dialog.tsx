@@ -39,6 +39,21 @@ interface Achievement {
   };
 }
 
+interface Enrollment {
+  id: string;
+  batchYear: number;
+  gpa?: number;
+  grade?: string;
+  course: {
+    id: string;
+    code: string;
+    name: string;
+    credits: number;
+    department?: string;
+    level?: string;
+  };
+}
+
 interface Student {
   id: string;
   fullName?: string;
@@ -52,6 +67,7 @@ interface Student {
   isActive?: boolean;
   createdAt?: string;
   achievements?: Achievement[];
+  enrollments?: Enrollment[];
 }
 
 interface StudentDetailsDialogProps {
@@ -155,10 +171,19 @@ export function StudentDetailsDialog({
         </DialogHeader>
 
         <Tabs defaultValue="overview" className="mt-4">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <User className="h-4 w-4" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="enrollments" className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              Enrollments
+              {student.enrollments && student.enrollments.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {student.enrollments.length}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="achievements" className="flex items-center gap-2">
               <Award className="h-4 w-4" />
@@ -225,7 +250,7 @@ export function StudentDetailsDialog({
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                   <GraduationCap className="h-4 w-4 text-muted-foreground" />
                   <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Program</p>
+                    <p className="text-sm text-muted-foreground">Primary Program</p>
                     <p className="font-medium">{student.program || '—'}</p>
                   </div>
                 </div>
@@ -233,7 +258,7 @@ export function StudentDetailsDialog({
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                   <Building className="h-4 w-4 text-muted-foreground" />
                   <div className="flex-1">
-                    <p className="text-sm text-muted-foreground">Department</p>
+                    <p className="text-sm text-muted-foreground">Primary Department</p>
                     <p className="font-medium">{student.department || '—'}</p>
                   </div>
                 </div>
@@ -311,6 +336,91 @@ export function StudentDetailsDialog({
                 </div>
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="enrollments" className="mt-4">
+            {student.enrollments && student.enrollments.length > 0 ? (
+              <div className="space-y-3">
+                {student.enrollments.map((enrollment) => (
+                  <div
+                    key={enrollment.id}
+                    className="p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <BookOpen className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h5 className="font-medium">
+                            {enrollment.course.code} - {enrollment.course.name}
+                          </h5>
+                          <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/20">
+                            {enrollment.course.credits} Credits
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-2 text-sm">
+                          {enrollment.course.department && (
+                            <div className="flex items-center gap-1.5">
+                              <Building className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-muted-foreground">Department:</span>
+                              <span className="font-medium">{enrollment.course.department}</span>
+                            </div>
+                          )}
+                          {enrollment.course.level && (
+                            <div className="flex items-center gap-1.5">
+                              <GraduationCap className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-muted-foreground">Level:</span>
+                              <span className="font-medium">{enrollment.course.level}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-muted-foreground">Batch Year:</span>
+                            <span className="font-medium">{enrollment.batchYear}</span>
+                          </div>
+                          {enrollment.gpa !== null && enrollment.gpa !== undefined && (
+                            <div className="flex items-center gap-1.5">
+                              <Award className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-muted-foreground">GPA:</span>
+                              <span className="font-medium">{enrollment.gpa.toFixed(2)}</span>
+                            </div>
+                          )}
+                          {enrollment.grade && (
+                            <div className="flex items-center gap-1.5">
+                              <CheckCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="text-muted-foreground">Grade:</span>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  ['A', 'A+', 'A-'].includes(enrollment.grade)
+                                    ? 'bg-green-500/10 text-green-600 border-green-500/20'
+                                    : ['B', 'B+', 'B-'].includes(enrollment.grade)
+                                    ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                                    : ['C', 'C+', 'C-'].includes(enrollment.grade)
+                                    ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20'
+                                    : 'bg-gray-500/10 text-gray-600 border-gray-500/20'
+                                }
+                              >
+                                {enrollment.grade}
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <BookOpen className="h-12 w-12 mx-auto text-muted-foreground/50" />
+                <h3 className="mt-4 text-lg font-medium">No Enrollments</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This student hasn&apos;t been enrolled in any courses yet.
+                </p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="achievements" className="mt-4">

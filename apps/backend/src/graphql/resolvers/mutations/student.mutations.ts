@@ -1009,8 +1009,15 @@ export const studentMutations = {
           let studentRecord: any;
 
           if (existingStudentByNic) {
-            // Student already exists - use existing record
-            studentRecord = existingStudentByNic;
+            // Student already exists - update their info with latest data
+            studentRecord = await tx.student.update({
+              where: { id: existingStudentByNic.id },
+              data: {
+                program,
+                department,
+                enrollmentYear,
+              },
+            });
 
             // Check if already enrolled in this course for this batch year
             const existingEnrollment = await tx.enrollment.findFirst({

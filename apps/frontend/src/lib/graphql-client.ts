@@ -1200,6 +1200,29 @@ class GraphQLClient {
     return this.request<{ certificateTemplates: any[] }>(query, {});
   }
 
+  // Courses
+  async getCourses(params?: {
+    department?: string;
+    isActive?: boolean;
+  }) {
+    const query = `
+      query Courses($department: String, $isActive: Boolean) {
+        courses(department: $department, isActive: $isActive) {
+          id
+          name
+          code
+          description
+          credits
+          department
+          level
+          isActive
+        }
+      }
+    `;
+
+    return this.request<{ courses: any[] }>(query, params);
+  }
+
   async createCertificateTemplate(input: {
     name: string;
     degreeType: string;
