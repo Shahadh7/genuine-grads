@@ -49,6 +49,83 @@ apps/program/genuinegrads/
 └── Cargo.toml              # Rust workspace config
 ```
 
+## Account States
+
+### GlobalConfig
+Program-wide configuration account (PDA seed: `["global-config", super_admin]`):
+- `owner: Pubkey` - Super admin who governs program settings
+- `frozen: bool` - Emergency freeze flag for all operations
+- `bump: u8` - PDA bump seed
+
+### University
+University registration account (PDA seed: `["university", university_authority]`):
+- `admin: Pubkey` - Super admin from GlobalConfig
+- `authority: Pubkey` - University's operational signer
+- `name: String` - University name (max 64 chars)
+- `metadata_uri: String` - IPFS metadata URI (max 60 chars)
+- `is_active: bool` - Activation status (must be approved to mint)
+- `created_at: i64` - Creation timestamp
+- `bump: u8` - PDA bump seed
+
+### UniversityTree
+Merkle tree configuration for cNFT storage (PDA seed: `["university_tree", merkle_tree]`):
+- `admin: Pubkey` - Super admin
+- `university: Pubkey` - Owning university
+- `authority: Pubkey` - Operational authority
+- `merkle_tree: Pubkey` - SPL Compression tree address
+- `tree_config: Pubkey` - Bubblegum tree config PDA
+- `max_depth: u32` - Tree depth (affects max certificates)
+- `max_buffer_size: u32` - Buffer size for updates
+- `is_public: bool` - Public tree flag
+- `created_at: i64` - Creation timestamp
+- `bump: u8` - PDA bump seed
+
+### UniversityCollection
+MPL Core collection for certificates (PDA seed: `["university_collection", university]`):
+- `admin: Pubkey` - Super admin
+- `university: Pubkey` - Owning university
+- `authority: Pubkey` - Operational authority
+- `collection: Pubkey` - MPL Core collection address
+- `name: String` - Collection name (max 64 chars)
+- `uri: String` - Collection metadata URI (max 60 chars)
+- `created_at: i64` - Creation timestamp
+- `bump: u8` - PDA bump seed
+
+## Events
+
+The program emits events for off-chain indexing and auditing:
+
+| Event | Description |
+|-------|-------------|
+| `ConfigInitialized` | Emitted when global config is initialized |
+| `UniversityRegistered` | Emitted when a university registers |
+| `UniversityApproved` | Emitted when a university is approved |
+| `UniversityDeactivated` | Emitted when a university is deactivated |
+| `TreeCreatedV2` | Emitted when a Merkle tree is created |
+| `CollectionCreatedV2` | Emitted when an MPL Core collection is created |
+| `CertificateMintedV2` | Emitted when a certificate is minted |
+| `CertificateBurnedV2` | Emitted when a certificate is burned/revoked |
+
+## Error Codes
+
+| Code | Description |
+|------|-------------|
+| `Unauthorized` | Caller lacks required permissions |
+| `Frozen` | Program is frozen for maintenance |
+| `InvalidName` | Name exceeds maximum length or is invalid |
+| `AlreadyActive` | University is already active |
+| `AlreadyInactive` | University is already inactive |
+| `InvalidUri` | URI is invalid or too long |
+| `UniversityInactive` | Cannot perform operation on inactive university |
+| `InvalidProgramExecutable` | Invalid program executable |
+| `InvalidTreeConfig` | Invalid tree config PDA |
+| `CollectionMismatch` | Collection does not match university |
+| `TreeMismatch` | Tree does not match university |
+| `InvalidCoreCpiSigner` | Invalid CPI signer for MPL Core |
+| `MissingRemainingAccounts` | Missing accounts for CPI |
+| `MissingMerkleProof` | Missing Merkle proof accounts for burn |
+| `InvalidBurnReason` | Invalid or missing reason for certificate burn |
+
 ## Dependencies
 
 - **Anchor**: 0.31.1
