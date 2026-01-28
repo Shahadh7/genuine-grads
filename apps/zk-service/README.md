@@ -21,6 +21,23 @@ C = Poseidon(credential_hash, student_secret, salt, achievement_hash)
 
 **Constraint**: The circuit verifies that `Poseidon(credential_hash, student_secret, salt, achievement_hash) === commitment`
 
+### Cryptographic Primitives
+
+**Hash Function: Poseidon**
+- Circom-optimized for zkSNARKs (~150 constraints for 4-input)
+- 4-input permutation for commitment computation
+- Field-friendly arithmetic over BN128 scalar field (254-bit)
+
+**Proof System: Groth16**
+- Constant-size proofs (~288 bytes / 3 elliptic curve points)
+- Constant verification time (~5ms)
+- Requires trusted setup (Powers of Tau + circuit-specific Phase 2)
+
+**Elliptic Curve: BN128 (alt_bn128)**
+- 254-bit prime order
+- Ethereum precompile compatible
+- Solana verification possible via custom program
+
 ## Prerequisites
 
 1. **Install Circom** (v2.1.6+):
@@ -74,9 +91,9 @@ After building, you'll have these artifacts in `artifacts/`:
 
 | File | Purpose | Size | Location |
 |------|---------|------|----------|
-| `ach_member_v1.wasm` | Witness generation | ~500KB | Frontend |
-| `ach_member_v1.zkey` | Proving key | ~50MB | Frontend |
-| `ach_member_v1_vkey.json` | Verification key | ~2KB | Backend |
+| `ach_member_v1.wasm` | Witness generation | ~2MB | Frontend |
+| `ach_member_v1.zkey` | Proving key | ~330KB | Frontend |
+| `ach_member_v1_vkey.json` | Verification key | ~3KB | Backend |
 
 ## Deployment
 
