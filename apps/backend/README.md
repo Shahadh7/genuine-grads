@@ -246,10 +246,41 @@ mutation UniversityLogin {
 - `createCertificateTemplate` - Create template
 - `updateCertificateTemplate` - Update template
 
+**Batch Minting:**
+- `prepareBatchMinting` - Prepare multiple certificates for minting
+- `batchIssuanceJobs` - List batch issuance jobs
+- `batchIssuanceJob(jobId)` - Get batch job details
+- `cancelBatchJob` - Cancel an in-progress batch job
+
 **Analytics:**
 - `universityStats` - Get dashboard statistics
+- `universityAnalytics` - Detailed analytics over time
 - `mintActivityLogs` - View minting logs
 - `revokedCertificates` - List revoked certificates
+
+### For Students (Wallet-Based Auth)
+
+**Authentication:**
+- `studentLoginWithWallet` - Login using Solana wallet address
+
+**Profile & Data:**
+- `meStudent` - Get aggregated student profile from all universities
+- `myCertificates` - Get all certificates from MintActivityLog
+- `myAchievements` - Get achievements from all universities
+- `myVerificationLogs` - Get verification logs with pagination
+- `myVerificationLogStats` - Get verification statistics
+
+**ZK Proofs:**
+- `myZkCertificateStatus` - Get ZK status for student's certificates
+- `registerAchievementCommitment` - Register commitment for ZK proof
+- `registerAchievementCommitmentsBatch` - Batch register commitments
+- `uploadAchievementProof` - Upload generated ZK proof
+- `uploadAchievementProofsBatch` - Batch upload proofs
+
+**Notifications:**
+- `studentNotifications` - Get student notifications with pagination
+- `markNotificationAsRead` - Mark notification as read
+- `markAllNotificationsAsRead` - Mark all notifications as read
 
 ### Public (No Auth Required)
 
@@ -280,6 +311,22 @@ query VerifyCertificate {
 }
 ```
 
+**ZK Proof Verification (No Auth):**
+- `getZkAchievementStatuses` - Get ZK status for any credential
+- `verifyStoredAchievementProof` - Verify a stored ZK proof cryptographically
+
+## Real-time Notifications (SSE)
+
+Server-Sent Events endpoint for real-time notifications:
+
+- **Endpoint**: `GET /api/notifications/stream`
+- **Authentication**: Authorization header with Bearer token (query params blocked for security)
+- **Roles**: `admin`, `super_admin`, `student`
+- **Features**:
+  - Automatic reconnection with heartbeat keep-alive
+  - Priority-based notifications (LOW, NORMAL, HIGH, URGENT)
+  - Role-specific event streams
+
 ## Database Architecture
 
 ### Shared Central Database
@@ -292,14 +339,19 @@ query VerifyCertificate {
 
 ### Private University Databases
 Each university has its own isolated database:
-- **Students** - University's students
+- **Students** - University's students with NIC hash and wallet
 - **Courses** - Course catalog
-- **Enrollments** - Student enrollments
+- **Enrollments** - Student enrollments with grades/GPA
 - **Achievements** - Student badges/honors
+- **AchievementCatalog** - Achievement templates
 - **Certificates** - Issued certificates (references to cNFTs)
-- **CertificateTemplates** - Certificate templates
-- **ZKPProofRequests** - Zero-knowledge proof requests
-- **BatchIssuanceJobs** - Bulk issuance jobs
+- **CertificateTemplates** - Certificate design templates
+- **BatchIssuanceJobs** - Bulk issuance jobs with progress tracking
+- **VerificationLog** - Certificate verification audit trail
+- **ZkAchievementCommitment** - Poseidon commitments for ZK proofs
+- **ZkAchievementProof** - Groth16 proofs for selective disclosure
+- **ZkProofAuditLog** - ZK verification audit trail
+- **StudentNotification** - In-app notifications for students
 
 ## Security Features
 
@@ -311,6 +363,16 @@ Each university has its own isolated database:
 - **Role-Based Access Control** (RBAC)
 - **Rate Limiting** (recommended to add)
 - **CORS Protection**
+
+### Two-Factor Authentication (TOTP)
+
+University and super admins can enable TOTP-based 2FA:
+
+- `initiateTOTPSetup` - Generate QR code and secret for authenticator apps
+- `verifyAndEnableTOTP` - Verify code and enable 2FA
+- `disableTOTP` - Disable 2FA (requires password confirmation)
+
+Supports any TOTP authenticator app (Google Authenticator, Authy, Microsoft Authenticator, etc.).
 
 ## Testing
 
