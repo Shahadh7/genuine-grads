@@ -20,6 +20,61 @@ A Next.js 15 web application for the GenuineGrads platform - providing interface
 - **Wallet**: Solana Wallet Adapter
 - **ZK Proofs**: snarkjs + circomlibjs
 - **QR Codes**: html5-qrcode + react-qr-code
+- **Validation**: Yup schema validation
+- **Icons**: Lucide React
+
+## Form Validation
+
+The application uses **Yup** schemas for form validation:
+
+### Validation Modules (`src/lib/validation/`)
+- `schemas/common.ts` - Reusable validators (email, password, URL, wallet, GPA, TOTP)
+- `schemas/auth.ts` - Login and TOTP verification schemas
+- `schemas/student.ts` - Add student, enroll student, bulk upload schemas
+- `schemas/university.ts` - University registration schemas
+- `schemas/certificate.ts` - Certificate issuance schemas
+- `adapters/` - Custom validators (NIC validation by region)
+- `hooks/` - `useYupValidation()` hook for form state management
+
+## Real-time Notifications
+
+The `NotificationContext` provides real-time notifications via SSE:
+
+**Features:**
+- Secure SSE connection with Authorization header (not query params)
+- Automatic reconnection on failure (5s intervals)
+- Cursor-based pagination with infinite scroll
+- Priority-based toast notifications (LOW, NORMAL, HIGH, URGENT)
+- Role-specific endpoints (admin vs student)
+
+**Usage:**
+```tsx
+const {
+  notifications,
+  unreadCount,
+  isConnected,
+  markAsRead,
+  markAllAsRead
+} = useNotifications();
+```
+
+## Zero-Knowledge Proof Generation
+
+The ZK module (`src/lib/zk/`) enables privacy-preserving credential verification:
+
+### Workflow:
+1. **Generate Deterministic Secret** - Wallet signature-based secret derivation
+2. **Compute Commitment** - Poseidon hash of (credential_hash, secret, salt, achievement_hash)
+3. **Register Commitment** - Store commitment on backend
+4. **Generate Proof** - Client-side Groth16 proof using snarkjs
+5. **Upload Proof** - Store proof for employer verification
+
+### Key Files:
+- `deterministic-secrets.ts` - Wallet-based secret generation
+- `commitment.ts` - Poseidon commitment computation
+- `proof-generator.ts` - Groth16 proof generation with snarkjs
+- `hash-utils.ts` - Field element conversions
+- `constants.ts` - Circuit and artifact configurations
 
 ## Project Structure
 
@@ -70,8 +125,8 @@ yarn install
 Create a `.env.local` file:
 
 ```bash
-# Backend API URL
-NEXT_PUBLIC_API_URL=http://localhost:4000
+# Backend GraphQL URL
+NEXT_PUBLIC_GRAPHQL_URL=http://localhost:4000
 
 # Solana Network
 NEXT_PUBLIC_SOLANA_NETWORK=devnet
@@ -101,16 +156,52 @@ The app will be available at `http://localhost:3000`
 
 ## Available Routes
 
+### Public Routes
 | Route | Description |
 |-------|-------------|
-| `/` | Landing page |
-| `/login` | Admin login |
-| `/student-login` | Student wallet login |
-| `/admin/*` | Super admin dashboard |
-| `/university/*` | University admin portal |
-| `/student/*` | Student dashboard |
-| `/student/achievements` | Generate ZK proofs |
-| `/verify` | Public certificate verification |
+| `/` | Landing page with features overview |
+| `/login` | Admin/University admin login |
+| `/student-login` | Student wallet-based login |
+| `/verify` | Public certificate verification portal |
+| `/verify/[certificateId]` | Specific certificate verification |
+
+### Super Admin Routes (`/admin/*`)
+| Route | Description |
+|-------|-------------|
+| `/admin/dashboard` | Super admin dashboard with stats |
+| `/admin/universities` | List all universities |
+| `/admin/universities/register` | Register new university |
+| `/admin/universities/[id]` | University details |
+| `/admin/universities/[id]/approve` | Approve university |
+| `/admin/universities/[id]/suspend` | Suspend university |
+| `/admin/notifications` | Admin notifications |
+| `/admin/settings` | Admin settings |
+
+### University Admin Routes (`/university/*`)
+| Route | Description |
+|-------|-------------|
+| `/university/dashboard` | University dashboard |
+| `/university/students` | Student management |
+| `/university/students/add` | Add single student |
+| `/university/students/enroll` | Enroll student in course |
+| `/university/students/bulk-upload` | Bulk upload students via CSV |
+| `/university/certificates` | Certificate management |
+| `/university/certificates/designer` | Certificate template designer |
+| `/university/certificates/verify-and-draft` | Create certificate draft |
+| `/university/analytics` | University analytics |
+| `/university/settings` | University settings |
+| `/university/settings/blockchain` | Blockchain configuration (Merkle tree, collection) |
+| `/university/notifications` | University notifications |
+
+### Student Routes (`/student/*`)
+| Route | Description |
+|-------|-------------|
+| `/student/dashboard` | Student dashboard |
+| `/student/certificates` | View and share certificates |
+| `/student/achievements` | ZK proof generation for achievements |
+| `/student/verification-log` | View verification history |
+| `/student/account` | Account settings |
+| `/student/notifications` | Student notifications |
 
 ## User Flows
 
