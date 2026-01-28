@@ -6,8 +6,8 @@ import { logger } from '../../utils/logger.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-// Program ID from IDL
-export const GENUINEGRADS_PROGRAM_ID = new PublicKey('5CBnkDYCPPu9tzNqdgYJkjQpsFgeiTkdR2R64TP9HQUZ');
+// Program ID from environment variable
+export const GENUINEGRADS_PROGRAM_ID = new PublicKey(env.SOLANA_PROGRAM_ID);
 
 // Well-known program IDs
 export const MPL_CORE_PROGRAM_ID = new PublicKey('CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
