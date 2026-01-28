@@ -311,6 +311,4 @@ typechain-types/
 *.sqlite
 *.sqlite3
 
-# Environment files (keep example files)
-.env.example
-.env.sample
+

@@ -29,7 +29,7 @@ GenuineGrads enables universities to issue tamper-proof digital certificates as 
 
 ```bash
 # Clone repository
-git clone https://github.com/shahadh7/genuinegrads.git
+git clone https://github.com/shahadh7/genuine-grads.git
 cd genuinegrads
 
 # Packages installation
